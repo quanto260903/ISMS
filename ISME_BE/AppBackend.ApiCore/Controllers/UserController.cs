@@ -1,8 +1,10 @@
-﻿using AppBackend.Services;
+﻿using AppBackend.Attributes;
+using AppBackend.BusinessObjects.Dtos;
+using AppBackend.Services;
 using AppBackend.Services.ApiModels;
+using AppBackend.Services.Services.UserServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AppBackend.Attributes;
 
 namespace AppBackend.Api.Controllers
 {
@@ -19,74 +21,66 @@ namespace AppBackend.Api.Controllers
         {
             _userService = userService;
         }
-
         /// <summary>
-        /// Register a new user account
+        /// Get user by ID
         /// </summary>
-        /// <param name="request">Registration request payload</param>
-        /// <returns>JWT access token and refresh token</returns>
-        /// <response code="201">User registered successfully</response>
-        /// <response code="400">Invalid input data</response>
-        [HttpPost("register")]
-        [AllowAnonymous]
-        [RateLimit(permitLimit: 3, windowSeconds: 60, queueLimit: 1, strategy: "fixed")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        [HttpGet("{userId}")]
+        public async Task<ActionResult<ResultModel<UserDto>>> GetUserById(int userId)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var result = await _userService.GetUserByIdAsync(userId);
+            if (!result.IsSuccess)
+                return NotFound(result.Message);
 
-            var result = await _userService.RegisterAsync(request);
-            return StatusCode(result.StatusCode, result);
+            return Ok(result);
         }
 
         /// <summary>
-        /// Login an existing user
+        /// Create a new user
         /// </summary>
-        /// <param name="request">Login credentials (Email + Password)</param>
-        /// <returns>JWT access token and refresh token</returns>
-        /// <response code="200">Login successful</response>
-        /// <response code="401">Invalid credentials</response>
-        [HttpPost("login")]
-        [AllowAnonymous]
-        [RateLimit(permitLimit: 5, windowSeconds: 60, queueLimit: 2, strategy: "sliding")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        [HttpPost]
+        public async Task<ActionResult<ResultModel<UserDto>>> CreateUser([FromBody] CreateUserRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var result = await _userService.CreateUserAsync(request);
+            if (!result.IsSuccess)
+                return BadRequest(result.Message);
 
-            var result = await _userService.LoginAsync(request);
-            return StatusCode(result.StatusCode, result);
+            return CreatedAtAction(nameof(GetUserById), new { userId = result.Data.UserId }, result); // Trả về 201 Created
         }
 
         /// <summary>
-        /// Get all users (only for Admin or Manager)
+        /// Update user
         /// </summary>
-        /// <returns>List of users</returns>
-        /// <response code="200">Users retrieved successfully</response>
-        /// <response code="403">Forbidden (not enough role permissions)</response>
+        [HttpPut("{userId}")]
+        public async Task<ActionResult<ResultModel<UserDto>>> UpdateUser(int userId, [FromBody] UpdateUserRequest request)
+        {
+            var result = await _userService.UpdateUserAsync(userId, request);
+            if (!result.IsSuccess)
+                return NotFound(result.Message);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Delete user
+        /// </summary>
+        [HttpDelete("{userId}")]
+        public async Task<ActionResult<ResultModel>> DeleteUser(int userId)
+        {
+            var result = await _userService.DeleteUserAsync(userId);
+            if (!result.IsSuccess)
+                return NotFound(result.Message);
+
+            return NoContent(); // Trả về 204 No Content
+        }
+
+        /// <summary>
+        /// Get all users
+        /// </summary>
         [HttpGet]
-        [Authorize(Roles = "Admin,Manager")]
-        [RateLimit(5, 30)] 
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<ActionResult<ResultModel<List<UserDto>>>> GetAllUsers()
         {
             var result = await _userService.GetAllUsersAsync();
-            return StatusCode(result.StatusCode, result);
-        }
-
-        /// <summary>
-        /// Get user detail by Id
-        /// </summary>
-        /// <param name="id">User Id</param>
-        /// <returns>User detail</returns>
-        /// <response code="200">User retrieved successfully</response>
-        /// <response code="404">User not found</response>
-        [HttpGet("{id:int}")]
-        [Authorize]
-        [RateLimit(permitLimit: 10, windowSeconds: 30, strategy: "token")]
-        public async Task<IActionResult> GetUserById(int id)
-        {
-            var result = await _userService.GetUserByIdAsync(id);
-            return StatusCode(result.StatusCode, result);
+            return Ok(result);
         }
     }
 }

@@ -7,7 +7,7 @@ public static class DbConfig
 {
     public static IServiceCollection AddDbConfig(this IServiceCollection services, IConfiguration config)
     {
-        services.AddDbContext<IOTShowroomContext>(options =>
+        services.AddDbContext<IndividualBusinessContext>(options =>
             options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
         return services;
     }

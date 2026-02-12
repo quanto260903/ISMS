@@ -7,6 +7,8 @@ public partial class OpenInventory
 {
     public DateTime CreateDate { get; set; }
 
+    public string? VoucherNumber { get; set; }
+
     public string? WarehouseId { get; set; }
 
     public string Unit { get; set; } = null!;

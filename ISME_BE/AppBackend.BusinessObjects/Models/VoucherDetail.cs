@@ -35,17 +35,9 @@ public partial class VoucherDetail
 
     public decimal? Amount2 { get; set; }
 
-    public string? WarehouseId2 { get; set; }
-
     public decimal? Promotion { get; set; }
 
-    public decimal? DiscountRate { get; set; }
-
-    public decimal? DiscountAmount { get; set; }
-
     public decimal? Vat { get; set; }
-
-    public int? OrderNumber { get; set; }
 
     public string? OffsetVoucher { get; set; }
 

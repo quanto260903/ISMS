@@ -11,6 +11,8 @@ public partial class ActivityLog
 
     public string? Action { get; set; }
 
+    public string? Description { get; set; }
+
     public string? Module { get; set; }
 
     public DateTime? CreatedAt { get; set; }

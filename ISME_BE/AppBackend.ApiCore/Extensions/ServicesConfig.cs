@@ -1,9 +1,11 @@
 using AppBackend.Repositories.Generic;
 using AppBackend.Repositories.Repositories.UserRepo;
+using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
 using AppBackend.Services.Services.Email;
-using AppBackend.Services.ServicesHelpers;
+using AppBackend.Services.Services.UserServices;
+using SWS.Repositories.UnitOfWork;
 
 namespace AppBackend.Extensions;
 
@@ -20,15 +22,13 @@ public static class ServicesConfig
         #endregion
 
         #region Services
-        services.AddScoped<IUserService, UserService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<ICloudinaryService, CloudinaryService>();
         services.AddSingleton<RateLimiterStore>();
-
+        services.AddScoped<IUserService, UserService>();
         #endregion
-
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         #region Helpers
-        services.AddScoped<UserHelper>();
         #endregion
 
         return services;

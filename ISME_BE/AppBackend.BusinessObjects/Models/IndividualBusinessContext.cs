@@ -41,24 +41,27 @@ public partial class IndividualBusinessContext : DbContext
 
     public virtual DbSet<Voucher> Vouchers { get; set; }
 
+    public virtual DbSet<VoucherCode> VoucherCodes { get; set; }
+
     public virtual DbSet<VoucherDetail> VoucherDetails { get; set; }
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=localhost\\SQLEXPRESS;Initial Catalog=Individual_Business;Integrated Security=True;TrustServerCertificate=True");
+        => optionsBuilder.UseSqlServer("Data Source=localhost\\SQLEXPRESS;Initial Catalog=IndividualBusiness;Integrated Security=True;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ActivityLog>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Activity__3214EC076E25138D");
+            entity.HasKey(e => e.Id).HasName("PK__Activity__3214EC0727D45608");
 
             entity.Property(e => e.Action).HasMaxLength(255);
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Module).HasMaxLength(100);
             entity.Property(e => e.UserId).HasMaxLength(16);
 
@@ -69,7 +72,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<Bank>(entity =>
         {
-            entity.HasKey(e => e.BankId).HasName("PK__Banks__AA08CB13EBCEC759");
+            entity.HasKey(e => e.BankId).HasName("PK__Banks__AA08CB1327568829");
 
             entity.Property(e => e.BankDescription).HasMaxLength(500);
             entity.Property(e => e.FullName).HasMaxLength(255);
@@ -79,7 +82,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<BankAccount>(entity =>
         {
-            entity.HasKey(e => e.BankAccountId).HasName("PK__BankAcco__4FC8E4A11FBED9BE");
+            entity.HasKey(e => e.BankAccountId).HasName("PK__BankAcco__4FC8E4A1B506C46A");
 
             entity.HasIndex(e => new { e.BankId, e.AccountNumber }, "UQ_BankAccounts_BankId_AccountNumber").IsUnique();
 
@@ -89,7 +92,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<Customer>(entity =>
         {
-            entity.HasKey(e => e.CustomerId).HasName("PK__Customer__A4AE64D8819E9F5F");
+            entity.HasKey(e => e.CustomerId).HasName("PK__Customer__A4AE64D8CD52BD2B");
 
             entity.ToTable("Customer");
 
@@ -105,7 +108,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<Good>(entity =>
         {
-            entity.HasKey(e => e.GoodsId).HasName("PK__Goods__663DA9208267C5F2");
+            entity.HasKey(e => e.GoodsId).HasName("PK__Goods__663DA92037CD9BDB");
 
             entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.CreatedDate)
@@ -133,7 +136,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<GoodsCategory>(entity =>
         {
-            entity.HasKey(e => e.GoodsGroupId).HasName("PK__GoodsCat__609AEEF9F6B1A251");
+            entity.HasKey(e => e.GoodsGroupId).HasName("PK__GoodsCat__609AEEF9ABA69ABD");
 
             entity.ToTable("GoodsCategory");
 
@@ -143,7 +146,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<OpenBank>(entity =>
         {
-            entity.HasKey(e => e.CreateDate).HasName("PK__OpenBank__CE101B319D873E19");
+            entity.HasKey(e => e.CreateDate).HasName("PK__OpenBank__CE101B31A6C7E435");
 
             entity.ToTable("OpenBank");
 
@@ -153,11 +156,12 @@ public partial class IndividualBusinessContext : DbContext
                 .HasColumnType("decimal(18, 0)")
                 .HasColumnName("Debit_Amount0");
             entity.Property(e => e.Properties).HasMaxLength(50);
+            entity.Property(e => e.VoucherNumber).HasMaxLength(50);
         });
 
         modelBuilder.Entity<OpenCash>(entity =>
         {
-            entity.HasKey(e => e.CreateDate).HasName("PK__OpenCash__CE101B316DCF7CE1");
+            entity.HasKey(e => e.CreateDate).HasName("PK__OpenCash__CE101B31E474E686");
 
             entity.ToTable("OpenCash");
 
@@ -166,11 +170,12 @@ public partial class IndividualBusinessContext : DbContext
                 .HasColumnType("decimal(18, 0)")
                 .HasColumnName("Debit_Amount0");
             entity.Property(e => e.Properties).HasMaxLength(50);
+            entity.Property(e => e.VoucherNumber).HasMaxLength(50);
         });
 
         modelBuilder.Entity<OpenCustomer>(entity =>
         {
-            entity.HasKey(e => e.CreateDate).HasName("PK__OpenCust__CE101B31ADD8B8B4");
+            entity.HasKey(e => e.CreateDate).HasName("PK__OpenCust__CE101B31996A32C5");
 
             entity.ToTable("OpenCustomer");
 
@@ -181,11 +186,12 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.Properties).HasMaxLength(50);
             entity.Property(e => e.VendorCreditAmount0).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.VendorDebitAmount0).HasColumnType("decimal(18, 0)");
+            entity.Property(e => e.VoucherNumber).HasMaxLength(50);
         });
 
         modelBuilder.Entity<OpenInventory>(entity =>
         {
-            entity.HasKey(e => e.CreateDate).HasName("PK__OpenInve__CE101B314486F2BE");
+            entity.HasKey(e => e.CreateDate).HasName("PK__OpenInve__CE101B318F81FB3E");
 
             entity.ToTable("OpenInventory");
 
@@ -195,12 +201,13 @@ public partial class IndividualBusinessContext : DbContext
                 .HasColumnName("Debit_Amount0");
             entity.Property(e => e.Properties).HasMaxLength(50);
             entity.Property(e => e.Unit).HasMaxLength(50);
+            entity.Property(e => e.VoucherNumber).HasMaxLength(50);
             entity.Property(e => e.WarehouseId).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Unit>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Units__3214EC07F90AC629");
+            entity.HasKey(e => e.Id).HasName("PK__Units__3214EC078DC82582");
 
             entity.Property(e => e.Unit1)
                 .HasMaxLength(50)
@@ -209,7 +216,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__Users__1788CC4CCB87DD9F");
+            entity.HasKey(e => e.UserId).HasName("PK__Users__1788CC4C6B23FC29");
 
             entity.Property(e => e.UserId).HasMaxLength(16);
             entity.Property(e => e.ContractType).HasMaxLength(50);
@@ -228,7 +235,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<Voucher>(entity =>
         {
-            entity.HasKey(e => e.VoucherId).HasName("PK__Voucher__3AEE79C16766E2DF");
+            entity.HasKey(e => e.VoucherId).HasName("PK__Voucher__3AEE79C18E9DB7D5");
 
             entity.ToTable("Voucher");
 
@@ -251,9 +258,24 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.VoucherNumber).HasMaxLength(50);
         });
 
+        modelBuilder.Entity<VoucherCode>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__VoucherC__3214EC07F12EAABE");
+
+            entity.Property(e => e.BelongToScreen).HasMaxLength(100);
+            entity.Property(e => e.CreditAccount1).HasMaxLength(20);
+            entity.Property(e => e.CreditAccount2).HasMaxLength(20);
+            entity.Property(e => e.DebitAccount1).HasMaxLength(20);
+            entity.Property(e => e.DebitAccount2).HasMaxLength(20);
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.VoucherCode1)
+                .HasMaxLength(10)
+                .HasColumnName("VoucherCode");
+        });
+
         modelBuilder.Entity<VoucherDetail>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__VoucherD__3214EC073D7C1DE3");
+            entity.HasKey(e => e.Id).HasName("PK__VoucherD__3214EC07265E235B");
 
             entity.ToTable("VoucherDetail");
 
@@ -268,8 +290,6 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.DebitAccount1).HasMaxLength(50);
             entity.Property(e => e.DebitAccount2).HasMaxLength(50);
             entity.Property(e => e.DebitWarehouseId).HasMaxLength(50);
-            entity.Property(e => e.DiscountAmount).HasColumnType("decimal(18, 0)");
-            entity.Property(e => e.DiscountRate).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.GoodsName).HasMaxLength(255);
             entity.Property(e => e.OffsetVoucher).HasMaxLength(50);
@@ -285,7 +305,6 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.VoucherId)
                 .HasMaxLength(50)
                 .HasColumnName("VoucherID");
-            entity.Property(e => e.WarehouseId2).HasMaxLength(50);
 
             entity.HasOne(d => d.Voucher).WithMany(p => p.VoucherDetails)
                 .HasForeignKey(d => d.VoucherId)
@@ -294,7 +313,7 @@ public partial class IndividualBusinessContext : DbContext
 
         modelBuilder.Entity<Warehouse>(entity =>
         {
-            entity.HasKey(e => e.WarehouseId).HasName("PK__Warehous__2608AFF92FA3CB14");
+            entity.HasKey(e => e.WarehouseId).HasName("PK__Warehous__2608AFF97C8285D2");
 
             entity.Property(e => e.WarehouseId).HasMaxLength(50);
             entity.Property(e => e.Address).HasMaxLength(500);

@@ -7,6 +7,8 @@ public partial class OpenCustomer
 {
     public DateTime CreateDate { get; set; }
 
+    public string? VoucherNumber { get; set; }
+
     public decimal? CustomerDebitAmount0 { get; set; }
 
     public decimal? CustomerCreditAmount0 { get; set; }

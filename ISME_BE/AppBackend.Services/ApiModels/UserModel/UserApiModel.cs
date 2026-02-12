@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AppBackend.Services.ApiModels
+namespace AppBackend.Services.ApiModels.UserModel
 {
     public class UserCreateRequest
     {
@@ -41,15 +41,7 @@ namespace AppBackend.Services.ApiModels
         [Url(ErrorMessage = "AvatarUrl must be a valid URL.")]
         public string? AvatarUrl { get; set; }
     }
-    public class UserDto
-    {
-        public int UserId { get; set; }
-        public string? FullName { get; set; }
-        public string Email { get; set; } = null!;
-        public string? Phone { get; set; }
-        public int? RoleId { get; set; }
-        public string? AvatarUrl { get; set; }
-    }
+
     public class RegisterRequest
     {
         [Required] public string FullName { get; set; } = null!;

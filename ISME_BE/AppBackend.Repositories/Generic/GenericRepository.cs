@@ -7,10 +7,10 @@ namespace AppBackend.Repositories.Generic
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
-        protected readonly IOTShowroomContext _context;
+        protected readonly IndividualBusinessContext _context;
         private IDbContextTransaction? _transaction;
 
-        public GenericRepository(IOTShowroomContext context)
+        public GenericRepository(IndividualBusinessContext context)
         {
             _context = context;
         }
