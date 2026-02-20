@@ -21,7 +21,7 @@ public partial class Voucher
 
     public DateOnly? VoucherDate { get; set; }
 
-    public string? VoucherNumber { get; set; }
+    public string? VoucherCode { get; set; }
 
     public string? InvoiceType { get; set; }
 
@@ -31,7 +31,9 @@ public partial class Voucher
 
     public string? InvoiceNumber { get; set; }
 
-    public int? BankAccountId { get; set; }
+    public string? BankName { get; set; }
+
+    public string? BankAccountNumber { get; set; }
 
     public virtual ICollection<VoucherDetail> VoucherDetails { get; set; } = new List<VoucherDetail>();
 }

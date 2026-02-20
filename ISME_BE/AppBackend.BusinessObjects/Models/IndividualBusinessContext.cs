@@ -199,6 +199,7 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.DebitAmount0)
                 .HasColumnType("decimal(18, 0)")
                 .HasColumnName("Debit_Amount0");
+            entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.Properties).HasMaxLength(50);
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.VoucherNumber).HasMaxLength(50);
@@ -243,6 +244,8 @@ public partial class IndividualBusinessContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("VoucherID");
             entity.Property(e => e.Address).HasMaxLength(255);
+            entity.Property(e => e.BankAccountNumber).HasMaxLength(50);
+            entity.Property(e => e.BankName).HasMaxLength(255);
             entity.Property(e => e.CustomerId)
                 .HasMaxLength(50)
                 .HasColumnName("CustomerID");
@@ -254,8 +257,8 @@ public partial class IndividualBusinessContext : DbContext
                 .HasMaxLength(150)
                 .HasColumnName("PIC");
             entity.Property(e => e.TaxCode).HasMaxLength(50);
+            entity.Property(e => e.VoucherCode).HasMaxLength(50);
             entity.Property(e => e.VoucherDescription).HasMaxLength(500);
-            entity.Property(e => e.VoucherNumber).HasMaxLength(50);
         });
 
         modelBuilder.Entity<VoucherCode>(entity =>
@@ -277,7 +280,7 @@ public partial class IndividualBusinessContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__VoucherD__3214EC07265E235B");
 
-            entity.ToTable("VoucherDetail");
+            entity.ToTable("VoucherDetail", tb => tb.HasTrigger("trg_UpdateItemOnHand_OnInsert"));
 
             entity.Property(e => e.Amount1).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.Amount2).HasColumnType("decimal(18, 0)");

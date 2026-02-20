@@ -18,4 +18,6 @@ public partial class OpenInventory
     public decimal? DebitAmount0 { get; set; }
 
     public string? Properties { get; set; }
+
+    public string? GoodsId { get; set; }
 }

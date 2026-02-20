@@ -31,5 +31,7 @@ public partial class Good
 
     public DateTime CreatedDate { get; set; }
 
+    public int? ItemOnHand { get; set; }
+
     public virtual GoodsCategory? GoodsGroup { get; set; }
 }

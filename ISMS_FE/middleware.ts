@@ -57,10 +57,10 @@ export function middleware(request: NextRequest) {
   }
 
   // Nếu chưa login và truy cập protected route -> redirect về unauthorized
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
-  if (isProtectedRoute && !isLoggedIn) {
-    return NextResponse.redirect(new URL('/unauthorized', request.url))
-  }
+  // const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
+  // if (isProtectedRoute && !isLoggedIn) {
+  //   return NextResponse.redirect(new URL('/unauthorized', request.url))
+  // }
 
   // Kiểm tra quyền admin cho admin-only routes
   const isAdminRoute = ADMIN_ONLY_ROUTES.some(route => pathname.startsWith(route))
