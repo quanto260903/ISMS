@@ -125,7 +125,7 @@ export default function AddSaleForm() {
     try {
       const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
       const res = await fetch(
-        `${BASE_URL}/Items/warehouse-report/${encodeURIComponent(goodsId)}`,
+        `${BASE_URL}/api/goods/warehouse-report/${encodeURIComponent(goodsId)}`,
         { cache: "no-store" }
       );
       if (!res.ok) throw new Error(`Lỗi ${res.status}: ${res.statusText}`);
@@ -146,7 +146,13 @@ export default function AddSaleForm() {
     { suggestions: GoodsSearchResult[]; loading: boolean; open: boolean }[]
   >([]);
 
+  // Vị trí tuyệt đối của dropdown đang mở (dùng cho Portal)
+  const [dropdownPos, setDropdownPos] = useState<{
+    top: number; left: number; width: number; index: number;
+  } | null>(null);
+
   const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const debounceTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   /* ---- Đóng dropdown khi click ra ngoài ---- */
@@ -159,9 +165,18 @@ export default function AddSaleForm() {
           );
         }
       });
+      // Đóng portal dropdown nếu click ra ngoài input
+      setDropdownPos((prev) => {
+        if (!prev) return null;
+        const inputEl = inputRefs.current[prev.index];
+        if (inputEl && !inputEl.contains(e.target as Node)) return null;
+        return prev;
+      });
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   /* ---- Xóa thông tin ngân hàng khi chuyển sang hình thức khác ---- */
@@ -210,44 +225,63 @@ export default function AddSaleForm() {
     setVoucher((prev) => ({ ...prev, items: updatedItems }));
   };
 
+  /* ---- Tính vị trí và mở portal dropdown ---- */
+  const openPortalDropdown = (index: number) => {
+    const el = inputRefs.current[index];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + 4,          // fixed → tọa độ từ viewport, không cộng scrollY
+      left: rect.left,
+      width: Math.max(rect.width, 500),
+      index,
+    });
+  };
+
   /* =========================
      GOODS SEARCH (DROPDOWN)
   ========================= */
 
-const handleGoodsIdChange = useCallback(
-  (index: number, value: string) => {
-    updateItem(index, "goodsId", value);
+  const handleGoodsIdChange = useCallback(
+    (index: number, value: string) => {
+      updateItem(index, "goodsId", value);
 
-    if (!value.trim()) {
+      if (!value.trim()) {
+        setDropdowns((prev) =>
+          prev.map((d, i) => i === index ? { suggestions: [], loading: false, open: false } : d)
+        );
+        setDropdownPos(null);
+        return;
+      }
+
       setDropdowns((prev) =>
-        prev.map((d, i) => i === index ? { suggestions: [], loading: false, open: false } : d)
+        prev.map((d, i) => i === index ? { ...d, loading: true, open: true } : d)
       );
-      return;
-    }
+      openPortalDropdown(index);
 
-    setDropdowns((prev) =>
-      prev.map((d, i) => i === index ? { ...d, loading: true, open: true } : d)
-    );
-
-    searchGoods(value)
-      .then((results) => {
-        setDropdowns((prev) =>
-          prev.map((d, i) =>
-            i === index ? { suggestions: results, loading: false, open: true } : d
-          )
-        );
-      })
-      .catch(() => {
-        setDropdowns((prev) =>
-          prev.map((d, i) =>
-            i === index ? { suggestions: [], loading: false, open: false } : d
-          )
-        );
-      });
-  },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [voucher.items]
-);
+      clearTimeout(debounceTimers.current[index]);
+      debounceTimers.current[index] = setTimeout(async () => {
+        try {
+          const results = await searchGoods(value);
+          setDropdowns((prev) =>
+            prev.map((d, i) =>
+              i === index ? { suggestions: results, loading: false, open: true } : d
+            )
+          );
+          openPortalDropdown(index);
+        } catch {
+          setDropdowns((prev) =>
+            prev.map((d, i) =>
+              i === index ? { suggestions: [], loading: false, open: false } : d
+            )
+          );
+          setDropdownPos(null);
+        }
+      }, 350);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [voucher.items]
+  );
 
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     const updatedItems = [...voucher.items];
@@ -378,7 +412,7 @@ const handleGoodsIdChange = useCallback(
       <h2 style={styles.title}>Tạo đơn bán hàng</h2>
 
       {/* Hình thức thanh toán */}
-      <section style={styles.section}>
+      <section style={{ ...styles.section, maxWidth: 860 }}>
         <h3 style={styles.sectionTitle}>Hình thức thanh toán</h3>
         <div style={{ display: "flex", gap: 24 }}>
           {(["CASH", "BANK", "UNPAID"] as PaymentOption[]).map((opt) => (
@@ -399,7 +433,7 @@ const handleGoodsIdChange = useCallback(
       <hr style={styles.hr} />
 
       {/* Thông tin chứng từ */}
-      <section style={styles.section}>
+      <section style={{ ...styles.section, maxWidth: 860 }}>
         <h3 style={styles.sectionTitle}>Thông tin chứng từ</h3>
         {renderCommonFields()}
         {paymentOption === "BANK" && renderBankFields()}
@@ -416,170 +450,146 @@ const handleGoodsIdChange = useCallback(
           <p style={{ color: "#999", marginTop: 8 }}>Chưa có sản phẩm nào.</p>
         )}
 
-        {voucher.items.map((item, index) => {
-          const dd = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
-          const vatAmount = item.amount1 * (item.vat / 100);
+        {voucher.items.length > 0 && (
+          <div style={{ overflowX: "auto", marginTop: 12 }}>
+            <table style={styles.itemTable}>
+              <thead>
+                <tr>
+                  {["#", "Mã hàng", "Tên hàng", "Đơn vị", "Số lượng", "Đơn giá", "Thuế VAT", "Tiền VAT", "Thành tiền", ""].map((h) => (
+                    <th key={h} style={styles.itemTh}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {voucher.items.map((item, index) => {
+                  const dd = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
+                  const vatAmount = item.amount1 * (item.vat / 100);
 
-          return (
-            <div key={index} style={styles.itemCard}>
+                  return (
+                    <tr key={index} style={{ background: index % 2 === 0 ? "#fff" : "#f8f9ff" }}>
 
-              {/* Row 1: Mã hàng + Tên hàng */}
-              <div style={styles.itemRow}>
-                {/* Mã hàng với dropdown */}
-                <div
-                  style={{ position: "relative", flex: 1 }}
-                  ref={(el) => { dropdownRefs.current[index] = el; }}
-                >
-                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <label style={styles.labelSmall}>Mã hàng</label>
+                      {/* STT */}
+                      <td style={{ ...styles.itemTd, textAlign: "center", color: "#999", width: 36 }}>{index + 1}</td>
 
-  <div style={{ position: "relative", flex: 1 }}>
-    <input
-      style={{
-        ...styles.inputSmall,
-        width: "100%",
-        paddingRight: dd.loading ? 28 : undefined
-      }}
-      placeholder="Nhập mã hàng..."
-      value={item.goodsId}
-      onChange={(e) => handleGoodsIdChange(index, e.target.value)}
-      onFocus={(e) => {
-        // ✅ Tự động bôi xanh toàn bộ nội dung
-        e.target.select();
-
-        // ✅ Giữ nguyên logic mở dropdown nếu có gợi ý
-        if (dd.suggestions.length > 0) {
-          setDropdowns((prev) =>
-            prev.map((d, i) =>
-              i === index ? { ...d, open: true } : d
-            )
-          );
-        }
-      }}
-      autoComplete="off"
-    />
-
-    {dd.loading && <span style={styles.spinner}>⏳</span>}
-  </div>
-</div>
-
-                  {dd.open && dd.suggestions.length > 0 && (
-                    <ul style={styles.dropdown}>
-                      {dd.suggestions.map((g) => (
-                        <li
-                          key={g.goodsId}
-                          style={styles.dropdownItem}
-                          onMouseEnter={(e) => ((e.currentTarget as HTMLLIElement).style.background = "#f0f4ff")}
-                          onMouseLeave={(e) => ((e.currentTarget as HTMLLIElement).style.background = "transparent")}
-                          onMouseDown={() => handleSelectGoods(index, g)}
+                      {/* Mã hàng — có dropdown portal */}
+                      <td style={{ ...styles.itemTd, minWidth: 150 }}>
+                        <div
+                          style={{ position: "relative" }}
+                          ref={(el) => { dropdownRefs.current[index] = el; }}
                         >
-                          <span style={styles.dropdownId}>{g.goodsId}</span>
-                          <span style={styles.dropdownName}>{g.goodsName}</span>
-                          <span style={styles.dropdownMeta}>{g.unit} · {g.salePrice.toLocaleString("vi-VN")} ₫</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                          <input
+                            ref={(el) => { inputRefs.current[index] = el; }}
+                            style={{ ...styles.inputTable, paddingRight: dd.loading ? 26 : 6 }}
+                            placeholder="Nhập mã hàng..."
+                            value={item.goodsId}
+                            onChange={(e) => handleGoodsIdChange(index, e.target.value)}
+                            onFocus={(e) => {
+                              e.target.select();
+                              if (dd.suggestions.length > 0) {
+                                setDropdowns((prev) =>
+                                  prev.map((d, i) => i === index ? { ...d, open: true } : d)
+                                );
+                                openPortalDropdown(index);
+                              }
+                            }}
+                            autoComplete="off"
+                          />
+                          {dd.loading && <span style={styles.spinner}>⏳</span>}
+                        </div>
+                      </td>
 
-                  {dd.open && !dd.loading && dd.suggestions.length === 0 && item.goodsId.trim() !== "" && (
-                    <div style={styles.dropdownEmpty}>Không tìm thấy sản phẩm</div>
-                  )}
-                </div>
+                      {/* Tên hàng — readonly */}
+                      <td style={{ ...styles.itemTd, minWidth: 180 }}>
+                        <input
+                          style={{ ...styles.inputTable, background: "#f4f4f4", color: "#555" }}
+                          value={item.goodsName}
+                          readOnly
+                          tabIndex={-1}
+                          placeholder="Tự động điền"
+                        />
+                      </td>
 
-                {/* Tên hàng (readonly) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1.5 }}>
-                  <label style={styles.labelSmall}>Tên hàng</label>
-                  <input
-                    style={{ ...styles.inputSmall, flex: 1, background: "#f9f9f9" }}
-                    placeholder="Tự động điền"
-                    value={item.goodsName}
-                    readOnly
-                    tabIndex={-1}
-                  />
-                </div>
-              </div>
+                      {/* Đơn vị — readonly */}
+                      <td style={{ ...styles.itemTd, minWidth: 70 }}>
+                        <input
+                          style={{ ...styles.inputTable, background: "#f4f4f4", color: "#555", textAlign: "center" }}
+                          value={item.unit}
+                          readOnly
+                          tabIndex={-1}
+                        />
+                      </td>
 
-              {/* Row 2: Đơn vị | Số lượng | Đơn giá | Thuế VAT ▼ | Tiền VAT | Thành tiền | Xóa */}
-              <div style={styles.itemRow}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={styles.labelSmall}>Đơn vị</label>
-                  <input
-                    style={{ ...styles.inputSmall, width: 70, background: "#f9f9f9" }}
-                    value={item.unit}
-                    readOnly
-                    tabIndex={-1}
-                  />
-                </div>
+                      {/* Số lượng */}
+                      <td style={{ ...styles.itemTd, minWidth: 80 }}>
+                        <input
+                          type="number"
+                          style={{ ...styles.inputTable, textAlign: "right" }}
+                          value={item.quantity}
+                          min={1}
+                          onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                        />
+                      </td>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={styles.labelSmall}>Số lượng</label>
-                  <input
-                    type="number"
-                    style={{ ...styles.inputSmall, width: 75 }}
-                    value={item.quantity}
-                    min={1}
-                    onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
-                  />
-                </div>
+                      {/* Đơn giá */}
+                      <td style={{ ...styles.itemTd, minWidth: 120 }}>
+                        <input
+                          type="number"
+                          style={{ ...styles.inputTable, textAlign: "right" }}
+                          value={item.unitPrice}
+                          onChange={(e) => updateItem(index, "unitPrice", Number(e.target.value))}
+                        />
+                      </td>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={styles.labelSmall}>Đơn giá</label>
-                  <input
-                    type="number"
-                    style={{ ...styles.inputSmall, width: 110 }}
-                    value={item.unitPrice}
-                    onChange={(e) => updateItem(index, "unitPrice", Number(e.target.value))}
-                  />
-                </div>
+                      {/* Thuế VAT dropdown */}
+                      <td style={{ ...styles.itemTd, minWidth: 80 }}>
+                        <select
+                          style={{ ...styles.selectVat, width: "100%" }}
+                          value={item.vat}
+                          onChange={(e) => updateItem(index, "vat", Number(e.target.value))}
+                        >
+                          {VAT_OPTIONS.map((v) => (
+                            <option key={v} value={v}>{v}%</option>
+                          ))}
+                        </select>
+                      </td>
 
-                {/* VAT dropdown — người dùng chọn mức thuế */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={styles.labelSmall}>Thuế VAT</label>
-                  <select
-                    style={styles.selectVat}
-                    value={item.vat}
-                    onChange={(e) => updateItem(index, "vat", Number(e.target.value))}
-                  >
-                    {VAT_OPTIONS.map((v) => (
-                      <option key={v} value={v}>{v}%</option>
-                    ))}
-                  </select>
-                </div>
+                      {/* Tiền VAT */}
+                      <td style={{ ...styles.itemTd, textAlign: "right", color: "#b45309", fontWeight: 600, minWidth: 100 }}>
+                        {vatAmount.toLocaleString("vi-VN")}
+                      </td>
 
-                {/* Tiền VAT của dòng (tự tính, chỉ đọc) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={styles.labelSmall}>Tiền VAT</label>
-                  <span style={styles.vatBadge}>
-                    {vatAmount.toLocaleString("vi-VN")} ₫
-                  </span>
-                </div>
+                      {/* Thành tiền */}
+                      <td style={{ ...styles.itemTd, textAlign: "right", color: "#2255cc", fontWeight: 700, minWidth: 120 }}>
+                        {item.amount1.toLocaleString("vi-VN")}
+                      </td>
 
-                {/* Thành tiền chưa VAT */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={styles.labelSmall}>Thành tiền</label>
-                  <span style={styles.amountBadge}>
-                    {item.amount1.toLocaleString("vi-VN")} ₫
-                  </span>
-                </div>
-
-                <button style={styles.btnDanger} onClick={() => removeItem(index)}>
-                  Xóa
-                </button>
-
-                {/* Nút xem chi tiết kho — chỉ hiện khi đã có mã hàng */}
-                {item.goodsId.trim() && (
-                  <button
-                    style={styles.btnDetail}
-                    onClick={() => fetchWarehouseReport(item.goodsId, item.goodsName)}
-                    title="Xem báo cáo xuất nhập kho"
-                  >
-                    📦 Chi tiết kho
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                      {/* Actions: Kho + Xóa */}
+                      <td style={{ ...styles.itemTd, textAlign: "center", whiteSpace: "nowrap" as const, width: 90 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {item.goodsId.trim() && (
+                            <button
+                              style={styles.btnDetail}
+                              onClick={() => fetchWarehouseReport(item.goodsId, item.goodsName)}
+                              title="Xem báo cáo xuất nhập kho"
+                            >
+                              📦 Kho
+                            </button>
+                          )}
+                          <button
+                            style={styles.btnDanger}
+                            onClick={() => removeItem(index)}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Bảng tổng kết */}
         {voucher.items.length > 0 && (
@@ -611,6 +621,71 @@ const handleGoodsIdChange = useCallback(
           {message}
         </p>
       )}
+
+      {/* =====================================================
+          PORTAL: DROPDOWN GỢI Ý MÃ HÀNG
+          Render thẳng vào body để không bị bất kỳ
+          overflow:hidden nào của bảng che khuất
+      ===================================================== */}
+      {dropdownPos && (() => {
+        const dd = dropdowns[dropdownPos.index];
+        if (!dd) return null;
+        const hasResults = dd.open && dd.suggestions.length > 0;
+        const isEmpty = dd.open && !dd.loading && dd.suggestions.length === 0
+          && (voucher.items[dropdownPos.index]?.goodsId ?? "").trim() !== "";
+        if (!hasResults && !isEmpty) return null;
+
+        return (
+          <div
+            style={{
+              position: "fixed",      // fixed → bám viewport, không trôi khi scroll
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              zIndex: 99999,
+              background: "#fff",
+              border: "1px solid #ccc",
+              borderRadius: 6,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+              pointerEvents: "auto",
+            }}
+          >
+            {hasResults && (
+              <ul style={{
+                listStyle: "none",
+                margin: 0,
+                padding: "4px 0",
+                maxHeight: 280,
+                overflowY: "auto",
+              }}>
+                {dd.suggestions.map((g) => (
+                  <li
+                    key={g.goodsId}
+                    style={styles.dropdownItem}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLLIElement).style.background = "#f0f4ff")}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLLIElement).style.background = "transparent")}
+                    onMouseDown={() => {
+                      handleSelectGoods(dropdownPos.index, g);
+                      setDropdownPos(null);
+                    }}
+                  >
+                    <span style={styles.dropdownId}>{g.goodsId}</span>
+                    <span style={styles.dropdownName}>{g.goodsName}</span>
+                    <span style={styles.dropdownMeta}>
+                      {g.unit} · {g.salePrice.toLocaleString("vi-VN")} ₫
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {isEmpty && (
+              <div style={{ padding: "10px 14px", fontSize: 13, color: "#999" }}>
+                Không tìm thấy sản phẩm
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* =====================================================
           MODAL: BÁO CÁO XUẤT NHẬP KHO
@@ -744,7 +819,7 @@ const handleGoodsIdChange = useCallback(
 ========================= */
 
 const styles: Record<string, React.CSSProperties> = {
-  container:    { maxWidth: 900, margin: "0 auto", padding: 24, fontFamily: "sans-serif", fontSize: 14 },
+  container:    { maxWidth: "100%", margin: "0 auto", padding: "24px 32px", fontFamily: "sans-serif", fontSize: 14 },
   title:        { fontSize: 22, marginBottom: 16 },
   section:      { marginBottom: 16 },
   sectionTitle: { fontSize: 15, fontWeight: 600, marginBottom: 12, color: "#333" },
@@ -761,32 +836,55 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     width: 72,
   },
-  itemCard: {
-    border: "1px solid #e8e8e8",
+  itemTable: {
+    width: "100%",
+    borderCollapse: "collapse" as const,
+    fontSize: 13,
+    border: "1px solid #e0e0e0",
     borderRadius: 6,
-    padding: "12px 14px",
-    marginTop: 10,
-    background: "#fafafa",
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
+    overflow: "hidden",
   },
-  itemRow:     { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" as const },
-  labelSmall:  { fontSize: 12, color: "#666", whiteSpace: "nowrap" as const },
+  itemTh: {
+    padding: "9px 10px",
+    background: "#2255cc",
+    color: "#fff",
+    textAlign: "left" as const,
+    fontWeight: 600,
+    fontSize: 12,
+    whiteSpace: "nowrap" as const,
+    borderBottom: "2px solid #1a44aa",
+  },
+  itemTd: {
+    padding: "6px 8px",
+    borderBottom: "1px solid #eee",
+    verticalAlign: "middle" as const,
+    fontSize: 13,
+  },
+  inputTable: {
+    width: "100%",
+    padding: "5px 6px",
+    border: "1px solid #ddd",
+    borderRadius: 4,
+    fontSize: 13,
+    boxSizing: "border-box" as const,
+    outline: "none",
+  },
   dropdown: {
     position: "absolute" as const,
-    top: "calc(100% + 4px)",
-    left: 0, right: 0,
-    zIndex: 100,
+    top: "calc(100% + 2px)",
+    left: 0,
+    zIndex: 9999,
     background: "#fff",
     border: "1px solid #ccc",
     borderRadius: 6,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
     listStyle: "none",
     margin: 0,
     padding: "4px 0",
-    maxHeight: 220,
+    maxHeight: 260,
     overflowY: "auto" as const,
+    minWidth: 480,       // rộng hơn cột, hiện ngang tự do
+    width: "max-content",
   },
   dropdownItem:  { display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", fontSize: 13 },
   dropdownId:    { fontWeight: 700, color: "#2255cc", minWidth: 70, fontSize: 12 },
