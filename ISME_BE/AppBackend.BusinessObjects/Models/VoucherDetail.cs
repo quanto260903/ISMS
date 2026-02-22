@@ -45,5 +45,9 @@ public partial class VoucherDetail
 
     public DateTime? CreatedDateTime { get; set; }
 
+    public virtual Warehouse? CreditWarehouse { get; set; }
+
+    public virtual Warehouse? DebitWarehouse { get; set; }
+
     public virtual Voucher? Voucher { get; set; }
 }

@@ -12,4 +12,8 @@ public partial class Warehouse
     public string? Address { get; set; }
 
     public bool IsInactive { get; set; }
+
+    public virtual ICollection<VoucherDetail> VoucherDetailCreditWarehouses { get; set; } = new List<VoucherDetail>();
+
+    public virtual ICollection<VoucherDetail> VoucherDetailDebitWarehouses { get; set; } = new List<VoucherDetail>();
 }

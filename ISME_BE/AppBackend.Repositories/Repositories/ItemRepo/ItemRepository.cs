@@ -33,65 +33,63 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
         }
         public async Task<List<WarehouseTransactionDto>> GetWarehouseTransactionsAsync(string goodsId)
         {
-            var query = await _context.VoucherDetails
-                .Where(vd => (vd.DebitAccount1 == "156"
-                          || vd.CreditAccount1 == "156")
-                 && vd.GoodsId == goodsId)
-                .Select(vd => new
-                {
-                    vd,
-                    v = vd.Voucher
-                })
-                .GroupBy(x => new
-                {
-                    x.v.VoucherDate,
-                    x.v.VoucherId,
-
-                    WarehouseId = x.vd.DebitAccount1 == "156"
-                        ? x.vd.DebitWarehouseId
-                        : x.vd.CreditWarehouseId,
-
-                    x.vd.GoodsId,
-                    x.vd.Unit,
-                    x.vd.OffsetVoucher
-                })
-                .Select(g => new WarehouseTransactionDto
-                {
-                    VoucherDate = g.Key.VoucherDate,
-                    VoucherId = g.Key.VoucherId,
-                    WarehouseId = g.Key.WarehouseId,
-                    GoodsId = g.Key.GoodsId,
-                    Unit = g.Key.Unit,
-                    OffsetVoucher = g.Key.OffsetVoucher,
-
-                    WarehouseIn = g.Sum(x =>
-                        x.vd.DebitAccount1 == "156"
-                            ? (decimal?)x.vd.Quantity ?? 0
-                            : 0),
-
-                    WarehouseOut = g.Sum(x =>
-                        x.vd.CreditAccount1 == "156"
-                            ? (decimal?)x.vd.Quantity ?? 0
-                            : 0),
-
-                    CustomInHand =
-                        g.Sum(x =>
-                            x.vd.DebitAccount1 == "156"
-                                ? (decimal?)x.vd.Quantity ?? 0
-                                : 0)
-                        -
-                        g.Sum(x =>
-                            x.vd.CreditAccount1 == "156"
-                                ? (decimal?)x.vd.Quantity ?? 0
-                                : 0),
-
-                    Cost = g.Sum(x => (decimal?)x.vd.Amount1 ?? 0)
-                })
-                .OrderBy(x => x.GoodsId)
-                .ThenBy(x => x.VoucherDate)
+            var data = await _context.VoucherDetails
+                .Where(vd =>
+                    (
+                        vd.DebitAccount1 == "156"
+                        || vd.DebitAccount2 == "156"
+                        || vd.CreditAccount1 == "156"
+                        || vd.CreditAccount2 == "156"
+                    )
+                    && vd.GoodsId == goodsId)
+                .Include(vd => vd.Voucher)
+                .Include(vd => vd.DebitWarehouse)   // 🔥 thêm dòng này
                 .ToListAsync();
 
-            return query;
+            var result = data
+                .GroupBy(vd =>
+                    (vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156")
+                        ? vd.VoucherId
+                        : vd.OffsetVoucher)
+                .Select(g =>
+                {
+                    var importRow = g.FirstOrDefault(vd =>
+                        vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156");
+
+                    var import = g.Sum(vd =>
+                        (vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156")
+                            ? (decimal?)vd.Quantity ?? 0
+                            : 0);
+
+                    var export = g.Sum(vd =>
+                        (vd.CreditAccount1 == "156" || vd.CreditAccount2 == "156")
+                            ? (decimal?)vd.Quantity ?? 0
+                            : 0);
+
+                    return new WarehouseTransactionDto
+                    {
+                        OffsetVoucher = g.Key,
+                        GoodsId = goodsId,
+
+                        WarehouseId = importRow?.DebitWarehouseId,
+                        WarehouseName = importRow?.DebitWarehouse?.WarehouseName,
+
+                        VoucherDate = importRow?.Voucher?.VoucherDate,
+                        WarehouseIn = import,
+                        WarehouseOut = export,
+                        CustomInHand = import - export,
+
+                        Cost = g
+                            .Where(vd => vd.DebitAccount1 == "156"
+                                      || vd.DebitAccount2 == "156")
+                            .Sum(vd => (decimal?)vd.Amount1 ?? 0)
+                    };
+                })
+                .Where(x => x.CustomInHand > 0)
+                .OrderBy(x => x.VoucherDate)
+                .ToList();
+
+            return result;
         }
         /// <inheritdoc/>
         public async Task<IEnumerable<GoodsSearchDto>> SearchByIdAsync(

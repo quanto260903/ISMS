@@ -309,6 +309,14 @@ public partial class IndividualBusinessContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("VoucherID");
 
+            entity.HasOne(d => d.CreditWarehouse).WithMany(p => p.VoucherDetailCreditWarehouses)
+                .HasForeignKey(d => d.CreditWarehouseId)
+                .HasConstraintName("FK_VoucherDetail_CreditWarehouse");
+
+            entity.HasOne(d => d.DebitWarehouse).WithMany(p => p.VoucherDetailDebitWarehouses)
+                .HasForeignKey(d => d.DebitWarehouseId)
+                .HasConstraintName("FK_VoucherDetail_DebitWarehouse");
+
             entity.HasOne(d => d.Voucher).WithMany(p => p.VoucherDetails)
                 .HasForeignKey(d => d.VoucherId)
                 .HasConstraintName("FK_Detail_Header");

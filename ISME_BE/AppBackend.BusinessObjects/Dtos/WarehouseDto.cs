@@ -9,10 +9,9 @@ namespace AppBackend.BusinessObjects.Dtos
     public class WarehouseTransactionDto
     {
         public DateOnly? VoucherDate { get; set; }
-        public string VoucherId { get; set; } = null!;
         public string? WarehouseId { get; set; }
+        public string? WarehouseName { get; set; }
         public string? GoodsId { get; set; }
-        public string? Unit { get; set; }
 
         public decimal WarehouseIn { get; set; }
         public decimal WarehouseOut { get; set; }
