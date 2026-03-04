@@ -71,7 +71,7 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                         OffsetVoucher = g.Key,
                         GoodsId = goodsId,
 
-                        WarehouseId = importRow?.DebitWarehouseId,
+                        WarehouseId = importRow?.DebitWarehouseId, 
                         WarehouseName = importRow?.DebitWarehouse?.WarehouseName,
 
                         VoucherDate = importRow?.Voucher?.VoucherDate,
