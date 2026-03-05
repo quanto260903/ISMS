@@ -6,6 +6,12 @@ using System.Threading.Tasks;
 
 namespace AppBackend.BusinessObjects.Dtos
 {
+    public class WarehouseDto
+    {
+        public string WarehouseId { get; set; } = null!;
+        public string WarehouseName { get; set; } = null!;
+        public string? Address { get; set; }
+    }
     public class WarehouseTransactionDto
     {
         public DateOnly? VoucherDate { get; set; }
