@@ -3,7 +3,7 @@
 //  Tầng API — chỉ nơi này gọi fetch/axios
 // ============================================================
 
-import type { GoodsSearchResult, SaleVoucherLookup, InwardListItem, InwardListResult } from "./types/import.types";
+import type { GoodsSearchResult, SaleVoucherLookup, InwardListItem, InwardListResult, InwardVoucher } from "./types/import.types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -29,7 +29,30 @@ export async function getSaleVoucher(voucherId: string): Promise<SaleVoucherLook
   const json = await res.json();
   return (json.data ?? json) as SaleVoucherLookup;
 }
-
+// Cập nhật phiếu nhập kho
+export async function updateInward(voucherId: string, payload: Record<string, unknown>) {
+  const res = await fetch(
+    `${BASE}/Import/${encodeURIComponent(voucherId)}`,
+    {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(payload),
+      cache:   "no-store",
+    }
+  );
+  const json = await res.json();
+  return json as { isSuccess: boolean; message: string };
+}
+// Lấy chi tiết 1 phiếu nhập kho theo ID
+export async function getInward(voucherId: string): Promise<InwardVoucher> {
+  const res = await fetch(
+    `${BASE}/Import/${encodeURIComponent(voucherId)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error(`Không tìm thấy phiếu nhập: ${voucherId}`);
+  const json = await res.json();
+  return (json.data ?? json) as InwardVoucher;
+}
 export async function createInward(payload: Record<string, unknown>) {
   const res = await fetch(`${BASE}/Import/add-inward`, {
     method:  "POST",

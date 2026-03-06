@@ -1,6 +1,10 @@
-import axios from 'axios';
-import type { ApiResponse } from '@/lib/types/api.types';
-import type { User } from '@/lib/types/user.types';
+// ============================================================
+//  services/api/auth.api.ts
+// ============================================================
+
+import axios from 'axios'
+import type { ApiResponse } from '@/lib/types/api.types'
+import type { User } from '@/lib/types/user.types'
 import type {
   AuthData,
   GoogleAuthData,
@@ -10,155 +14,99 @@ import type {
   GoogleLoginRequest,
   ChangePasswordRequest,
   UpdateUserRequest,
-} from '@/lib/types/auth.types';
+} from '@/lib/types/auth.types'
 
-// API Base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
-// Create axios instance with default config
 const authApi = axios.create({
-  baseURL: `${API_BASE_URL}/warehouse/auth`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Enable cookies
-});
+  baseURL: `${API_BASE_URL}/Auth`,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
 
-// Request interceptor to add token
-authApi.interceptors.request.use(
-  (config) => {
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Gắn token vào mọi request
+authApi.interceptors.request.use((config) => {
+  const token = typeof window !== 'undefined'
+    ? localStorage.getItem('token')
+    : null
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
-// Response interceptor to handle errors
+// 401 → về login
 authApi.interceptors.response.use(
-  (response) => response,
+  (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
-      }
+    if (
+      error.response?.status === 401 &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.includes('/login')
+    ) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
     }
-    return Promise.reject(error);
+    return Promise.reject(error)
   }
-);
+)
 
-/**
- * Authentication API Service
- */
 export const authService = {
-  /**
-   * Register a new user
-   * @param data - Registration data
-   * @returns Promise with auth response (user + token)
-   */
-  register: async (data: RegisterRequest): Promise<ApiResponse<AuthData>> => {
-    const response = await authApi.post<ApiResponse<AuthData>>('/register', data);
-    return response.data;
-  },
-
-  /**
-   * Login with email and password
-   * @param data - Login credentials
-   * @returns Promise with auth response (user + token)
-   */
+  /** POST /warehouse/auth/login */
   login: async (data: LoginRequest): Promise<ApiResponse<AuthData>> => {
-    const response = await authApi.post<ApiResponse<AuthData>>('/login', data);
-    return response.data;
+    const res = await authApi.post<ApiResponse<AuthData>>('/login', data)
+    return res.data
   },
 
-  /**
-   * Get current user info
-   * @returns Promise with user data
-   */
+  /** POST /warehouse/auth/register */
+  register: async (data: RegisterRequest): Promise<ApiResponse<AuthData>> => {
+    const res = await authApi.post<ApiResponse<AuthData>>('/register', data)
+    return res.data
+  },
+
+  /** GET /warehouse/auth/me */
   getMe: async (): Promise<ApiResponse<User>> => {
-    const response = await authApi.get<ApiResponse<User>>('/me');
-    return response.data;
+    const res = await authApi.get<ApiResponse<User>>('/me')
+    return res.data
   },
 
-  /**
-   * Get user by ID
-   * @param userId - User ID to fetch
-   * @returns Promise with user data
-   */
+  /** GET /warehouse/auth/{userId} */
   getUserById: async (userId: number): Promise<ApiResponse<User>> => {
-    const response = await authApi.get<ApiResponse<User>>(`/${userId}`);
-    return response.data;
+    const res = await authApi.get<ApiResponse<User>>(`/${userId}`)
+    return res.data
   },
 
-  /**
-   * Update user information
-   * @param userId - User ID to update
-   * @param data - Updated user data
-   * @returns Promise with updated user data
-   */
-  updateUser: async (
-    userId: number,
-    data: UpdateUserRequest
-  ): Promise<ApiResponse<User>> => {
-    const response = await authApi.put<ApiResponse<User>>(`/${userId}`, data);
-    return response.data;
+  /** PUT /warehouse/auth/{userId} */
+  updateUser: async (userId: number, data: UpdateUserRequest): Promise<ApiResponse<User>> => {
+    const res = await authApi.put<ApiResponse<User>>(`/${userId}`, data)
+    return res.data
   },
 
-  /**
-   * Change password
-   * @param data - Old and new password
-   * @returns Promise with success response
-   */
-  changePassword: async (
-    data: ChangePasswordRequest
-  ): Promise<ApiResponse<void>> => {
-    const response = await authApi.post<ApiResponse<void>>(
-      '/change-password',
-      data
-    );
-    return response.data;
+  /** POST /warehouse/auth/change-password */
+  changePassword: async (data: ChangePasswordRequest): Promise<ApiResponse<void>> => {
+    const res = await authApi.post<ApiResponse<void>>('/change-password', data)
+    return res.data
   },
 
-  /**
-   * Get Google OAuth URL
-   * @returns Promise with Google auth URL
-   */
+  /** GET /warehouse/auth/google-url */
   getGoogleAuthUrl: async (): Promise<ApiResponse<GoogleAuthUrlData>> => {
-    const response = await authApi.get<ApiResponse<GoogleAuthUrlData>>('/google-url');
-    return response.data;
+    const res = await authApi.get<ApiResponse<GoogleAuthUrlData>>('/google-url')
+    return res.data
   },
 
-  /**
-   * Login with Google OAuth code
-   * @param data - Google OAuth code
-   * @returns Promise with auth response (user + token)
-   */
+  /** POST /warehouse/auth/google-login */
   googleLogin: async (data: GoogleLoginRequest): Promise<ApiResponse<GoogleAuthData>> => {
-    const response = await authApi.post<ApiResponse<GoogleAuthData>>(
-      '/google-login',
-      data
-    );
-    return response.data;
+    const res = await authApi.post<ApiResponse<GoogleAuthData>>('/google-login', data)
+    return res.data
   },
 
-  /**
-   * Logout (client-side only - clear local storage)
-   */
+  /** POST /warehouse/auth/logout */
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
     if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+      window.location.href = '/login'
     }
   },
-};
+}
 
-export default authService;
+export default authService

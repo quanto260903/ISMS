@@ -4,7 +4,7 @@
 
 // User Model
 export interface User {
-  userId: number;
+  userId: string;
   fullName: string;
   email: string;
   phone?: string;

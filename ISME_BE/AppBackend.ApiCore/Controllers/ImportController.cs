@@ -47,5 +47,48 @@ namespace AppBackend.ApiCore.Controllers
             var result = await _importService.GetListAsync(request);
             return StatusCode(result.StatusCode, result);
         }
+
+        /// <summary>
+        /// Lấy chi tiết phiếu nhập kho theo ID
+        /// GET /api/Import/{voucherId}
+        /// </summary>
+        [HttpGet("{voucherId}")]
+        public async Task<IActionResult> GetById(string voucherId)
+        {
+            var result = await _importService.GetByIdAsync(voucherId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Cập nhật phiếu nhập kho
+        /// PUT /api/Import/{voucherId}
+        /// </summary>
+        [HttpPut("{voucherId}")]
+        public async Task<IActionResult> UpdateInward(string voucherId, [FromBody] ImportOrder request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "INVALID_MODEL",
+                    StatusCode = 400,
+                    Data = 0,
+                    Message = "Dữ liệu không hợp lệ"
+                });
+
+            if (voucherId != request.VoucherId)
+                return BadRequest(new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "ID_MISMATCH",
+                    StatusCode = 400,
+                    Data = 0,
+                    Message = "VoucherId trong URL và body không khớp"
+                });
+
+            string userId = User?.Identity?.Name ?? "SYSTEM";
+            var result = await _importService.UpdateInwardAsync(request, userId);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

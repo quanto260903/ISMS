@@ -12,5 +12,8 @@ namespace AppBackend.Services.Services.ImportServices
     {
         Task<ResultModel<PagedResult<InwardListDto>>> GetListAsync(GetInwardListRequest request);
         Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string userId);
+
+        Task<ResultModel<ImportOrder>> GetByIdAsync(string voucherId);
+        Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId);
     }
 }

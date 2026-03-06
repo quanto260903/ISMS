@@ -1,5 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-
 namespace AppBackend.Extensions;
 
 public static class CorsConfig
@@ -8,14 +6,20 @@ public static class CorsConfig
     {
         services.AddCors(options =>
         {
-            options.AddPolicy("AllowAllOrigins",
-                builder =>
-                {
-                    builder.AllowAnyOrigin()
-                           .AllowAnyMethod()
-                           .AllowAnyHeader();
-                });
+            options.AddPolicy("AllowAllOrigins", builder =>
+            {
+                builder
+                    .WithOrigins(
+                        "http://localhost:3000",
+                        "http://localhost:3001",
+                        "https://yourdomain.com"
+                    )
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials();
+            });
         });
+
         return services;
     }
 }

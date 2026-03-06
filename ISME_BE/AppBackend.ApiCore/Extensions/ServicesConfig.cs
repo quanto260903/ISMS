@@ -7,6 +7,7 @@ using AppBackend.Repositories.Repositories.WarehouseRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
+using AppBackend.Services.Services.AuthServices;
 using AppBackend.Services.Services.Email;
 using AppBackend.Services.Services.GoodsServices;
 using AppBackend.Services.Services.ImportServices;
@@ -34,6 +35,7 @@ public static class ServicesConfig
         #endregion
 
         #region Services
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<ICloudinaryService, CloudinaryService>();
         services.AddSingleton<RateLimiterStore>();

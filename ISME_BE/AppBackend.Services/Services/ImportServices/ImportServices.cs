@@ -221,5 +221,211 @@ namespace AppBackend.Services.Services.ImportServices
                 };
             }
         }
+        public async Task<ResultModel<ImportOrder>> GetByIdAsync(string voucherId)
+        {
+            try
+            {
+                var voucher = await _inwardRepository.GetByIdAsync(voucherId);
+
+                if (voucher == null)
+                    return new ResultModel<ImportOrder>
+                    {
+                        IsSuccess = false,
+                        ResponseCode = "NOT_FOUND",
+                        StatusCode = 404,
+                        Data = null,
+                        Message = $"Không tìm thấy phiếu nhập: {voucherId}"
+                    };
+
+                // Map Voucher entity → ImportOrder DTO (khớp shape frontend expect)
+                var dto = new ImportOrder
+                {
+                    VoucherId = voucher.VoucherId,
+                    VoucherCode = voucher.VoucherCode,
+                    CustomerId = voucher.CustomerId,
+                    CustomerName = voucher.CustomerName,
+                    TaxCode = voucher.TaxCode,
+                    Address = voucher.Address,
+                    VoucherDescription = voucher.VoucherDescription,
+                    VoucherDate = voucher.VoucherDate,
+                    BankName = voucher.BankName,
+                    BankAccountNumber = voucher.BankAccountNumber,
+                    Items = voucher.VoucherDetails.Select(d => new CreateInwardItemRequest
+                    {
+                        GoodsId = d.GoodsId,
+                        GoodsName = d.GoodsName,
+                        Unit = d.Unit,
+                        Quantity = d.Quantity,
+                        UnitPrice = d.UnitPrice,
+                        Amount1 = d.Amount1,
+                        Vat = d.Vat,
+                        Promotion = d.Promotion,
+                        DebitAccount1 = d.DebitAccount1,
+                        CreditAccount1 = d.CreditAccount1,
+                        DebitWarehouseId = d.DebitWarehouseId,
+                        DebitAccount2 = d.DebitAccount2,
+                        CreditAccount2 = d.CreditAccount2,
+                        UserId = d.UserId,
+                        CreatedDateTime = d.CreatedDateTime,
+                    }).ToList(),
+                };
+
+                return new ResultModel<ImportOrder>
+                {
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = dto,
+                    Message = "OK"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<ImportOrder>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = null,
+                    Message = ex.Message
+                };
+            }
+        }
+
+        public async Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId)
+        {
+            try
+            {
+                // ── 1. Validate từng dòng hàng hóa (giữ đúng pattern CreateInwardAsync) ──
+                foreach (var itemRequest in request.Items)
+                {
+                    if (string.IsNullOrWhiteSpace(itemRequest.GoodsId))
+                        return new ResultModel<int>
+                        {
+                            IsSuccess = false,
+                            ResponseCode = "INVALID_ITEM",
+                            StatusCode = 400,
+                            Data = 0,
+                            Message = "Mã hàng hóa không được để trống"
+                        };
+
+                    var goods = await _itemRepository.GetByIdAsync(itemRequest.GoodsId);
+
+                    if (goods == null)
+                        return new ResultModel<int>
+                        {
+                            IsSuccess = false,
+                            ResponseCode = "ITEM_NOT_FOUND",
+                            StatusCode = 404,
+                            Data = 0,
+                            Message = $"Không tìm thấy hàng hóa: {itemRequest.GoodsId}"
+                        };
+
+                    if (itemRequest.Quantity is null || itemRequest.Quantity <= 0)
+                        return new ResultModel<int>
+                        {
+                            IsSuccess = false,
+                            ResponseCode = "INVALID_QUANTITY",
+                            StatusCode = 400,
+                            Data = 0,
+                            Message = $"Số lượng không hợp lệ cho {goods.GoodsName}"
+                        };
+
+                    if (itemRequest.UnitPrice is null || itemRequest.UnitPrice < 0)
+                        return new ResultModel<int>
+                        {
+                            IsSuccess = false,
+                            ResponseCode = "INVALID_PRICE",
+                            StatusCode = 400,
+                            Data = 0,
+                            Message = $"Đơn giá không hợp lệ cho {goods.GoodsName}"
+                        };
+
+                    if (string.IsNullOrWhiteSpace(itemRequest.DebitWarehouseId))
+                        return new ResultModel<int>
+                        {
+                            IsSuccess = false,
+                            ResponseCode = "MISSING_WAREHOUSE",
+                            StatusCode = 400,
+                            Data = 0,
+                            Message = $"Chưa chọn kho nhập cho {goods.GoodsName}"
+                        };
+                }
+
+                // ── 2. Lấy voucher gốc từ DB ──
+                var voucher = await _inwardRepository.GetByIdAsync(request.VoucherId);
+
+                if (voucher == null)
+                    return new ResultModel<int>
+                    {
+                        IsSuccess = false,
+                        ResponseCode = "NOT_FOUND",
+                        StatusCode = 404,
+                        Data = 0,
+                        Message = $"Không tìm thấy phiếu nhập: {request.VoucherId}"
+                    };
+
+                // ── 3. Cập nhật header ──
+                voucher.VoucherCode = request.VoucherCode;
+                voucher.CustomerId = request.CustomerId;
+                voucher.CustomerName = request.CustomerName;
+                voucher.TaxCode = request.TaxCode;
+                voucher.Address = request.Address;
+                voucher.VoucherDescription = request.VoucherDescription;
+                voucher.VoucherDate = request.VoucherDate;
+                voucher.BankName = request.BankName;
+                voucher.BankAccountNumber = request.BankAccountNumber;
+
+                // ── 4. Xóa items cũ → thêm lại items mới ──
+                voucher.VoucherDetails.Clear();
+
+                foreach (var itemRequest in request.Items)
+                {
+                    voucher.VoucherDetails.Add(new VoucherDetail
+                    {
+                        GoodsId = itemRequest.GoodsId,
+                        GoodsName = itemRequest.GoodsName,
+                        Unit = itemRequest.Unit,
+                        Quantity = itemRequest.Quantity,
+                        UnitPrice = itemRequest.UnitPrice,
+                        Amount1 = itemRequest.Amount1,
+                        Vat = itemRequest.Vat,
+                        Promotion = itemRequest.Promotion,
+                        DebitAccount1 = itemRequest.DebitAccount1,
+                        CreditAccount1 = itemRequest.CreditAccount1,
+                        DebitWarehouseId = itemRequest.DebitWarehouseId,
+                        DebitAccount2 = itemRequest.DebitAccount2,
+                        CreditAccount2 = itemRequest.CreditAccount2,
+                        UserId = itemRequest.UserId,
+                        CreatedDateTime = itemRequest.CreatedDateTime,
+                    });
+                }
+
+                // ── 5. Lưu ──
+                await _inwardRepository.UpdateAsync(voucher);
+                var affectedRows = await _unitOfWork.SaveChangesAsync();
+
+                return new ResultModel<int>
+                {
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = affectedRows,
+                    Message = "Cập nhật phiếu nhập kho thành công"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = 0,
+                    Message = ex.Message
+                };
+            }
+        }
+
     }
 }

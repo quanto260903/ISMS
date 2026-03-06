@@ -1,11 +1,12 @@
 // ============================================================
-//  features/inward/components/AddInwardForm.tsx
-//  Phiếu nhập kho — hỗ trợ: Mua hàng | Hàng bán bị trả lại
+//  features/inward/components/EditInwardForm.tsx
+//  Tái sử dụng logic AddInwardForm — chỉ thêm initialData + edit mode
 // ============================================================
 
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   PAYMENT_LABELS,
@@ -14,6 +15,7 @@ import {
   getCreditAccountByPayment,
 } from "../constants/import.constants";
 import { useInwardForm }        from "../hooks/useInwardForm";
+import { useInwardDetail }      from "../hooks/useInwardDetail";
 import { useGoodsSearch }       from "../hooks/useGoodsSearch";
 import { useWarehouseList }     from "../hooks/useWarehouseList";
 import { useSaleVoucherLookup } from "../hooks/useSaleVoucherLookup";
@@ -25,29 +27,51 @@ import type {
   GoodsSearchResult,
 } from "../types/import.types";
 
-export default function AddInwardForm() {
-  const [reason, setReason] = useState<InwardReason>("PURCHASE");
+interface Props {
+  voucherId: string;
+}
 
-  // ── Lấy thông tin người dùng đang đăng nhập ──────────────
+// Detect lý do nhập từ voucherCode
+function detectReason(code?: string): InwardReason {
+  if (!code) return "PURCHASE";
+  if (code === "NK4") return "SALES_RETURN";
+  if (code === "NK5") return "OTHER";
+  return "PURCHASE";
+}
+
+export default function EditInwardForm({ voucherId }: Props) {
+  const router = useRouter();
   const { user } = useAuthStore();
-  const currentUserId   = user?.userId   ?? "";
+  const currentUserId   = String(user?.userId   ?? "");
   const currentUserName = user?.fullName ?? "";
 
+  // Fetch dữ liệu phiếu gốc
+  const { data: initialData, loading: fetchLoading, error: fetchError } =
+    useInwardDetail(voucherId);
+
+  const [reason, setReason] = useState<InwardReason>("PURCHASE");
+
+  // Sync reason khi dữ liệu load xong
+  useEffect(() => {
+    if (initialData) setReason(detectReason(initialData.voucherCode));
+  }, [initialData?.voucherId]);
+
   const {
-    voucher, paymentOption, message,
+    voucher, paymentOption, message, loading, isEditMode,
     totalAmount, totalVat,
     setField, handlePaymentChange,
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
- } = useInwardForm({
-  userId:       currentUserId,
-  userFullName: currentUserName,
-});
+  } = useInwardForm({
+    userId:       currentUserId,
+    userFullName: currentUserName,
+    initialData:  initialData ?? undefined,
+    onSuccess:    () => setTimeout(() => router.push("/dashboard/import"), 1200),
+  });
 
   const { warehouses }    = useWarehouseList();
   const saleVoucherLookup = useSaleVoucherLookup();
 
-  // ── Khi đổi lý do → cập nhật voucherCode ────────────────
   const handleReasonChange = (r: InwardReason) => {
     setReason(r);
     const payment = r === "OTHER" ? "CASH" : paymentOption;
@@ -56,46 +80,30 @@ export default function AddInwardForm() {
     saleVoucherLookup.clearLookup();
   };
 
-  // ── Khi tìm thấy phiếu bán → auto-fill toàn bộ bảng ────
   useEffect(() => {
     const result = saleVoucherLookup.lookupResult;
     if (!result || reason !== "SALES_RETURN") return;
-
     setField("customerName",       result.customerName);
     setField("voucherDescription", `Hàng bán bị trả lại - ${result.voucherId}`);
-
     const creditAcc = getCreditAccountByPayment(paymentOption);
     const newItems = result.items.map((d) => ({
-      goodsId:          d.goodsId,
-      goodsName:        d.goodsName,
-      unit:             d.unit,
-      quantity:         d.quantity,
-      unitPrice:        d.unitPrice,
-      amount1:          d.amount1,
-      vat:              d.vat,
-      promotion:        d.promotion,
-      debitAccount1:    "156",
-      creditAccount1:   creditAcc,
+      goodsId: d.goodsId, goodsName: d.goodsName, unit: d.unit,
+      quantity: d.quantity, unitPrice: d.unitPrice, amount1: d.amount1,
+      vat: d.vat, promotion: d.promotion,
+      debitAccount1: "156", creditAccount1: creditAcc,
       debitWarehouseId: d.creditWarehouseId,
-      debitAccount2:    "1331",
-      creditAccount2:   creditAcc,
-      userId:           currentUserId,          // ← gán userId thực
-      createdDateTime:  new Date().toISOString(),
+      debitAccount2: "1331", creditAccount2: creditAcc,
+      userId: currentUserId, createdDateTime: new Date().toISOString(),
     }));
+    replaceAllItems([...newItems, {
+      goodsId: "", goodsName: "", unit: "",
+      quantity: 1, unitPrice: 0, amount1: 0, vat: 10, promotion: 0,
+      debitAccount1: "156", creditAccount1: creditAcc,
+      debitWarehouseId: "", debitAccount2: "1331", creditAccount2: creditAcc,
+      userId: currentUserId, createdDateTime: new Date().toISOString(),
+    }]);
+  }, [saleVoucherLookup.lookupResult]); // eslint-disable-line
 
-    replaceAllItems([...newItems, createEmptyItemShim(creditAcc)]);
-  }, [saleVoucherLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const createEmptyItemShim = (creditAcc: string) => ({
-    goodsId: "", goodsName: "", unit: "",
-    quantity: 1, unitPrice: 0, amount1: 0, vat: 10, promotion: 0,
-    debitAccount1: "156", creditAccount1: creditAcc,
-    debitWarehouseId: "", debitAccount2: "1331", creditAccount2: creditAcc,
-    userId: currentUserId,                        // ← gán userId thực
-    createdDateTime: new Date().toISOString(),
-  });
-
-  // ── Autocomplete hàng hóa ───────────────────────────────
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
     updateItem(index, "goodsName", goods.goodsName);
@@ -108,26 +116,53 @@ export default function AddInwardForm() {
     onAddItem: addItem,
   });
 
-  // Khởi tạo 1 dòng trống
-  const initialized = React.useRef(false);
-  useEffect(() => {
-    if (!initialized.current) { addItem(); initialized.current = true; }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Sync dropdowns khi thêm / xóa item
-  const prevLengthRef = React.useRef(voucher.items.length);
+  // Sync dropdown count khi items thay đổi
+  const prevLengthRef = React.useRef(0);
   useEffect(() => {
     const cur = voucher.items.length, prev = prevLengthRef.current;
     if (cur > prev) for (let i = 0; i < cur - prev; i++) goodsSearch.addDropdown();
     if (cur < prev) goodsSearch.removeDropdown(cur);
     prevLengthRef.current = cur;
-  }, [voucher.items.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [voucher.items.length]); // eslint-disable-line
 
   const isSalesReturn = reason === "SALES_RETURN";
 
+  // ── Loading / Error states ─────────────────────────────
+  if (fetchLoading) return (
+    <div style={{ padding: 40, textAlign: "center", color: "#555" }}>
+      ⏳ Đang tải phiếu nhập kho...
+    </div>
+  );
+
+  if (fetchError) return (
+    <div style={{ padding: 40, textAlign: "center", color: "#cc2222" }}>
+      ⚠️ {fetchError}
+      <br />
+      <button
+        style={{ marginTop: 12, padding: "8px 20px", cursor: "pointer" }}
+        onClick={() => router.push("/dashboard/import")}
+      >
+        ← Quay lại danh sách
+      </button>
+    </div>
+  );
+
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Thêm mới phiếu nhập kho</h2>
+
+      {/* Header với nút quay lại */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
+        <button
+          style={{ ...styles.btnSecondary, padding: "6px 16px" }}
+          onClick={() => router.push("/dashboard/import")}
+        >
+          ← Quay lại
+        </button>
+        <h2 style={{ ...styles.title, margin: 0 }}>
+          Sửa phiếu nhập kho
+          <span style={s.voucherIdBadge}>{voucherId}</span>
+        </h2>
+      </div>
 
       {/* ── Lý do nhập kho ── */}
       <section style={{ ...styles.section, maxWidth: 860 }}>
@@ -136,22 +171,7 @@ export default function AddInwardForm() {
           <select
             value={reason}
             onChange={(e) => handleReasonChange(e.target.value as InwardReason)}
-            style={{
-              height: 38,
-              padding: "0 36px 0 12px",
-              border: "1.5px solid #c7d7ff",
-              borderRadius: 8,
-              background: "#eff6ff",
-              color: "#2255cc",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: "pointer",
-              appearance: "none",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232255cc' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right 10px center",
-              minWidth: 220,
-            }}
+            style={s.reasonSelect}
           >
             {(["PURCHASE", "SALES_RETURN", "OTHER"] as InwardReason[]).map((r) => (
               <option key={r} value={r}>
@@ -160,14 +180,7 @@ export default function AddInwardForm() {
               </option>
             ))}
           </select>
-          <span style={{
-            padding: "4px 12px",
-            background: "#f0f4ff",
-            color: "#555",
-            border: "1px solid #e0e0e0",
-            borderRadius: 6,
-            fontSize: 12,
-          }}>
+          <span style={s.voucherCodeBadge}>
             Mã CT: <strong style={{ color: "#2255cc" }}>
               {getVoucherCodeByReason(reason, paymentOption)}
             </strong>
@@ -177,7 +190,7 @@ export default function AddInwardForm() {
 
       <hr style={styles.hr} />
 
-      {/* ── Tra cứu phiếu bán ── */}
+      {/* ── Tra cứu phiếu bán (chỉ khi SALES_RETURN) ── */}
       {isSalesReturn && (
         <>
           <section style={{ ...styles.section, maxWidth: 860 }}>
@@ -194,52 +207,29 @@ export default function AddInwardForm() {
                 />
               </div>
               <button
-                style={{
-                  ...styles.btnPrimary,
-                  padding: "8px 20px",
-                  minWidth: 110,
-                  opacity: saleVoucherLookup.lookupLoading ? 0.6 : 1,
-                }}
+                style={{ ...styles.btnPrimary, padding: "8px 20px", minWidth: 110,
+                  opacity: saleVoucherLookup.lookupLoading ? 0.6 : 1 }}
                 onClick={saleVoucherLookup.handleLookup}
                 disabled={saleVoucherLookup.lookupLoading}
               >
                 {saleVoucherLookup.lookupLoading ? "⏳ Đang tìm..." : "🔍 Tra cứu"}
               </button>
               {saleVoucherLookup.lookupResult && (
-                <button
-                  style={{ ...styles.btnDanger, padding: "8px 14px" }}
-                  onClick={saleVoucherLookup.clearLookup}
-                  title="Xóa kết quả và nhập lại"
-                >
-                  ✕ Xóa
-                </button>
+                <button style={{ ...styles.btnDanger, padding: "8px 14px" }}
+                  onClick={saleVoucherLookup.clearLookup}>✕ Xóa</button>
               )}
             </div>
-
             {saleVoucherLookup.lookupError && (
               <p style={{ color: "#cc2222", fontSize: 13, marginTop: 6 }}>
                 ⚠️ {saleVoucherLookup.lookupError}
               </p>
-            )}
-
-            {saleVoucherLookup.lookupResult && (
-              <div style={s.lookupResult}>
-                <span style={s.lookupBadge}>✅ Đã tìm thấy</span>
-                <span style={s.lookupInfo}>
-                  Phiếu <strong>{saleVoucherLookup.lookupResult.voucherId}</strong>
-                  {" · "}Khách: <strong>{saleVoucherLookup.lookupResult.customerName}</strong>
-                  {" · "}Ngày: <strong>{new Date(saleVoucherLookup.lookupResult.voucherDate).toLocaleDateString("vi-VN")}</strong>
-                  {" · "}{saleVoucherLookup.lookupResult.items.length} sản phẩm
-                  {" → "}đã tự động điền vào bảng bên dưới
-                </span>
-              </div>
             )}
           </section>
           <hr style={styles.hr} />
         </>
       )}
 
-      {/* ── Hình thức thanh toán (chỉ hiện khi Mua hàng) ── */}
+      {/* ── Hình thức thanh toán (chỉ khi PURCHASE) ── */}
       {reason === "PURCHASE" && (
         <>
           <section style={{ ...styles.section, maxWidth: 860 }}>
@@ -247,8 +237,7 @@ export default function AddInwardForm() {
             <div style={{ display: "flex", gap: 24 }}>
               {(["UNPAID", "CASH", "BANK"] as PaymentOption[]).map((opt) => (
                 <label key={opt} style={styles.radioLabel}>
-                  <input
-                    type="radio" value={opt}
+                  <input type="radio" value={opt}
                     checked={paymentOption === opt}
                     onChange={() => handlePaymentChange(opt)}
                     style={{ marginRight: 6 }}
@@ -269,68 +258,52 @@ export default function AddInwardForm() {
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           <div style={{ ...styles.fieldGroup, flex: 1 }}>
             <label style={styles.label}>Số phiếu *</label>
-            <input
-              style={styles.input}
-              value={voucher.voucherId}
-              onChange={(e) => setField("voucherId", e.target.value)}
-              placeholder="Tự sinh, có thể sửa"
-            />
+            <input style={{ ...styles.input, background: "#f5f5f5", color: "#888" }}
+              value={voucher.voucherId} readOnly />
           </div>
           <div style={{ ...styles.fieldGroup, flex: 1 }}>
             <label style={styles.label}>Ngày nhập kho *</label>
-            <input
-              type="date" style={styles.input}
+            <input type="date" style={styles.input}
               value={voucher.voucherDate}
-              onChange={(e) => setField("voucherDate", e.target.value)}
-            />
+              onChange={(e) => setField("voucherDate", e.target.value)} />
           </div>
         </div>
 
-        {/* Người lập phiếu — chỉ đọc, tự điền từ auth */}
+        {/* Người lập phiếu — readonly */}
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Người lập phiếu</label>
-          <input
-            style={{ ...styles.input, background: "#f5f5f5", color: "#555" }}
-            value={currentUserName}
-            readOnly
-          />
+          <input style={{ ...styles.input, background: "#f5f5f5", color: "#555" }}
+            value={currentUserName} readOnly />
         </div>
 
         {[
           { label: isSalesReturn ? "Mã khách hàng" : "Mã nhà cung cấp",
-            field: "customerId" as const,
-            placeholder: isSalesReturn ? "Tự điền từ phiếu bán" : "Nhập mã NCC" },
+            field: "customerId" as const, placeholder: "Nhập mã" },
           { label: isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *",
-            field: "customerName" as const,
-            placeholder: isSalesReturn ? "Tự điền từ phiếu bán" : "Nhập tên NCC" },
+            field: "customerName" as const, placeholder: "Nhập tên" },
           { label: "Mã số thuế",  field: "taxCode"           as const, placeholder: "Nhập MST"       },
           { label: "Địa chỉ",    field: "address"            as const, placeholder: "Nhập địa chỉ"   },
           { label: "Diễn giải",  field: "voucherDescription" as const, placeholder: "Nhập diễn giải" },
         ].map(({ label, field, placeholder }) => (
           <div key={field} style={styles.fieldGroup}>
             <label style={styles.label}>{label}</label>
-            <input
-              style={styles.input}
-              placeholder={placeholder}
+            <input style={styles.input} placeholder={placeholder}
               value={voucher[field] as string}
-              onChange={(e) => setField(field, e.target.value)}
-            />
+              onChange={(e) => setField(field, e.target.value)} />
           </div>
         ))}
 
         {paymentOption === "BANK" && reason === "PURCHASE" && (
           <>
             {[
-              { label: "Số tài khoản ngân hàng *", field: "bankAccountNumber" as const, placeholder: "Nhập số TK" },
-              { label: "Tên tài khoản ngân hàng *", field: "bankName"         as const, placeholder: "Nhập tên TK" },
-            ].map(({ label, field, placeholder }) => (
+              { label: "Số tài khoản ngân hàng *", field: "bankAccountNumber" as const },
+              { label: "Tên tài khoản ngân hàng *", field: "bankName" as const },
+            ].map(({ label, field }) => (
               <div key={field} style={styles.fieldGroup}>
                 <label style={styles.label}>{label}</label>
-                <input
-                  style={styles.input} placeholder={placeholder}
+                <input style={styles.input}
                   value={(voucher[field] as string) ?? ""}
-                  onChange={(e) => setField(field, e.target.value)}
-                />
+                  onChange={(e) => setField(field, e.target.value)} />
               </div>
             ))}
           </>
@@ -341,12 +314,7 @@ export default function AddInwardForm() {
 
       {/* ── Chi tiết hàng hóa ── */}
       <section style={styles.section}>
-        <h3 style={styles.sectionTitle}>
-          Chi tiết hàng hóa
-          {isSalesReturn && saleVoucherLookup.lookupResult && (
-            <span style={s.autoFilledBadge}>✨ Tự động điền từ phiếu bán</span>
-          )}
-        </h3>
+        <h3 style={styles.sectionTitle}>Chi tiết hàng hóa</h3>
 
         {voucher.items.length > 0 && (
           <InwardItemTable
@@ -389,9 +357,22 @@ export default function AddInwardForm() {
 
       <hr style={styles.hr} />
 
-      <button style={styles.btnPrimary} onClick={handleSubmit}>
-        Lưu phiếu nhập kho
-      </button>
+      {/* ── Actions ── */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <button
+          style={{ ...styles.btnPrimary, opacity: loading ? 0.6 : 1 }}
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+        </button>
+        <button
+          style={styles.btnSecondary}
+          onClick={() => router.push("/dashboard/import")}
+        >
+          Hủy
+        </button>
+      </div>
 
       {message && (
         <p style={{
@@ -405,39 +386,29 @@ export default function AddInwardForm() {
   );
 }
 
-/* ── Local styles ── */
 const s: Record<string, React.CSSProperties> = {
-  lookupResult: {
-    marginTop: 10,
-    padding: "10px 14px",
-    background: "#f0fff4",
-    border: "1px solid #86efac",
-    borderRadius: 6,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontSize: 13,
-  },
-  lookupBadge: {
-    padding: "2px 10px",
-    background: "#16a34a",
-    color: "#fff",
-    borderRadius: 10,
-    fontWeight: 700,
-    fontSize: 12,
-    whiteSpace: "nowrap",
-  },
-  lookupInfo: {
-    color: "#166534",
-  },
-  autoFilledBadge: {
+  voucherIdBadge: {
     marginLeft: 10,
     padding: "2px 10px",
-    background: "#eff6ff",
+    background: "#f0f4ff",
     color: "#2255cc",
     border: "1px solid #c7d7ff",
-    borderRadius: 10,
-    fontSize: 12,
-    fontWeight: 600,
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 500,
+  },
+  reasonSelect: {
+    height: 38, padding: "0 36px 0 12px",
+    border: "1.5px solid #c7d7ff", borderRadius: 8,
+    background: "#eff6ff", color: "#2255cc",
+    fontWeight: 600, fontSize: 14, cursor: "pointer",
+    appearance: "none" as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232255cc' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
+    minWidth: 220,
+  },
+  voucherCodeBadge: {
+    padding: "4px 12px", background: "#f0f4ff", color: "#555",
+    border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 12,
   },
 };

@@ -14,5 +14,8 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
 
         Task<(IEnumerable<Voucher> Items, int Total)> GetListAsync(
           GetInwardListRequest request);
+
+        Task<Voucher?> GetByIdAsync(string voucherId);
+        Task UpdateAsync(Voucher voucher);
     }
 }

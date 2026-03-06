@@ -65,5 +65,20 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
 
             return (items, total);
         }
+        public async Task<Voucher?> GetByIdAsync(string voucherId)
+        {
+            return await _context.Vouchers
+                .Include(v => v.VoucherDetails)
+                .FirstOrDefaultAsync(v =>
+                    v.VoucherId == voucherId &&
+                    v.VoucherCode != null &&
+                    v.VoucherCode.StartsWith("NK"));
+        }
+
+        public async Task UpdateAsync(Voucher voucher)
+        {
+            _context.Vouchers.Update(voucher);
+        }
+
     }
 }
