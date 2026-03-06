@@ -1,6 +1,7 @@
 ﻿using AppBackend.BusinessObjects.Models;
 using AppBackend.Repositories.Generic;
 using AppBackend.Repositories.Repositories.UserRepo;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,6 +25,16 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                 throw new ArgumentNullException(nameof(voucher));
 
             await _context.Vouchers.AddAsync(voucher);
+        }
+
+        public async Task<Voucher?> GetByVoucherIdAsync(string voucherId)
+        {
+            return await _context.Vouchers
+                .Include(v => v.VoucherDetails)
+                .FirstOrDefaultAsync(v =>
+                    v.VoucherId == voucherId &&
+                    v.VoucherCode != null &&
+                    v.VoucherCode.StartsWith("BH")); // Chỉ lấy phiếu bán
         }
     }
 }

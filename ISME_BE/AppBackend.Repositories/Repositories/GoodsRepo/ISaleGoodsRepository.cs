@@ -11,5 +11,6 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
     public interface ISaleGoodsRepository
     {
         Task AddAsync(Voucher sale);
+        Task<Voucher?> GetByVoucherIdAsync(string voucherId);
     }
 }

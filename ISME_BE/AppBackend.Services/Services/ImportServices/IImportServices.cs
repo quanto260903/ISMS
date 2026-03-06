@@ -10,6 +10,7 @@ namespace AppBackend.Services.Services.ImportServices
 {
     public interface IImportServices
     {
+        Task<ResultModel<PagedResult<InwardListDto>>> GetListAsync(GetInwardListRequest request);
         Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string userId);
     }
 }

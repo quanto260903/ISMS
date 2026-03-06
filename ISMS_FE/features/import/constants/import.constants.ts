@@ -2,7 +2,7 @@
 //  features/inward/constants/inward.constants.ts
 // ============================================================
 
-import type { PaymentOption, InwardItem } from "../types/import.types";
+import type { PaymentOption, InwardItem, InwardReason } from "../types/import.types";
 
 export const VAT_OPTIONS = [0, 5, 7, 10] as const;
 
@@ -34,6 +34,23 @@ export const PAYMENT_LABELS: Record<PaymentOption, string> = {
   CASH:   "Tiền mặt",
   BANK:   "Ngân hàng",
   UNPAID: "Chưa thanh toán",
+};
+
+export const INWARD_REASON_LABELS: Record<InwardReason, string> = {
+  PURCHASE:     "Mua hàng",
+  SALES_RETURN: "Hàng bán bị trả lại",
+  OTHER:        "Khác",
+};
+
+// VoucherCode cho từng lý do nhập kho
+// NK1/NK2/NK3 = Mua hàng theo httt; NK4 = Hàng bán bị trả lại; NK5 = Khác
+export const getVoucherCodeByReason = (
+  reason: InwardReason,
+  payment: PaymentOption
+): string => {
+  if (reason === "SALES_RETURN") return "NK4";
+  if (reason === "OTHER")        return "NK5";
+  return getVoucherCodeByPayment(payment);
 };
 
 // Cột bảng — khớp đúng các field backend có

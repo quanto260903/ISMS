@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AppBackend.BusinessObjects.Dtos.PayOs
+namespace AppBackend.BusinessObjects.Dtos
 {
     public class CreateSaleRequest
     {
@@ -65,5 +65,28 @@ namespace AppBackend.BusinessObjects.Dtos.PayOs
         public string? UserId { get; set; }
 
         public DateTime? CreatedDateTime { get; set; }
+    }
+
+    public class SaleVoucherLookupDto
+    {
+        public string VoucherId { get; set; } = null!;
+        public string? CustomerName { get; set; }
+        public DateOnly? VoucherDate { get; set; }
+        public List<SaleVoucherDetailDto> Items { get; set; } = new();
+    }
+
+    public class SaleVoucherDetailDto
+    {
+        public string? GoodsId { get; set; }
+        public string? GoodsName { get; set; }
+        public string? Unit { get; set; }
+        public int? Quantity { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? Amount1 { get; set; }
+        public decimal? Vat { get; set; }
+        public decimal? Promotion { get; set; }
+        public string? DebitAccount1 { get; set; }
+        public string? CreditAccount1 { get; set; }
+        public string? CreditWarehouseId { get; set; }
     }
 }

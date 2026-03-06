@@ -71,4 +71,43 @@ namespace AppBackend.BusinessObjects.Dtos
         public string? UserId { get; set; }
         public DateTime? CreatedDateTime { get; set; }
     }
+
+    public class InwardListDto
+    {
+        public string VoucherId { get; set; } = null!;
+        public string? VoucherCode { get; set; }   // NK1/NK2/NK3/NK4/NK5
+        public string? InvoiceNumber { get; set; }   // Số hóa đơn (-- nếu null)
+        public DateOnly? VoucherDate { get; set; }   // Thời gian
+        public string? CustomerName { get; set; }   // Đối tượng (NCC/Khách)
+        public decimal TotalAmount { get; set; }   // Tổng tiền hàng
+        public int ItemCount { get; set; }   // Số dòng chi tiết
+    }
+
+    /// <summary>Bộ lọc danh sách phiếu nhập kho</summary>
+    public class GetInwardListRequest
+    {
+        /// <summary>Từ ngày (mặc định: đầu tháng hiện tại)</summary>
+        public DateOnly? FromDate { get; set; }
+
+        /// <summary>Đến ngày (mặc định: hôm nay)</summary>
+        public DateOnly? ToDate { get; set; }
+
+        /// <summary>Tìm theo số phiếu hoặc tên đối tượng</summary>
+        public string? Keyword { get; set; }
+
+        /// <summary>Lọc theo lý do nhập (NK1-NK5), null = tất cả</summary>
+        public string? VoucherCode { get; set; }
+
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 50;
+    }
+
+    public class PagedResult<T>
+    {
+        public IEnumerable<T> Items { get; set; } = Enumerable.Empty<T>();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public decimal GrandTotal { get; set; } // Tổng tiền cuối bảng
+    }
 }

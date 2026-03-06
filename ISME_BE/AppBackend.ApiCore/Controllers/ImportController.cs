@@ -36,5 +36,16 @@ namespace AppBackend.ApiCore.Controllers
             var result = await _importService.CreateInwardAsync(request, userId);
             return StatusCode(result.StatusCode, result);
         }
+
+        /// <summary>
+        /// Danh sách phiếu nhập kho — có lọc và phân trang
+        /// GET /api/Inward/list?fromDate=2026-03-01&toDate=2026-03-31&keyword=NK&page=1&pageSize=50
+        /// </summary>
+        [HttpGet("list")]
+        public async Task<IActionResult> GetList([FromQuery] GetInwardListRequest request)
+        {
+            var result = await _importService.GetListAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

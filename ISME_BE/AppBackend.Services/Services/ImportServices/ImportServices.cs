@@ -164,5 +164,62 @@ namespace AppBackend.Services.Services.ImportServices
                 };
             }
         }
+
+        public async Task<ResultModel<PagedResult<InwardListDto>>> GetListAsync(
+    GetInwardListRequest request)
+        {
+            try
+            {
+                // Mặc định lọc theo tháng hiện tại nếu không truyền ngày
+                if (!request.FromDate.HasValue)
+                    request.FromDate = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+                if (!request.ToDate.HasValue)
+                    request.ToDate = DateOnly.FromDateTime(DateTime.Today);
+
+                var (items, total) = await _inwardRepository.GetListAsync(request);
+
+                var dtos = items.Select(v => new InwardListDto
+                {
+                    VoucherId = v.VoucherId,
+                    VoucherCode = v.VoucherCode,
+                    InvoiceNumber = v.InvoiceNumber,        // null → hiển thị "--"
+                    VoucherDate = v.VoucherDate,
+                    CustomerName = v.CustomerName,
+                    TotalAmount = v.VoucherDetails
+                                     .Where(d => d.Amount1.HasValue)
+                                     .Sum(d => d.Amount1!.Value),
+                    ItemCount = v.VoucherDetails.Count,
+                }).ToList();
+
+                var grandTotal = dtos.Sum(d => d.TotalAmount);
+
+                return new ResultModel<PagedResult<InwardListDto>>
+                {
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = new PagedResult<InwardListDto>
+                    {
+                        Items = dtos,
+                        Total = total,
+                        Page = request.Page,
+                        PageSize = request.PageSize,
+                        GrandTotal = grandTotal,
+                    },
+                    Message = "OK"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<PagedResult<InwardListDto>>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = new PagedResult<InwardListDto>(),
+                    Message = ex.Message
+                };
+            }
+        }
     }
 }

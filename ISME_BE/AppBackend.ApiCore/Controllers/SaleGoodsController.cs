@@ -1,4 +1,4 @@
-﻿using AppBackend.BusinessObjects.Dtos.PayOs;
+﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.Services.ApiModels;
 using AppBackend.Services.Services.GoodsServices;
 using Microsoft.AspNetCore.Http;
@@ -37,6 +37,27 @@ namespace AppBackend.ApiCore.Controllers
 
             var result = await _saleService.CreateSaleAsync(request, userId);
 
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Tra cứu phiếu bán theo số phiếu
+        /// GET /api/SaleGoods/voucher/{voucherId}
+        /// </summary>
+        [HttpGet("voucher/{voucherId}")]
+        public async Task<IActionResult> GetByVoucherId(string voucherId)
+        {
+            if (string.IsNullOrWhiteSpace(voucherId))
+                return BadRequest(new ResultModel<object>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "INVALID_ID",
+                    StatusCode = 400,
+                    Data = null,
+                    Message = "Số phiếu không được để trống"
+                });
+
+            var result = await _saleService.GetByVoucherIdAsync(voucherId);
             return StatusCode(result.StatusCode, result);
         }
     }

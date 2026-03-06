@@ -45,7 +45,6 @@ const navGroups = [
     title: 'Tổng quan',
     items: [
       { href: '/dashboard', icon: Home, label: 'Dashboard', requiredRole: UserRole.Admin },
-      { href: '/dashboard/ai-search', icon: Sparkles, label: 'AI Search' },
     ]
   },
   {
@@ -59,8 +58,8 @@ const navGroups = [
   {
     title: 'Quản lý đơn hàng',
     items: [
-      { href: '/dashboard/import-orders', icon: ArrowDownToLine, label: 'Đơn Nhập' },
-      { href: '/dashboard/export-orders', icon: ArrowUpFromLine, label: 'Đơn Xuất' },
+      { href: '/dashboard/import', icon: ArrowDownToLine, label: 'Nhập hàng' },
+      { href: '/dashboard/sale', icon: ArrowUpFromLine, label: 'Xuất hàng' },
       { href: '/dashboard/returns', icon: RotateCcw, label: 'Trả Hàng' },
     ]
   },

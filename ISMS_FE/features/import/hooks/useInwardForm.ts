@@ -1,6 +1,5 @@
 // ============================================================
 //  features/inward/hooks/useInwardForm.ts
-//  Quản lý state form phiếu nhập kho
 // ============================================================
 
 "use client";
@@ -21,16 +20,13 @@ export function useInwardForm(userId: string = "") {
 
   const [voucher, setVoucher] = useState<InwardVoucher>({
     voucherId:          generateVoucherNumber(),
-    voucherCode:        getVoucherCodeByPayment("UNPAID"), // NK3 mặc định
-    customerId:         "",
-    customerName:       "",
+    voucherCode:        getVoucherCodeByPayment("UNPAID"),
+    customerId:         "",   // Mã nhà cung cấp
+    customerName:       "",   // Tên nhà cung cấp
     taxCode:            "",
     address:            "",
     voucherDescription: "",
     voucherDate:        new Date().toISOString().split("T")[0],
-    invoiceSymbol:      "",
-    invoiceNumber:      "",
-    invoiceDate:        "",
     bankName:           "",
     bankAccountNumber:  "",
     items:              [],
@@ -68,7 +64,7 @@ export function useInwardForm(userId: string = "") {
     createdDateTime:  new Date().toISOString(),
   });
 
-   const paymentOptionRef = useRef(paymentOption);
+  const paymentOptionRef = useRef(paymentOption);
   paymentOptionRef.current = paymentOption;
 
   const addItem = () =>
@@ -91,6 +87,9 @@ export function useInwardForm(userId: string = "") {
       return { ...prev, items };
     });
   };
+
+  const replaceAllItems = (newItems: InwardItem[]) =>
+    setVoucher((prev) => ({ ...prev, items: newItems }));
 
   const filledItems = useMemo(
     () => voucher.items.slice(0, -1),
@@ -170,7 +169,7 @@ export function useInwardForm(userId: string = "") {
     voucher, paymentOption, message,
     totalAmount, totalVat,
     setField, handlePaymentChange,
-    addItem, removeItem, updateItem,
+    addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
   };
 }

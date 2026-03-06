@@ -3,7 +3,7 @@
 //  Tầng API — chỉ nơi này gọi fetch/axios
 // ============================================================
 
-import type { GoodsSearchResult } from "./types/import.types";
+import type { GoodsSearchResult, SaleVoucherLookup, InwardListItem, InwardListResult } from "./types/import.types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -18,7 +18,18 @@ export async function searchGoods(keyword: string, limit = 10): Promise<GoodsSea
   return Array.isArray(json) ? json : json.data ?? [];
 }
 
-// Tạo phiếu nhập kho
+// Tra cứu phiếu bán hàng theo số hóa đơn (dùng khi nhập lại hàng bán bị trả)
+export async function getSaleVoucher(voucherId: string): Promise<SaleVoucherLookup | null> {
+  const res = await fetch(
+    `${BASE}/SaleGoods/voucher/${encodeURIComponent(voucherId)}`,
+    { cache: "no-store" }
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Lỗi tra cứu phiếu bán: ${res.status}`);
+  const json = await res.json();
+  return (json.data ?? json) as SaleVoucherLookup;
+}
+
 export async function createInward(payload: Record<string, unknown>) {
   const res = await fetch(`${BASE}/Import/add-inward`, {
     method:  "POST",
@@ -36,4 +47,26 @@ export async function getWarehouses(): Promise<{ warehouseId: string; warehouseN
   if (!res.ok) throw new Error("Lỗi tải danh sách kho");
   const json = await res.json();
   return Array.isArray(json) ? json : json.data ?? [];
+}
+
+export async function getInwardList(params: {
+  fromDate?: string;
+  toDate?: string;
+  keyword?: string;
+  voucherCode?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<InwardListResult> {
+  const q = new URLSearchParams();
+  if (params.fromDate)    q.set("fromDate",    params.fromDate);
+  if (params.toDate)      q.set("toDate",      params.toDate);
+  if (params.keyword)     q.set("keyword",     params.keyword);
+  if (params.voucherCode) q.set("voucherCode", params.voucherCode);
+  q.set("page",     String(params.page     ?? 1));
+  q.set("pageSize", String(params.pageSize ?? 50));
+
+  const res = await fetch(`${BASE}/Import/list?${q}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Lỗi tải danh sách phiếu nhập");
+  const json = await res.json();
+  return (json.data ?? json) as InwardListResult;
 }

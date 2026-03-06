@@ -1,4 +1,4 @@
-﻿using AppBackend.BusinessObjects.Dtos.PayOs;
+﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
 using AppBackend.Repositories.Repositories.GoodsRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
@@ -135,5 +135,73 @@ namespace AppBackend.Services.Services.GoodsServices
                 };
             }
         }
-    }
+        public async Task<ResultModel<SaleVoucherLookupDto>> GetByVoucherIdAsync(string voucherId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(voucherId))
+                    return new ResultModel<SaleVoucherLookupDto>
+                    {
+                        IsSuccess = false,
+                        ResponseCode = "INVALID_ID",
+                        StatusCode = 400,
+                        Data = null,
+                        Message = "Số phiếu không được để trống"
+                    };
+
+                var voucher = await _saleRepository.GetByVoucherIdAsync(voucherId.Trim());
+
+                if (voucher == null)
+                    return new ResultModel<SaleVoucherLookupDto>
+                    {
+                        IsSuccess = false,
+                        ResponseCode = "NOT_FOUND",
+                        StatusCode = 404,
+                        Data = null,
+                        Message = $"Không tìm thấy phiếu bán: {voucherId}"
+                    };
+
+                var dto = new SaleVoucherLookupDto
+                {
+                    VoucherId = voucher.VoucherId,
+                    CustomerName = voucher.CustomerName,
+                    VoucherDate = voucher.VoucherDate,
+                    Items = voucher.VoucherDetails.Select(d => new SaleVoucherDetailDto
+                    {
+                        GoodsId = d.GoodsId,
+                        GoodsName = d.GoodsName,
+                        Unit = d.Unit,
+                        Quantity = d.Quantity,
+                        UnitPrice = d.UnitPrice,
+                        Amount1 = d.Amount1,
+                        Vat = d.Vat,
+                        Promotion = d.Promotion,
+                        DebitAccount1 = d.DebitAccount1,
+                        CreditAccount1 = d.CreditAccount1,
+                        CreditWarehouseId = d.CreditWarehouseId,
+                    }).ToList()
+                };
+
+                return new ResultModel<SaleVoucherLookupDto>
+                {
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = dto,
+                    Message = "OK"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<SaleVoucherLookupDto>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = null,
+                    Message = ex.Message
+                };
+            }
+        }
+        }
 }

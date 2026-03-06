@@ -1,4 +1,6 @@
-// app/dashboard/inward/page.tsx
 "use client";
-import { AddInwardForm } from "@/features/import";
-export default function InwardPage() { return <AddInwardForm />; }
+import InwardListPage from "@/features/import/components/InwardListPage";
+
+export default function InwardPage() {
+  return <InwardListPage />;
+}
