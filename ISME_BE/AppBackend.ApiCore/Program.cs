@@ -5,7 +5,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configs
 builder.Services.AddCloudinaryConfig(builder.Configuration);
-builder.Services.AddPayOSConfig(builder.Configuration);
 builder.Services.AddCorsConfig();
 builder.Services.AddSwaggerConfig();
 builder.Services.AddDefaultAuth(builder.Configuration);

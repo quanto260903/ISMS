@@ -2,7 +2,6 @@
 
 using AppBackend.BusinessObjects.Dtos;
 using AppBackend.Services.ApiModels;
-using AppBackend.Services.ApiModels.UserModel;
 
 namespace AppBackend.Services.Services.UserServices
 {
