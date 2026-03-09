@@ -81,12 +81,20 @@ export default function AddSaleForm() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Tạo đơn bán hàng</h2>
+      {/* ── Hero header ── */}
+      <div style={s.heroBanner}>
+        <div style={s.heroOrb} />
+        <div style={s.heroOrb2} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={s.heroEyebrow}>Xuất hàng</div>
+          <h1 style={s.heroTitle}>Tạo đơn bán hàng</h1>
+        </div>
+      </div>
 
       {/* ── Hình thức thanh toán ── */}
-      <section style={{ ...styles.section, maxWidth: 860 }}>
-        <h3 style={styles.sectionTitle}>Hình thức thanh toán</h3>
-        <div style={{ display: "flex", gap: 24 }}>
+      <section style={s.card}>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Hình thức thanh toán</h3>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {(["CASH", "BANK", "UNPAID"] as PaymentOption[]).map((opt) => (
             <label key={opt} style={styles.radioLabel}>
               <input
@@ -104,8 +112,8 @@ export default function AddSaleForm() {
       <hr style={styles.hr} />
 
       {/* ── Thông tin chứng từ ── */}
-      <section style={{ ...styles.section, maxWidth: 860 }}>
-        <h3 style={styles.sectionTitle}>Thông tin chứng từ</h3>
+      <section style={s.card}>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin chứng từ</h3>
 
         {/* Các trường map 1-1 với backend */}
         {[
@@ -160,8 +168,8 @@ export default function AddSaleForm() {
       <hr style={styles.hr} />
 
       {/* ── Danh sách sản phẩm ── */}
-      <section style={styles.section}>
-        <h3 style={styles.sectionTitle}>Danh sách sản phẩm</h3>
+      <section style={{ ...s.card, maxWidth: "100%" }}>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Danh sách sản phẩm</h3>
 
         {voucher.items.length > 0 && (
           <SaleItemTable
@@ -209,15 +217,27 @@ export default function AddSaleForm() {
 
       <hr style={styles.hr} />
 
-      <button style={styles.btnPrimary} onClick={handleSubmit}>
-        Lưu chứng từ
-      </button>
-
-      {message && (
-        <p style={{ ...styles.message, color: message.includes("thành công") ? "green" : "red" }}>
-          {message}
-        </p>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <button style={styles.btnPrimary} onClick={handleSubmit}>
+          💾 Lưu chứng từ
+        </button>
+        {message && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 16px",
+            borderRadius: 8,
+            fontWeight: 600,
+            fontSize: 13,
+            background: message.includes("thành công") ? "#f0fdf4" : "#fff1f2",
+            color: message.includes("thành công") ? "#15803d" : "#b91c1c",
+            border: `1.5px solid ${message.includes("thành công") ? "#bbf7d0" : "#fca5a5"}`,
+          }}>
+            {message.includes("thành công") ? "✅" : "⚠️"} {message}
+          </div>
+        )}
+      </div>
 
       <WarehouseReportModal
         report={report}
@@ -227,3 +247,70 @@ export default function AddSaleForm() {
     </div>
   );
 }
+
+/* ── Local styles ── */
+const s: Record<string, React.CSSProperties> = {
+  heroBanner: {
+    position: "relative",
+    overflow: "hidden",
+    background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 60%, #3b82f6 100%)",
+    borderRadius: 14,
+    padding: "22px 28px",
+    marginBottom: 20,
+    boxShadow: "0 8px 24px rgba(109,40,217,0.28)",
+  },
+  heroOrb: {
+    position: "absolute",
+    top: -40, right: -40,
+    width: 180, height: 180,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.07)",
+  },
+  heroOrb2: {
+    position: "absolute",
+    bottom: -30, left: 80,
+    width: 120, height: 120,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.05)",
+  },
+  heroEyebrow: {
+    fontSize: 11, fontWeight: 700,
+    color: "rgba(255,255,255,0.6)",
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 22, fontWeight: 800,
+    color: "#fff", margin: 0,
+    letterSpacing: "-0.3px",
+  },
+  card: {
+    background: "#fff",
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    padding: "20px 24px",
+    marginBottom: 16,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+    maxWidth: 860,
+  },
+  cardTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    marginBottom: 14,
+    marginTop: 0,
+  },
+  titleDot: {
+    display: "inline-block",
+    width: 10, height: 10,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #7c3aed, #6366f1)",
+    flexShrink: 0,
+  },
+};

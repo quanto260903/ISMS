@@ -127,11 +127,19 @@ export default function AddInwardForm() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Thêm mới phiếu nhập kho</h2>
+      {/* ── Hero header ── */}
+      <div style={s.heroBanner}>
+        <div style={s.heroOrb} />
+        <div style={s.heroOrb2} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={s.heroEyebrow}>Nhập kho</div>
+          <h1 style={s.heroTitle}>Thêm mới phiếu nhập kho</h1>
+        </div>
+      </div>
 
       {/* ── Lý do nhập kho ── */}
-      <section style={{ ...styles.section, maxWidth: 860 }}>
-        <h3 style={styles.sectionTitle}>Lý do nhập kho</h3>
+      <section style={s.card}>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Lý do nhập kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <select
             value={reason}
@@ -180,8 +188,8 @@ export default function AddInwardForm() {
       {/* ── Tra cứu phiếu bán ── */}
       {isSalesReturn && (
         <>
-          <section style={{ ...styles.section, maxWidth: 860 }}>
-            <h3 style={styles.sectionTitle}>Số hóa đơn bán hàng gốc</h3>
+          <section style={s.card}>
+            <h3 style={s.cardTitle}><span style={s.titleDot} />Số hóa đơn bán hàng gốc</h3>
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
               <div style={{ ...styles.fieldGroup, flex: 1, marginBottom: 0 }}>
                 <label style={styles.label}>Số hóa đơn bán hàng *</label>
@@ -242,9 +250,9 @@ export default function AddInwardForm() {
       {/* ── Hình thức thanh toán (chỉ hiện khi Mua hàng) ── */}
       {reason === "PURCHASE" && (
         <>
-          <section style={{ ...styles.section, maxWidth: 860 }}>
-            <h3 style={styles.sectionTitle}>Hình thức thanh toán</h3>
-            <div style={{ display: "flex", gap: 24 }}>
+          <section style={s.card}>
+            <h3 style={s.cardTitle}><span style={s.titleDot} />Hình thức thanh toán</h3>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               {(["UNPAID", "CASH", "BANK"] as PaymentOption[]).map((opt) => (
                 <label key={opt} style={styles.radioLabel}>
                   <input
@@ -263,8 +271,8 @@ export default function AddInwardForm() {
       )}
 
       {/* ── Thông tin phiếu ── */}
-      <section style={{ ...styles.section, maxWidth: 860 }}>
-        <h3 style={styles.sectionTitle}>Thông tin phiếu nhập</h3>
+      <section style={s.card}>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin phiếu nhập</h3>
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           <div style={{ ...styles.fieldGroup, flex: 1 }}>
@@ -340,8 +348,8 @@ export default function AddInwardForm() {
       <hr style={styles.hr} />
 
       {/* ── Chi tiết hàng hóa ── */}
-      <section style={styles.section}>
-        <h3 style={styles.sectionTitle}>
+      <section style={{ ...s.card, maxWidth: "100%" }}>
+        <h3 style={s.cardTitle}>
           Chi tiết hàng hóa
           {isSalesReturn && saleVoucherLookup.lookupResult && (
             <span style={s.autoFilledBadge}>✨ Tự động điền từ phiếu bán</span>
@@ -389,55 +397,126 @@ export default function AddInwardForm() {
 
       <hr style={styles.hr} />
 
-      <button style={styles.btnPrimary} onClick={handleSubmit}>
-        Lưu phiếu nhập kho
-      </button>
-
-      {message && (
-        <p style={{
-          ...styles.message,
-          color: message.includes("thành công") ? "#16a34a" : "#cc2222",
-        }}>
-          {message}
-        </p>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <button style={styles.btnPrimary} onClick={handleSubmit}>
+          💾 Lưu phiếu nhập kho
+        </button>
+        {message && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 16px",
+            borderRadius: 8,
+            fontWeight: 600,
+            fontSize: 13,
+            background: message.includes("thành công") ? "#f0fdf4" : "#fff1f2",
+            color: message.includes("thành công") ? "#15803d" : "#b91c1c",
+            border: `1.5px solid ${message.includes("thành công") ? "#bbf7d0" : "#fca5a5"}`,
+          }}>
+            {message.includes("thành công") ? "✅" : "⚠️"} {message}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ── Local styles ── */
 const s: Record<string, React.CSSProperties> = {
-  lookupResult: {
-    marginTop: 10,
-    padding: "10px 14px",
-    background: "#f0fff4",
-    border: "1px solid #86efac",
-    borderRadius: 6,
+  heroBanner: {
+    position: "relative",
+    overflow: "hidden",
+    background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 60%, #3b82f6 100%)",
+    borderRadius: 14,
+    padding: "22px 28px",
+    marginBottom: 20,
+    boxShadow: "0 8px 24px rgba(109,40,217,0.28)",
+  },
+  heroOrb: {
+    position: "absolute",
+    top: -40, right: -40,
+    width: 180, height: 180,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.07)",
+  },
+  heroOrb2: {
+    position: "absolute",
+    bottom: -30, left: 80,
+    width: 120, height: 120,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.05)",
+  },
+  heroEyebrow: {
+    fontSize: 11, fontWeight: 700,
+    color: "rgba(255,255,255,0.6)",
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 22, fontWeight: 800,
+    color: "#fff", margin: 0,
+    letterSpacing: "-0.3px",
+  },
+  card: {
+    background: "#fff",
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    padding: "20px 24px",
+    marginBottom: 16,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+    maxWidth: 860,
+  },
+  cardTitle: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    marginBottom: 14,
+    marginTop: 0,
+  },
+  titleDot: {
+    display: "inline-block",
+    width: 10, height: 10,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #7c3aed, #6366f1)",
+    flexShrink: 0,
+  },
+  lookupResult: {
+    marginTop: 10,
+    padding: "12px 16px",
+    background: "#f0fdf4",
+    border: "1.5px solid #86efac",
+    borderRadius: 10,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
     fontSize: 13,
   },
   lookupBadge: {
-    padding: "2px 10px",
+    padding: "3px 12px",
     background: "#16a34a",
     color: "#fff",
-    borderRadius: 10,
+    borderRadius: 20,
     fontWeight: 700,
-    fontSize: 12,
+    fontSize: 11,
     whiteSpace: "nowrap",
+    letterSpacing: "0.04em",
   },
-  lookupInfo: {
-    color: "#166534",
-  },
+  lookupInfo: { color: "#166534", fontSize: 13 },
   autoFilledBadge: {
     marginLeft: 10,
-    padding: "2px 10px",
+    padding: "3px 12px",
     background: "#eff6ff",
-    color: "#2255cc",
-    border: "1px solid #c7d7ff",
-    borderRadius: 10,
-    fontSize: 12,
-    fontWeight: 600,
+    color: "#4f46e5",
+    border: "1.5px solid #c7d7ff",
+    borderRadius: 20,
+    fontSize: 11,
+    fontWeight: 700,
   },
 };

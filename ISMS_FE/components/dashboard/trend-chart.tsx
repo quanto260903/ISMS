@@ -27,13 +27,12 @@ export function TrendChart({
   title = 'Xu Hướng Nhập - Xuất - Tồn Kho',
   type = 'area',
 }: TrendChartProps) {
-  // Format data for chart
   const chartData = data.map((item) => ({
     date: new Date(item.date).toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
     }),
-    'Nhập Kho': item.importValue / 1000000, // Convert to millions
+    'Nhập Kho': item.importValue / 1000000,
     'Xuất Kho': item.exportValue / 1000000,
     'Tồn Kho': item.stockValue / 1000000,
   }))
@@ -41,16 +40,21 @@ export function TrendChart({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="rounded-lg border bg-white p-3 shadow-lg">
-          <p className="mb-2 font-semibold">{label}</p>
+        <div className="rounded-xl border border-white/10 bg-gray-900/90 p-3 shadow-2xl backdrop-blur-sm">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            {label}
+          </p>
           {payload.map((entry: any, index: number) => (
-            <p
-              key={index}
-              className="text-sm"
-              style={{ color: entry.color }}
-            >
-              {entry.name}: {formatCurrency(entry.value * 1000000)}
-            </p>
+            <div key={index} className="flex items-center gap-2 text-sm">
+              <span
+                className="h-2 w-2 flex-shrink-0 rounded-full"
+                style={{ background: entry.color }}
+              />
+              <span className="text-gray-300">{entry.name}:</span>
+              <span className="font-semibold text-white">
+                {formatCurrency(entry.value * 1000000)}
+              </span>
+            </div>
           ))}
         </div>
       )
@@ -59,53 +63,81 @@ export function TrendChart({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden border-0 shadow-md">
+      {/* Gradient header band */}
+      <div className="bg-gradient-to-r from-purple-600/10 via-purple-500/5 to-transparent px-6 py-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-            {title}
-          </CardTitle>
-          <div className="text-sm text-gray-500">
-            (Đơn vị: Triệu VNĐ)
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 shadow-md">
+                <TrendingUp className="h-4 w-4 text-white" />
+              </div>
+              {title}
+            </CardTitle>
+            <p className="mt-1 text-xs text-gray-400">
+              Phân tích 30 ngày gần nhất · Đơn vị: Triệu VNĐ
+            </p>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              Nhập kho
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
+              Xuất kho
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
+              Tồn kho
+            </span>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+      </div>
+
+      <CardContent className="pt-2">
+        <ResponsiveContainer width="100%" height={340}>
           {type === 'area' ? (
-            <AreaChart data={chartData}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorImport" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorExport" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorStock" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="#6b7280"
-                fontSize={12}
+                stroke="#9ca3af"
+                fontSize={11}
                 tickLine={false}
+                axisLine={false}
               />
-              <YAxis stroke="#6b7280" fontSize={12} tickLine={false} />
+              <YAxis
+                stroke="#9ca3af"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+              />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Area
                 type="monotone"
                 dataKey="Nhập Kho"
                 stroke="#10b981"
                 fillOpacity={1}
                 fill="url(#colorImport)"
-                strokeWidth={2}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
               />
               <Area
                 type="monotone"
@@ -113,7 +145,9 @@ export function TrendChart({
                 stroke="#f59e0b"
                 fillOpacity={1}
                 fill="url(#colorExport)"
-                strokeWidth={2}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
               />
               <Area
                 type="monotone"
@@ -121,41 +155,52 @@ export function TrendChart({
                 stroke="#8b5cf6"
                 fillOpacity={1}
                 fill="url(#colorStock)"
-                strokeWidth={2}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
               />
             </AreaChart>
           ) : (
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="#6b7280"
-                fontSize={12}
+                stroke="#9ca3af"
+                fontSize={11}
                 tickLine={false}
+                axisLine={false}
               />
-              <YAxis stroke="#6b7280" fontSize={12} tickLine={false} />
+              <YAxis
+                stroke="#9ca3af"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+              />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Line
                 type="monotone"
                 dataKey="Nhập Kho"
                 stroke="#10b981"
-                strokeWidth={2}
-                dot={{ r: 4 }}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
               />
               <Line
                 type="monotone"
                 dataKey="Xuất Kho"
                 stroke="#f59e0b"
-                strokeWidth={2}
-                dot={{ r: 4 }}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
               />
               <Line
                 type="monotone"
                 dataKey="Tồn Kho"
                 stroke="#8b5cf6"
-                strokeWidth={2}
-                dot={{ r: 4 }}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
               />
             </LineChart>
           )}
