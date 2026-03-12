@@ -22,6 +22,7 @@ import {
   ArrowUpFromLine,
   RotateCcw,
   Sparkles,
+  ClipboardCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,8 +60,9 @@ const navGroups = [
     title: 'Quản lý đơn hàng',
     items: [
       { href: '/dashboard/import', icon: ArrowDownToLine, label: 'Nhập hàng' },
-      { href: '/dashboard/sale', icon: ArrowUpFromLine, label: 'Xuất hàng' },
-      { href: '/dashboard/returns', icon: RotateCcw, label: 'Trả Hàng' },
+      { href: '/dashboard/export', icon: ArrowUpFromLine, label: 'Xuất hàng' },
+      { href: '/dashboard/audit', icon: ClipboardCheck, label: 'Kiểm hàng' },
+      { href: '/dashboard/sale', icon: RotateCcw, label: 'Bán hàng' },
     ]
   },
   {
