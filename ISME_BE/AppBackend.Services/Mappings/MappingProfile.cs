@@ -33,11 +33,12 @@ namespace AppBackend.Services.Mappings
             #region User Management
             // Map User entity to UserDto
             CreateMap<User, UserDto>()
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId))
                 .ForMember(dest => dest.RoleName, opt => opt.Ignore());
 
             // Map CreateUserRequest to User entity
             CreateMap<CreateUserRequest, User>()
-                .ForMember(dest => dest.RoleId, opt => opt.MapFrom(src => src.Role))
+                .ForMember(dest => dest.RoleId, opt => opt.MapFrom(src => src.RoleId))
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password will be hashed separately
 
             // Map UpdateUserRequest to User entity

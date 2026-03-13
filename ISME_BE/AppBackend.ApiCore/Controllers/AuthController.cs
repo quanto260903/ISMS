@@ -42,7 +42,7 @@ namespace AppBackend.ApiCore.Controllers
         public async Task<IActionResult> GetMe()
         {
             // Lấy userId từ JWT claim
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userId");
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 

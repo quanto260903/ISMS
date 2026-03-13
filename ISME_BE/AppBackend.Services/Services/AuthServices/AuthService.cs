@@ -67,13 +67,14 @@ namespace AppBackend.Services.Services.AuthServices
                     Email = request.Email.Trim().ToLower(),
                     FullName = request.FullName.Trim(),
                     PasswordHash = HashPassword(request.Password),
+                    RoleId = request.Role,
                     IsActive = true,
                 };
 
                 await _context.Users.AddAsync(user);
                 await _context.SaveChangesAsync();
 
-                var dto = MapToDto(user, request.Role);
+                var dto = MapToDto(user);
                 var token = GenerateToken(user, dto);
 
                 return new ResultModel<AuthData>
@@ -106,17 +107,13 @@ namespace AppBackend.Services.Services.AuthServices
 
         // ── Helpers ────────────────────────────────────────────────────────
 
-        private static UserDto MapToDto(User user, int? role = null)
+        private static UserDto MapToDto(User user)
         {
-            // Ưu tiên role truyền vào (khi Register), nếu không thì lấy từ DB
-            var actualRole = role ?? user.RoleId;
-
-            var roleName = actualRole switch
+            var roleName = user.RoleId switch
             {
                 1 => "Admin",
                 2 => "Manager",
                 3 => "Staff",
-                4 => "Provider",
                 _ => "User"
             };
 
@@ -125,7 +122,7 @@ namespace AppBackend.Services.Services.AuthServices
                 UserId = user.UserId,
                 FullName = user.FullName ?? user.Username ?? "",
                 Email = user.Email ?? user.Username ?? "",
-                Role = actualRole,
+                Role = user.RoleId,
                 RoleName = roleName,
             };
         }
@@ -143,11 +140,11 @@ namespace AppBackend.Services.Services.AuthServices
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId),
-                new Claim(ClaimTypes.Name,           user.Username ?? ""),
-                new Claim(ClaimTypes.Email,          user.Email    ?? ""),
+                new Claim("userId",   user.UserId),
+                new Claim("username", user.Username ?? ""),
+                new Claim("email",    user.Email    ?? ""),
                 new Claim("fullName",                dto.FullName),
-                new Claim("role",                    dto.Role.ToString()),
+                new Claim(ClaimTypes.Role, dto.Role.ToString()),
             };
 
             var token = new JwtSecurityToken(

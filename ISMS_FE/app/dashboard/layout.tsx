@@ -23,6 +23,10 @@ import {
   RotateCcw,
   Sparkles,
   ClipboardCheck,
+  Layers,
+  UsersRound,
+  Truck,
+  Network
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +43,7 @@ import { useState } from 'react'
 import { HeaderSearch } from '@/components/header-search'
 import { UserRole, getRoleName } from '@/lib/types/user.types'
 import { Toaster } from '@/components/ui/sonner'
+import { useAutoLogout } from '@/hooks/useAutoLogout'
 
 
 const navGroups = [
@@ -65,17 +70,40 @@ const navGroups = [
       { href: '/dashboard/sale', icon: RotateCcw, label: 'Bán hàng' },
     ]
   },
-  {
-    title: 'Quản lý Hệ thống',
-    items: [
-      {
-        href: '/dashboard/user-management',
-        icon: Users,
-        label: 'Quản lý Người dùng',
-        requiredRole: [UserRole.Admin, UserRole.Manager]
-      },
-    ]
-  },
+ {
+  title: 'Quản lý Hệ thống',
+  items: [
+    {
+      href: '/dashboard/user-management',
+      icon: Users,
+      label: 'Quản lý Người dùng',
+      requiredRole: [UserRole.Admin, UserRole.Manager]
+    },
+    {
+      href: '/dashboard/goods-category',
+      icon: Layers,
+      label: 'Quản lý nhóm hàng hóa'
+    },
+    {
+      href: '/dashboard/goods',
+      icon: Package,
+      label: 'Quản lý hàng hóa',
+      requiredRole: [UserRole.Admin]
+    },
+    {
+      href: '/dashboard/customers',
+      icon: User,
+      label: 'Quản lý khách hàng',
+      requiredRole: [UserRole.Admin, UserRole.Manager]
+    },
+    {
+      href: '/dashboard/suppliers',
+      icon: Truck,
+      label: 'Quản lý nhà cung cấp',
+      requiredRole: [UserRole.Admin, UserRole.Manager]
+    }
+  ]
+},
   {
     title: 'Khác',
     items: [
@@ -93,7 +121,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
   const { user, logout } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-
+useAutoLogout() 
   const handleLogout = () => {
     logout()
   }

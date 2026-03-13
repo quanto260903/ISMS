@@ -5,6 +5,7 @@ using AppBackend.Services.ApiModels;
 using AppBackend.Services.Services.UserServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AppBackend.Api.Controllers
 {
@@ -13,74 +14,124 @@ namespace AppBackend.Api.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UserController : ControllerBase
     {
-        private readonly IUserService _userService;
+        private readonly IUserService _service;
+        public UserController(IUserService service)
+            => _service = service;
 
-        public UserController(IUserService userService)
+        // Lấy userId của người đang gọi từ JWT
+        private string CurrentUserId =>
+    User.FindFirstValue("userId") ?? "SYSTEM";
+
+        private bool IsAdmin =>
+            User.FindFirstValue(ClaimTypes.Role) == RoleConstants.Admin.ToString();
+
+        // Helper trả 403 nếu không phải Admin
+        private IActionResult? RequireAdmin()
         {
-            _userService = userService;
+            if (!IsAdmin)
+                return StatusCode(403, new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "FORBIDDEN",
+                    StatusCode = 403,
+                    Data = 0,
+                    Message = "Chỉ Admin mới có quyền thực hiện thao tác này",
+                });
+            return null;
         }
-        /// <summary>
-        /// Get user by ID
-        /// </summary>
+
+        /// GET /api/UserManagement/list?keyword=&roleId=3&isActive=true&page=1&pageSize=50
+        [HttpGet("list")]
+        public async Task<IActionResult> GetList([FromQuery] GetUserListRequest request)
+        {
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
+
+            var result = await _service.GetListAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// GET /api/UserManagement/{userId}
         [HttpGet("{userId}")]
-        public async Task<ActionResult<ResultModel<UserDto>>> GetUserById(int userId)
+        public async Task<IActionResult> GetById(string userId)
         {
-            var result = await _userService.GetUserByIdAsync(userId);
-            if (!result.IsSuccess)
-                return NotFound(result.Message);
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
 
-            return Ok(result);
+            var result = await _service.GetByIdAsync(userId);
+            return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Create a new user
-        /// </summary>
-        [HttpPost]
-        public async Task<ActionResult<ResultModel<UserDto>>> CreateUser([FromBody] CreateUserRequest request)
+        /// POST /api/UserManagement/create
+        [HttpPost("create")]
+        public async Task<IActionResult> Create([FromBody] CreateUserRequest request)
         {
-            var result = await _userService.CreateUserAsync(request);
-            if (!result.IsSuccess)
-                return BadRequest(result.Message);
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
 
-            return CreatedAtAction(nameof(GetUserById), new { userId = result.Data.UserId }, result); // Trả về 201 Created
+            if (!ModelState.IsValid)
+                return BadRequest(new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "INVALID_MODEL",
+                    StatusCode = 400,
+                    Data = 0,
+                    Message = "Dữ liệu không hợp lệ",
+                });
+
+            var result = await _service.CreateUserAsync(request, CurrentUserId);
+            return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Update user
-        /// </summary>
+        /// PUT /api/UserManagement/{userId}
         [HttpPut("{userId}")]
-        public async Task<ActionResult<ResultModel<UserDto>>> UpdateUser(int userId, [FromBody] UpdateUserRequest request)
+        public async Task<IActionResult> Update(
+            string userId, [FromBody] UpdateUserRequest request)
         {
-            var result = await _userService.UpdateUserAsync(userId, request);
-            if (!result.IsSuccess)
-                return NotFound(result.Message);
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
 
-            return Ok(result);
+            var result = await _service.UpdateUserAsync(userId, request, CurrentUserId);
+            return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Delete user
-        /// </summary>
-        [HttpDelete("{userId}")]
-        public async Task<ActionResult<ResultModel>> DeleteUser(int userId)
+        /// PUT /api/UserManagement/{userId}/role
+        [HttpPut("{userId}/role")]
+        public async Task<IActionResult> UpdateRole(
+            string userId, [FromBody] UpdateRoleRequest request)
         {
-            var result = await _userService.DeleteUserAsync(userId);
-            if (!result.IsSuccess)
-                return NotFound(result.Message);
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
 
-            return NoContent(); // Trả về 204 No Content
+            var result = await _service.UpdateRoleAsync(userId, request, CurrentUserId);
+            return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get all users
-        /// </summary>
-        [HttpGet]
-        public async Task<ActionResult<ResultModel<List<UserDto>>>> GetAllUsers()
+        /// PUT /api/UserManagement/{userId}/password
+        [HttpPut("{userId}/password")]
+        public async Task<IActionResult> ResetPassword(
+            string userId, [FromBody] ResetPasswordRequest request)
         {
-            var result = await _userService.GetAllUsersAsync();
-            return Ok(result);
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
+
+            var result = await _service.ResetPasswordAsync(userId, request, CurrentUserId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// PUT /api/UserManagement/{userId}/status
+        [HttpPut("{userId}/status")]
+        public async Task<IActionResult> UpdateStatus(
+            string userId, [FromBody] UpdateStatusRequest request)
+        {
+            var deny = RequireAdmin();
+            if (deny != null) return deny;
+
+            var result = await _service.UpdateStatusAsync(userId, request, CurrentUserId);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

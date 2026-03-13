@@ -7,10 +7,12 @@ namespace AppBackend.Services.Services.UserServices
 {
     public interface IUserService
     {
-        Task<ResultModel<UserDto>> GetUserByIdAsync(int userId);
-        Task<ResultModel<UserDto>> CreateUserAsync(CreateUserRequest request);
-        Task<ResultModel<UserDto>> UpdateUserAsync(int userId, UpdateUserRequest request);
-        Task<ResultModel> DeleteUserAsync(int userId);
-        Task<ResultModel<List<UserDto>>> GetAllUsersAsync();
+        Task<ResultModel<PagedResult<UserListDto>>> GetListAsync(GetUserListRequest request);
+        Task<ResultModel<UserDetailDto>> GetByIdAsync(string userId);
+        Task<ResultModel<UserDetailDto>> CreateUserAsync(CreateUserRequest request, string adminId);
+        Task<ResultModel<UserDetailDto>> UpdateUserAsync(string userId, UpdateUserRequest request, string adminId);
+        Task<ResultModel<int>> UpdateRoleAsync(string userId, UpdateRoleRequest request, string adminId);
+        Task<ResultModel<int>> ResetPasswordAsync(string userId, ResetPasswordRequest request, string adminId);
+        Task<ResultModel<int>> UpdateStatusAsync(string userId, UpdateStatusRequest request, string adminId);
     }
 }

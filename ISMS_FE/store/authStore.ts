@@ -1,6 +1,4 @@
-// ============================================================
-//  store/authStore.ts
-// ============================================================
+// store/authStore.ts
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -9,47 +7,56 @@ import type { User } from '@/lib/types/user.types'
 import type { LoginRequest, RegisterRequest } from '@/lib/types/auth.types'
 
 interface AuthState {
-  user: User | null
-  token: string | null
+  user:            User | null
+  token:           string | null
   isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
+  isLoading:       boolean
+  error:           string | null
 
-  login: (credentials: LoginRequest) => Promise<void>
-  register: (data: RegisterRequest) => Promise<void>
-  logout: () => void
-  setUser: (user: User | null) => void
-  setToken: (token: string | null) => void
-  clearError: () => void
-  fetchMe: () => Promise<void>
+  login:               (credentials: LoginRequest) => Promise<void>
+  register:            (data: RegisterRequest) => Promise<void>
+  logout:              () => void
+  checkAndAutoLogout:  () => void
+  setUser:             (user: User | null) => void
+  setToken:            (token: string | null) => void
+  clearError:          () => void
+  fetchMe:             () => Promise<void>
+}
+
+// Helper xóa toàn bộ auth data
+function clearAuthData() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  document.cookie = 'token=; path=/; max-age=0'
+  document.cookie = 'userRole=; path=/; max-age=0'
+}
+
+function redirectToLogin(reason: string) {
+  if (typeof window !== 'undefined') {
+    window.location.href = `/login?reason=${reason}`
+  }
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: null,
-      token: null,
+      user:            null,
+      token:           null,
       isAuthenticated: false,
-      isLoading: false,
-      error: null,
+      isLoading:       false,
+      error:           null,
 
       login: async (credentials) => {
         try {
           set({ isLoading: true, error: null })
-
           const response = await authService.login(credentials)
 
           if (response.isSuccess && response.data) {
             const { user, token } = response.data
-
             localStorage.setItem('token', token)
             localStorage.setItem('user', JSON.stringify(user))
-
-            // Middleware đọc cookie 'userRole' để kiểm tra quyền
-            // UserRole.Admin = 1, Manager = 2, Staff = 3, Provider = 4
             document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
             document.cookie = `userRole=${String(user.role)}; path=/; max-age=604800; SameSite=Lax`
-
             set({ user, token, isAuthenticated: true, isLoading: false, error: null })
           } else {
             throw new Error(response.message || 'Đăng nhập thất bại')
@@ -64,18 +71,14 @@ export const useAuthStore = create<AuthState>()(
       register: async (data) => {
         try {
           set({ isLoading: true, error: null })
-
           const response = await authService.register(data)
 
           if (response.isSuccess && response.data) {
             const { user, token } = response.data
-
             localStorage.setItem('token', token)
             localStorage.setItem('user', JSON.stringify(user))
-
             document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
             document.cookie = `userRole=${String(user.role)}; path=/; max-age=604800; SameSite=Lax`
-
             set({ user, token, isAuthenticated: true, isLoading: false, error: null })
           } else {
             throw new Error(response.message || 'Đăng ký thất bại')
@@ -88,12 +91,27 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-        document.cookie = 'token=; path=/; max-age=0'
-        document.cookie = 'userRole=; path=/; max-age=0'
+        clearAuthData()
         set({ user: null, token: null, isAuthenticated: false, error: null })
-        authService.logout()
+      },
+
+      // ── Auto logout khi token hết hạn ──────────────────────
+      checkAndAutoLogout: () => {
+        const token = get().token
+        if (!token) return
+
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          const exp: number = payload.exp
+          if (Date.now() / 1000 > exp - 30) {
+            get().logout()
+            redirectToLogin('expired')
+          }
+        } catch {
+          // Token không đọc được → logout luôn
+          get().logout()
+          redirectToLogin('expired')
+        }
       },
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -125,9 +143,9 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(response.message || 'Failed to fetch user')
           }
         } catch {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
+          clearAuthData()
           set({ user: null, token: null, isAuthenticated: false, isLoading: false })
+          redirectToLogin('expired')
         }
       },
     }),

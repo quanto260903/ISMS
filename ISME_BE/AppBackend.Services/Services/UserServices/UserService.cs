@@ -4,232 +4,305 @@ using AppBackend.Repositories.Repositories.UserRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services.ApiModels;
 using AutoMapper;
+using System.Security.Cryptography;
 
 namespace AppBackend.Services.Services.UserServices
 {
     public class UserService : IUserService
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IUserRepository _repo;
 
-        public UserService(IUserRepository userRepository, IUnitOfWork unitOfWork, IMapper mapper)
+        public UserService(IUserRepository repo)
+            => _repo = repo;
+
+        // ── Map entity → DTO ──────────────────────────────────
+        private static UserDetailDto MapToDetail(User u) => new()
         {
-            _userRepository = userRepository;
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
-        }
+            UserId = u.UserId,
+            Username = u.Username,
+            FullName = u.FullName,
+            Email = u.Email,
+            RoleId = u.RoleId,
+            RoleLabel = RoleConstants.Labels.GetValueOrDefault(u.RoleId, "Unknown"),
+            IsActive = u.IsActive ?? false,
+            IdcardNumber = u.IdcardNumber,
+            IssuedDate = u.IssuedDate,
+            IssuedBy = u.IssuedBy,
+            ContractType = u.ContractType,
+            NegotiatedSalary = u.NegotiatedSalary,
+            InsuranceSalary = u.InssuranceSalary,
+            NumberOfDependent = u.NumberOfDependent,
+        };
 
-       
+        private static UserListDto MapToList(User u) => new()
+        {
+            UserId = u.UserId,
+            FullName = u.FullName,
+            Email = u.Email,
+            RoleId = u.RoleId,
+            RoleLabel = RoleConstants.Labels.GetValueOrDefault(u.RoleId, "Unknown"),
+            IsActive = u.IsActive ?? false,
+            ContractType = u.ContractType,
+        };
 
-        public async Task<ResultModel<UserDto>> GetUserByIdAsync(int userId)
+        // ── Danh sách người dùng ──────────────────────────────
+        public async Task<ResultModel<PagedResult<UserListDto>>> GetListAsync(
+            GetUserListRequest request)
         {
             try
             {
-                var user = await _userRepository.GetByIdAsync(userId);
+                var (items, total) = await _repo.GetListAsync(request);
+                var dtos = items.Select(MapToList).ToList();
 
+                return Ok(new PagedResult<UserListDto>
+                {
+                    Items = dtos,
+                    Total = total,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                }, "OK");
+            }
+            catch (Exception ex) { return Error<PagedResult<UserListDto>>(ex); }
+        }
+
+        // ── Chi tiết 1 người dùng ─────────────────────────────
+        public async Task<ResultModel<UserDetailDto>> GetByIdAsync(string userId)
+        {
+            try
+            {
+                var user = await _repo.GetByIdAsync(userId);
                 if (user == null)
-                {
-                    return new ResultModel<UserDto>
-                    {
-                        IsSuccess = false,
-                        StatusCode = 404,
-                        ResponseCode = "NOT_FOUND",
-                        Message = "User not found"
-                    };
-                }
+                    return Fail<UserDetailDto>(404, "NOT_FOUND",
+                        $"Không tìm thấy người dùng: {userId}");
 
-                var userDto = _mapper.Map<UserDto>(user);
-                userDto.RoleName = GetRoleName(userDto.Role);
-
-                return new ResultModel<UserDto>
-                {
-                    IsSuccess = true,
-                    StatusCode = 200,
-                    Data = userDto,
-                    Message = "User retrieved successfully"
-                };
+                return Ok(MapToDetail(user), "OK");
             }
-            catch (Exception ex)
-            {
-                return new ResultModel<UserDto>
-                {
-                    IsSuccess = false,
-                    StatusCode = 500,
-                    ResponseCode = "ERROR",
-                    Message = $"Error retrieving user: {ex.Message}"
-                };
-            }
+            catch (Exception ex) { return Error<UserDetailDto>(ex); }
         }
 
-        public async Task<ResultModel<UserDto>> CreateUserAsync(CreateUserRequest request)
+        // ── Tạo tài khoản mới ────────────────────────────────
+        public async Task<ResultModel<UserDetailDto>> CreateUserAsync(
+            CreateUserRequest request, string adminId)
         {
             try
             {
-                // Check if email already exists
-                if (await _userRepository.IsEmailExistsAsync(request.Email))
+                // Validate
+                if (string.IsNullOrWhiteSpace(request.FullName))
+                    return Fail<UserDetailDto>(400, "MISSING_FULLNAME",
+                        "Họ tên không được để trống");
+
+                if (string.IsNullOrWhiteSpace(request.Email))
+                    return Fail<UserDetailDto>(400, "MISSING_EMAIL",
+                        "Email không được để trống");
+
+                if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+                    return Fail<UserDetailDto>(400, "WEAK_PASSWORD",
+                        "Mật khẩu phải có ít nhất 6 ký tự");
+
+                // Admin chỉ được tạo Manager hoặc Staff, không được tạo Admin khác
+                if (request.RoleId == RoleConstants.Admin)
+                    return Fail<UserDetailDto>(403, "FORBIDDEN_ROLE",
+                        "Không thể tạo tài khoản Admin");
+
+                if (!RoleConstants.IsValid(request.RoleId))
+                    return Fail<UserDetailDto>(400, "INVALID_ROLE",
+                        $"RoleId không hợp lệ. Chấp nhận: 2 (Manager), 3 (Staff)");
+
+                // Kiểm tra email trùng
+                var existing = await _repo.GetByEmailAsync(request.Email);
+                if (existing != null)
+                    return Fail<UserDetailDto>(409, "EMAIL_TAKEN",
+                        $"Email '{request.Email}' đã được sử dụng");
+
+                var userId = "U" + Guid.NewGuid().ToString("N")[..7].ToUpper();
+
+                var user = new User
                 {
-                    return new ResultModel<UserDto>
-                    {  
-                        IsSuccess = false,
-                        StatusCode = 409,
-                        ResponseCode = "CONFLICT",
-                        Message = "Email already exists"
-                    };
-                }
+                    UserId = userId,
+                    Username = request.Email.Trim().ToLower(),
+                    Email = request.Email.Trim().ToLower(),
+                    FullName = request.FullName.Trim(),
+                    PasswordHash = HashPassword(request.Password),
+                    RoleId = request.RoleId,
+                    IsActive = true,
+                    IdcardNumber = request.IdcardNumber,
+                    IssuedDate = request.IssuedDate,
+                    IssuedBy = request.IssuedBy,
+                    ContractType = request.ContractType,
+                    NegotiatedSalary = request.NegotiatedSalary,
+                    InssuranceSalary = request.InsuranceSalary,
+                    NumberOfDependent = request.NumberOfDependent,
+                };
 
-                var user = _mapper.Map<User>(request);
-                
-                // Hash password (you should use proper password hashing in production)
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                await _repo.AddAsync(user);
+                await _repo.SaveChangesAsync();
 
-                await _userRepository.AddAsync(user);
-                await _unitOfWork.SaveChangesAsync();
-
-                var userDto = _mapper.Map<UserDto>(user);
-                userDto.RoleName = GetRoleName(userDto.Role);
-
-                return new ResultModel<UserDto>
+                return new ResultModel<UserDetailDto>
                 {
                     IsSuccess = true,
+                    ResponseCode = "SUCCESS",
                     StatusCode = 201,
-                    Data = userDto,
-                    Message = "User created successfully"
+                    Data = MapToDetail(user),
+                    Message = $"Tạo tài khoản thành công cho {user.FullName}",
                 };
             }
-            catch (Exception ex)
-            {
-                return new ResultModel<UserDto>
-                {
-                    IsSuccess = false,
-                    StatusCode = 500,
-                    ResponseCode = "ERROR",
-                    Message = $"Error creating user: {ex.Message}"
-                };
-            }
+            catch (Exception ex) { return Error<UserDetailDto>(ex); }
         }
 
-        public async Task<ResultModel<UserDto>> UpdateUserAsync(int userId, UpdateUserRequest request)
+        // ── Cập nhật thông tin ────────────────────────────────
+        public async Task<ResultModel<UserDetailDto>> UpdateUserAsync(
+            string userId, UpdateUserRequest request, string adminId)
         {
             try
             {
-                var user = await _userRepository.GetByIdAsync(userId);
-
+                var user = await _repo.GetByIdAsync(userId);
                 if (user == null)
+                    return Fail<UserDetailDto>(404, "NOT_FOUND",
+                        $"Không tìm thấy người dùng: {userId}");
+
+                // Admin không được chỉnh sửa Admin khác
+                if (user.RoleId == RoleConstants.Admin && user.UserId != adminId)
+                    return Fail<UserDetailDto>(403, "FORBIDDEN",
+                        "Không có quyền chỉnh sửa tài khoản Admin khác");
+
+                // Cập nhật các field nếu có truyền lên
+                if (!string.IsNullOrWhiteSpace(request.FullName))
+                    user.FullName = request.FullName.Trim();
+
+                if (!string.IsNullOrWhiteSpace(request.Email))
                 {
-                    return new ResultModel<UserDto>
-                    {
-                        IsSuccess = false,
-                        StatusCode = 404,
-                        ResponseCode = "NOT_FOUND",
-                        Message = "User not found"
-                    };
+                    // Kiểm tra email mới có bị trùng không
+                    var emailOwner = await _repo.GetByEmailAsync(request.Email);
+                    if (emailOwner != null && emailOwner.UserId != userId)
+                        return Fail<UserDetailDto>(409, "EMAIL_TAKEN",
+                            $"Email '{request.Email}' đã được sử dụng");
+
+                    user.Email = request.Email.Trim().ToLower();
+                    user.Username = request.Email.Trim().ToLower();
                 }
 
-                // Update user properties
-                user.FullName = request.FullName;
-                user.Email = request.Email;
-                user.IdcardNumber = request.IdcardNumber;
+                if (request.IdcardNumber != null) user.IdcardNumber = request.IdcardNumber;
+                if (request.IssuedDate != null) user.IssuedDate = request.IssuedDate;
+                if (request.IssuedBy != null) user.IssuedBy = request.IssuedBy;
+                if (request.ContractType != null) user.ContractType = request.ContractType;
+                if (request.NegotiatedSalary != null) user.NegotiatedSalary = request.NegotiatedSalary;
+                if (request.InsuranceSalary != null) user.InssuranceSalary = request.InsuranceSalary;
+                if (request.NumberOfDependent != null) user.NumberOfDependent = request.NumberOfDependent.Value;
 
-                await _userRepository.UpdateAsync(user);
-                await _unitOfWork.SaveChangesAsync();
-
-                var userDto = _mapper.Map<UserDto>(user);
-                return new ResultModel<UserDto>
-                {
-                    IsSuccess = true,
-                    StatusCode = 200,
-                    Data = userDto,
-                    Message = "User updated successfully"
-                };
+                await _repo.SaveChangesAsync();
+                return Ok(MapToDetail(user), "Cập nhật thành công");
             }
-            catch (Exception ex)
-            {
-                return new ResultModel<UserDto>
-                {
-                    IsSuccess = false,
-                    StatusCode = 500,
-                    ResponseCode = "ERROR",
-                    Message = $"Error updating user: {ex.Message}"
-                };
-            }
+            catch (Exception ex) { return Error<UserDetailDto>(ex); }
         }
 
-        public async Task<ResultModel> DeleteUserAsync(int userId)
+        // ── Đổi phân quyền ───────────────────────────────────
+        public async Task<ResultModel<int>> UpdateRoleAsync(
+            string userId, UpdateRoleRequest request, string adminId)
         {
             try
             {
-                var user = await _userRepository.GetByIdAsync(userId);
+                // Chỉ Manager hoặc Staff mới được đổi role
+                if (request.RoleId == RoleConstants.Admin)
+                    return Fail<int>(403, "FORBIDDEN_ROLE",
+                        "Không thể gán quyền Admin");
 
+                if (!RoleConstants.IsValid(request.RoleId))
+                    return Fail<int>(400, "INVALID_ROLE",
+                        "RoleId không hợp lệ. Chấp nhận: 2 (Manager), 3 (Staff)");
+
+                var user = await _repo.GetByIdAsync(userId);
                 if (user == null)
-                {
-                    return new ResultModel
-                    {
-                        IsSuccess = false,
-                        StatusCode = 404,
-                        ResponseCode = "NOT_FOUND",
-                        Message = "User not found"
-                    };
-                }
+                    return Fail<int>(404, "NOT_FOUND",
+                        $"Không tìm thấy người dùng: {userId}");
 
-                await _userRepository.DeleteAsync(user);
-                await _unitOfWork.SaveChangesAsync();
+                if (user.RoleId == RoleConstants.Admin)
+                    return Fail<int>(403, "FORBIDDEN",
+                        "Không thể thay đổi quyền của Admin");
 
-                return new ResultModel
-                {
-                    IsSuccess = true,
-                    StatusCode = 200,
-                    Message = "User deleted successfully"
-                };
+                var oldRole = RoleConstants.Labels.GetValueOrDefault(user.RoleId, "?");
+                var newRole = RoleConstants.Labels.GetValueOrDefault(request.RoleId, "?");
+
+                user.RoleId = request.RoleId;
+                var rows = await _repo.SaveChangesAsync();
+
+                return Ok(rows,
+                    $"Đã đổi quyền {user.FullName} từ {oldRole} → {newRole}");
             }
-            catch (Exception ex)
-            {
-                return new ResultModel
-                {
-                    IsSuccess = false,
-                    StatusCode = 500,
-                    ResponseCode = "ERROR",
-                    Message = $"Error deleting user: {ex.Message}"
-                };
-            }
+            catch (Exception ex) { return Error<int>(ex); }
         }
-        public async Task<ResultModel<List<UserDto>>> GetAllUsersAsync()
+
+        // ── Reset mật khẩu ────────────────────────────────────
+        public async Task<ResultModel<int>> ResetPasswordAsync(
+            string userId, ResetPasswordRequest request, string adminId)
         {
             try
             {
-                var users = await _userRepository.GetAllUsersAsync();
-                var userDtos = users.Select(user => new UserDto
-                {
-                    UserId = user.UserId,
-                    Email = user.Email,
-                }).ToList();
+                if (string.IsNullOrWhiteSpace(request.NewPassword) ||
+                    request.NewPassword.Length < 6)
+                    return Fail<int>(400, "WEAK_PASSWORD",
+                        "Mật khẩu mới phải có ít nhất 6 ký tự");
 
-                return new ResultModel<List<UserDto>>
-                {
-                    IsSuccess = true,
-                    StatusCode = 200,
-                    Message = "User List successfully"
-                };
+                var user = await _repo.GetByIdAsync(userId);
+                if (user == null)
+                    return Fail<int>(404, "NOT_FOUND",
+                        $"Không tìm thấy người dùng: {userId}");
+
+                if (user.RoleId == RoleConstants.Admin && user.UserId != adminId)
+                    return Fail<int>(403, "FORBIDDEN",
+                        "Không thể reset mật khẩu Admin khác");
+
+                user.PasswordHash = HashPassword(request.NewPassword);
+                var rows = await _repo.SaveChangesAsync();
+
+                return Ok(rows, $"Đã reset mật khẩu cho {user.FullName}");
             }
-            catch (Exception ex)
-            {
-                return new ResultModel<List<UserDto>>
-                {
-                    IsSuccess = false,
-                    StatusCode = 500,
-                    ResponseCode = "ERROR",
-                    Message = $"Error listing user: {ex.Message}"
-                };
-            }
+            catch (Exception ex) { return Error<int>(ex); }
         }
-        private string GetRoleName(int role)
+
+        // ── Kích hoạt / khóa tài khoản ───────────────────────
+        public async Task<ResultModel<int>> UpdateStatusAsync(
+            string userId, UpdateStatusRequest request, string adminId)
         {
-            return role switch
+            try
             {
-                0 => "Admin",
-                1 => "Manager",
-                2 => "Warehouse Staff",
-            };
+                var user = await _repo.GetByIdAsync(userId);
+                if (user == null)
+                    return Fail<int>(404, "NOT_FOUND",
+                        $"Không tìm thấy người dùng: {userId}");
+
+                if (user.RoleId == RoleConstants.Admin)
+                    return Fail<int>(403, "FORBIDDEN",
+                        "Không thể khóa tài khoản Admin");
+
+                // Không cho tự khóa chính mình
+                if (user.UserId == adminId && !request.IsActive)
+                    return Fail<int>(400, "SELF_LOCK",
+                        "Không thể tự khóa tài khoản của chính mình");
+
+                user.IsActive = request.IsActive;
+                var rows = await _repo.SaveChangesAsync();
+
+                var action = request.IsActive ? "kích hoạt" : "khóa";
+                return Ok(rows, $"Đã {action} tài khoản {user.FullName}");
+            }
+            catch (Exception ex) { return Error<int>(ex); }
         }
+
+        // ── Password helpers ──────────────────────────────────
+        // ✅ Thống nhất dùng BCrypt như AuthService
+        private static string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        // ── Result helpers ────────────────────────────────────
+        private static ResultModel<T> Ok<T>(T data, string msg) => new()
+        { IsSuccess = true, ResponseCode = "SUCCESS", StatusCode = 200, Data = data, Message = msg };
+
+        private static ResultModel<T> Fail<T>(int code, string rc, string msg) => new()
+        { IsSuccess = false, ResponseCode = rc, StatusCode = code, Data = default, Message = msg };
+
+        private static ResultModel<T> Error<T>(Exception ex) => new()
+        { IsSuccess = false, ResponseCode = "EXCEPTION", StatusCode = 500, Data = default, Message = ex.Message };
     }
 }
