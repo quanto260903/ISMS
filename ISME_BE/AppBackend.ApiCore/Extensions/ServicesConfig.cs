@@ -6,6 +6,8 @@ using AppBackend.Repositories.Repositories.GoodsCategoryRepo;
 using AppBackend.Repositories.Repositories.GoodsRepo;
 using AppBackend.Repositories.Repositories.ImportRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
+using AppBackend.Repositories.Repositories.OpenInventoryRepo;
+using AppBackend.Repositories.Repositories.StockTakeRepo;
 using AppBackend.Repositories.Repositories.SupplierRepo;
 using AppBackend.Repositories.Repositories.UserRepo;
 using AppBackend.Repositories.Repositories.WarehouseRepo;
@@ -21,6 +23,8 @@ using AppBackend.Services.Services.GoodsCategoryServices;
 using AppBackend.Services.Services.GoodsServices;
 using AppBackend.Services.Services.ImportServices;
 using AppBackend.Services.Services.ItemServices;
+using AppBackend.Services.Services.OpenInventoryServices;
+using AppBackend.Services.Services.StockTakeServices;
 using AppBackend.Services.Services.SupplierServices;
 using AppBackend.Services.Services.UserServices;
 using AppBackend.Services.Services.WarehouseServices;
@@ -48,6 +52,9 @@ public static class ServicesConfig
         services.AddScoped<IGoodsCategoryRepository, GoodsCategoryRepository>();
         services.AddScoped<IGoodsRepository, GoodsRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IOpenInventoryRepository, OpenInventoryRepository>();
+        services.AddScoped<IStockTakeVoucherRepository, StockTakeVoucherRepository>();
+        services.AddScoped<IStockTakeDetailRepository, StockTakeDetailRepository>();
         #endregion
 
         #region Services
@@ -66,6 +73,8 @@ public static class ServicesConfig
         services.AddScoped<IGoodsCategoryService, GoodsCategoryService>();
         services.AddScoped<IGoodsService, GoodsService>();
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IOpenInventoryService, OpenInventoryService>();
+        services.AddScoped<IStockTakeService, StockTakeService>();
         #endregion
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         #region Helpers

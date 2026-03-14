@@ -1,6 +1,5 @@
 "use client";
-import AuditListPage from "@/features/audit/components/AuditListPage";
-
+import StockAuditListPage from "@/features/stock-take/components/StockTakeListPage";
 export default function Page() {
-  return <AuditListPage />;
+  return <StockAuditListPage />;
 }

@@ -41,9 +41,6 @@ namespace AppBackend.Services.Services.ExportServices
 
                 if (item.UnitPrice is null || item.UnitPrice < 0)
                     return Fail(400, "INVALID_PRICE", $"Đơn giá không hợp lệ cho {goods.GoodsName}");
-
-                if (checkWarehouse && string.IsNullOrWhiteSpace(item.CreditWarehouseId))
-                    return Fail(400, "MISSING_WAREHOUSE", $"Chưa chọn kho xuất cho {goods.GoodsName}");
             }
             return null;
         }

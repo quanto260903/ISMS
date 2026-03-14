@@ -2,6 +2,7 @@
 using AppBackend.BusinessObjects.Models;
 using AppBackend.Repositories.Repositories.ImportRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
+using AppBackend.Repositories.Repositories.StockTakeRepo;
 using AppBackend.Repositories.Repositories.UserRepo;
 
 using AppBackend.Repositories.UnitOfWork;
@@ -15,6 +16,8 @@ namespace SWS.Repositories.UnitOfWork
         private IUserRepository? _userRepository;
         private IItemRepository? _itemRepository;
         private IImportRepository? _importRepository;
+        private IStockTakeVoucherRepository? _stockTakeVouchers;
+        private IStockTakeDetailRepository? _stockTakeDetails;
         public UnitOfWork(IndividualBusinessContext context)
         {
             _context = context;
@@ -26,6 +29,11 @@ namespace SWS.Repositories.UnitOfWork
             _itemRepository ??= new ItemRepository(_context);
         public IImportRepository Import =>
             _importRepository ??= new ImportRepository(_context);
+        public IStockTakeVoucherRepository StockTakeVouchers
+            => _stockTakeVouchers ??= new StockTakeVoucherRepository(_context);
+
+        public IStockTakeDetailRepository StockTakeDetails
+            => _stockTakeDetails ??= new StockTakeDetailRepository(_context);
         public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 
         public void Dispose() => _context?.Dispose();

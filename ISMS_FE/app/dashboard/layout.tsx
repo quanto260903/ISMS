@@ -26,7 +26,8 @@ import {
   Layers,
   UsersRound,
   Truck,
-  Network
+  Network,
+  Wallet
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,9 +57,7 @@ const navGroups = [
   {
     title: 'Quản lý sản phẩm',
     items: [
-      { href: '/dashboard/products-list', icon: Package, label: 'Danh sách SP' },
-      { href: '/dashboard/products', icon: Package, label: 'SP Hết hạn' },
-      { href: '/dashboard/inventory', icon: Box, label: 'Tồn kho' },
+     
     ]
   },
   {
@@ -66,7 +65,7 @@ const navGroups = [
     items: [
       { href: '/dashboard/import', icon: ArrowDownToLine, label: 'Nhập hàng' },
       { href: '/dashboard/export', icon: ArrowUpFromLine, label: 'Xuất hàng' },
-      { href: '/dashboard/audit', icon: ClipboardCheck, label: 'Kiểm hàng' },
+      { href: '/dashboard/stock-take', icon: ClipboardCheck, label: 'Kiểm hàng' },
       { href: '/dashboard/sale', icon: RotateCcw, label: 'Bán hàng' },
     ]
   },
@@ -108,6 +107,7 @@ const navGroups = [
     title: 'Khác',
     items: [
       { href: '/ui-showcase', icon: Palette, label: 'Thư viện UI' },
+      { href: '/dashboard/open-inventory', icon: Wallet, label: 'Nhập số dư đầu' },
     ]
   },
 ]

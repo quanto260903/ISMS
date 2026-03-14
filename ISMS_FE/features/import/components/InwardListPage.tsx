@@ -21,7 +21,7 @@ const VOUCHER_CODE_LABELS: Record<string, string> = {
   NK2: "Mua hàng - NH",
   NK3: "Mua hàng - Nợ",
   NK4: "Hàng trả lại",
-  NK5: "Khác",
+  NK5: "Nhập hàng kiểm kê",
 };
 
 const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {

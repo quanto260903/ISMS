@@ -35,6 +35,10 @@ public partial class IndividualBusinessContext : DbContext
 
     public virtual DbSet<OpenInventory> OpenInventories { get; set; }
 
+    public virtual DbSet<StockTakeDetail> StockTakeDetails { get; set; }
+
+    public virtual DbSet<StockTakeVoucher> StockTakeVouchers { get; set; }
+
     public virtual DbSet<Unit> Units { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
@@ -204,6 +208,49 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.VoucherNumber).HasMaxLength(50);
             entity.Property(e => e.WarehouseId).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<StockTakeDetail>(entity =>
+        {
+            entity.HasKey(e => e.StockTakeDetailId).HasName("PK__StockTak__6F1159AAD61EF5A1");
+
+            entity.Property(e => e.ActualQuantity).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.BookQuantity).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.DifferenceQuantity).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.GoodsId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.GoodsName).HasMaxLength(255);
+            entity.Property(e => e.StockTakeVoucherId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Unit).HasMaxLength(50);
+
+            entity.HasOne(d => d.StockTakeVoucher).WithMany(p => p.StockTakeDetails)
+                .HasForeignKey(d => d.StockTakeVoucherId)
+                .HasConstraintName("FK_StockTakeDetails_Voucher");
+        });
+
+        modelBuilder.Entity<StockTakeVoucher>(entity =>
+        {
+            entity.HasKey(e => e.StockTakeVoucherId).HasName("PK__StockTak__604670B9049D1F92");
+
+            entity.Property(e => e.StockTakeVoucherId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.CreatedBy)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.CreatedDate).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.IsCompleted).HasDefaultValue(false);
+            entity.Property(e => e.Member1).HasMaxLength(255);
+            entity.Property(e => e.Member2).HasMaxLength(255);
+            entity.Property(e => e.Member3).HasMaxLength(255);
+            entity.Property(e => e.Position1).HasMaxLength(255);
+            entity.Property(e => e.Position2).HasMaxLength(255);
+            entity.Property(e => e.Position3).HasMaxLength(255);
+            entity.Property(e => e.Purpose).HasMaxLength(500);
+            entity.Property(e => e.VoucherCode).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Unit>(entity =>

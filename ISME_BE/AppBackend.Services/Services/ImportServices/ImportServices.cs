@@ -84,18 +84,6 @@ namespace AppBackend.Services.Services.ImportServices
                             Message = $"Đơn giá không hợp lệ cho {goods.GoodsName}"
                         };
                     }
-
-                    if (string.IsNullOrWhiteSpace(itemRequest.DebitWarehouseId))
-                    {
-                        return new ResultModel<int>
-                        {
-                            IsSuccess = false,
-                            ResponseCode = "MISSING_WAREHOUSE",
-                            StatusCode = 400,
-                            Data = 0,
-                            Message = $"Chưa chọn kho nhập cho {goods.GoodsName}"
-                        };
-                    }
                 }
 
                 // ── 2. Tạo Voucher header ──
