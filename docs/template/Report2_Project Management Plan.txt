@@ -1,0 +1,460 @@
+CAPSTONE PROJECT REPORT
+Report 2 – Project Management Plan
+
+Inventory and Sales Management Solution for SMEs
+
+– Hanoi, Jan 2025 –
+
+Table of Contents
+I. Record of Changes        3
+II. Project Management Plan        4
+1. Overview        4
+1.1 Cost & Time Estimations        4
+1.2 Project Objectives        5
+1.3 Project Risks        6
+2. Management Approach        7
+2.1 Project Processes        7
+2.2 Quality Management        8
+2.3 Project Training Plan        8
+3. Responsibility Assignments        9
+4. Project Communications        10
+5. Configuration Management        11
+5.1 Document Management        11
+5.2 Source Code Management        11
+5.3 Release Management        11
+5.4 Tools & Infrastructures        12
+
+I. Record of Changes
+Date | A* M, D | In charge | Change Description
+
+*A - Added M - Modified D - Deleted
+
+II. Project Management Plan
+1. Overview
+1.1 Cost & Time Estimations
+The Inventory and Sales Management Solution for SMEs project is conducted over a 15-week academic semester. The project effort is estimated in person-days (pds), where one person-day is equivalent to eight working hours.
+
+Effort assumptions:
+* Project duration: 15 weeks
+* Working days per week: 5
+* Total working days per member: 75
+* Effective project allocation per member: approximately 80%
+* Effective effort per member: 60 person-days
+* Team size: 4 members
+Total project capacity: 300 person-days
+
+#
+	Work Package
+	Est. Effort (pds)
+	Deadline
+1
+	Stage 1: Project Initiating (week 1)
+1.1
+	Report 1 (Project Introduction)
+	7
+	Week 1
+2
+	Stage 2: Project Planning & Initial Requirements (weeks 2–3)
+2.1
+	Vertical Prototypes (Code Demo – Product & Inventory Overview)
+	14
+	Week 3
+2.2
+	Report 2: Project Management Plan v1.0
+	14
+	Week 3
+2.3
+	Requirement Analysis
+	21
+	Week 3
+3
+	Stage 3: Software Design – Iteration 1 (weeks 4–5)
+3.1
+	Vertical Prototypes (POC – Product, Inventory, Import Flow)
+	21
+	Week 4
+3.2
+	Report 3: SRS v0.9 (Overall Requirements)
+	7
+	Week 4
+3.3
+	Report 4: SDS v0.9 (Architecture, Database, Core Modules)
+	7
+	Week 4
+3.4
+	Report 3: SRS v1.0 (Finalized Requirements)
+	7
+	Week 5
+4
+	Stage 4: Implementation – Iteration 2 (weeks 6–8)
+4.1
+	SDS v1.1 (Design Update – Product, Inventory, Supplier Modules)
+	7
+	Week 6
+4.2
+	Code Package & Unit Testing – Product Management, Supplier Management, Inventory Management
+	21
+	Week 6
+4.3
+	Integration Test Cases – Product, Supplier, Inventory Modules
+	7
+	Week 6
+4.4
+	Integration Test Report
+	7
+	Week 7
+4.5
+	Software Package Version 1 (Core Warehouse Functions)
+	7
+	Week 7
+5
+	Stage 5: Implementation – Iteration 3 (weeks 9–11)
+5.1
+	SDS v1.2 (Design Update – Import, Export, Return Modules)
+	7
+	Week 8
+5.2
+	Code Package & Unit Testing – Import Order, Export Order, Return Order
+	21
+	Week 8
+5.3
+	Software Package Version 2 (Transaction)
+	14
+	Week 9
+5.4
+	System Test Cases & System Test Report (End-to-End Warehouse Flows)
+	14
+	Week 11
+5.5
+	Software Package Version 3 (Stabilized System)
+	14
+	Week 11
+6
+	Stage 6: Verification & Validation (week 12)
+6.1
+	System Test Report (Final)
+	7
+	Week 12
+6.2
+	User Guides
+	7
+	Week 12
+6.3
+	Acceptance Testing
+	10
+	Week 12
+7
+	Stage 7: Project Closing (weeks 13–15)
+7.1
+	Final Project Report
+	21
+	Week 14
+7.2
+	Presentation & Demo Preparation
+	21
+	Week 15
+
+1.2 Project Objectives
+
+No.
+	Metric
+	Unit
+	Planned
+	Actual
+	Notes
+1
+	Effort Usage
+	Person-day
+	420
+	438
+2
+	Review Defects
+	Number
+	25
+	28
+	Most issues identified during requirement and design review.
+3
+	Unit Test Defects (Backend only)
+	Number
+	22
+	24
+	Unit tests applied to service and controller methods only.
+4
+	Integration Test Defects
+	Number
+	15
+	17
+	Issues mainly related to API.
+5
+	System Test Defects
+	Number
+	12
+	14
+	Found in end-to-end warehouse workflows.
+6
+	Acceptance Test Defects
+	Number
+	8
+	6
+	Reduced due to early feedback and iteration refinement.
+7
+	Timeliness
+	Percentage
+	95
+	93
+	Minor delay during second implementation iteration.
+8
+	Requirement Completeness
+	Percentage
+	100
+	96
+
+1.3 Project Risks
+
+No.
+	Risk Description
+	Impact
+	Probability
+	Mitigation Plan
+1
+	Team member workload imbalance
+	High
+	Medium
+	Redistribute tasks and increase peer support.
+2
+	Limited experience with AI technologies
+	High
+	Medium
+	Allocate time for self-study and prototyping.
+3
+	Requirement changes
+	Medium
+	High
+	Freeze core requirements before implementation.
+4
+	Communication issues
+	Medium
+	Low
+	Conduct regular meetings and maintain documentation.
+5
+	Scope expansion
+	High
+	Medium
+	Enforce scope control and change approval process.
+
+2. Management Approach
+2.1 Project Processes
+
+The Inventory and Sales Management Solution for SMEs project will be developed using the Agile Scrum methodology to ensure flexibility, adaptability to changes, and continuous improvement throughout the development lifecycle. The project will be divided into multiple sprints, each lasting two weeks. During each sprint, the team will prioritize and implement selected features, conduct daily stand-up meetings to update progress and resolve blockers, and perform a sprint review at the end of each iteration to demonstrate completed functionalities to stakeholders.
+
+* Scope and Requirement Management: The team will collect and analyze requirements such as "export 50 units of Product A," "import 30 units of Product B," or "check current stock levels." Core requirements will remain fixed, while additional or extended features will be managed through a formal change request process.
+* Change Management: Any proposed changes will be documented and evaluated in terms of impact on schedule, scope, and resources before approval. This approach ensures controlled adaptation without jeopardizing project timelines.
+* Time Management: Task scheduling and monitoring will be supported by Scrum boards (Trello/Jira) or Excel. Work allocation will be divided as follows:
+   * Backend (.NET Core): Develop RESTful APIs for warehouse operations such as import, export, and inventory management, and integrate with SQL Server/MySQL.
+   * Voice Recognition Module: Integrate speech-to-text APIs (e.g., Google Speech-to-Text or VOSK) to convert voice commands into SQL statements.
+   * Frontend (Next.js): Build an intuitive web interface to process import/export requests, display inventory reports, and visualize results retrieved from the backend.
+   * Database: Design schemas for products, stock-in, stock-out, and inventory tracking.
+* Supporting Processes:
+   * Version Control: Managed with Git and GitHub, using branching strategies (main, dev, and feature branches).
+   * Risk Management: Identifying potential risks such as inaccurate voice recognition results; fallback solutions (manual input) will be prepared.
+   * Communication Management: Daily communication through Zalo/Discord and weekly online meetings via Google Meet.
+
+2.2 Quality Management
+Defect Prevention: Development will follow standard coding conventions for both C# (.NET) and JavaScript (Next.js). Code commits will be checked against linters (ESLint for Next.js, StyleCop or equivalent for C#). A peer review process will be applied before merging into the main branch to minimize defects early in the development cycle.
+
+Reviewing:
+* Peer Reviews: Cross-checking of source code among team members prior to merging.
+* Sprint Reviews: Evaluation of completed functionalities at the end of each sprint with feedback from stakeholders.
+
+Testing: Multiple levels of testing will be conducted to ensure system reliability:
+* Unit Testing: Focused on individual functions/modules such as business logic in the .NET backend (e.g., stock-in/stock-out processing).
+* Integration Testing: Validating interactions between backend APIs, the database, and the Next.js frontend.
+* System Testing: End-to-end validation of warehouse workflows, including both voice and manual operations.
+* User Acceptance Testing (UAT): Conducted with instructors or simulated end-users to assess usability, accuracy, and completeness of features.
+
+Quality Metrics: The following measurable goals will be applied:
+* Defect rate per sprint kept below 5%.
+* At least 90% of initial requirements fully implemented.
+* Voice-to-SQL accuracy of ≥ 80%, with fallback options for manual editing.
+* Frontend designed for usability: warehouse operations should require no more than 3 steps.
+
+2.3 Project Training Plan
+Training Area
+	Participants
+	When, Duration
+.NET Core Backend Development (REST APIs, business logic, SQL Server/MySQL integration)
+	Backend developers
+	Weeks 1–2, 3 sessions (2 hours each)
+Next.js Frontend Development (building web interfaces, handling API requests, rendering reports)
+	Frontend developers
+	Weeks 1–2, 3 sessions (2 hours each)
+SQL & Database Design (schema design for warehouse management, writing optimized queries)
+	Backend developers + 1–2 frontend members
+	Week 2, 2 sessions (2 hours each)
+Git & GitHub (branching strategy, pull requests, code review workflow)
+	All team members
+	Week 1, 2 sessions (1.5 hours each)
+Voice Recognition APIs (Google Speech-to-Text, VOSK integration, converting text to SQL)
+	AI/voice module developers
+	Weeks 2–3, 2 sessions (2 hours each)
+Agile/Scrum Workflow (backlog management, sprint planning, daily stand-ups, sprint review)
+	Project manager + all team members
+	Before Sprint 1, 1 session (1.5 hours)
+
+3. Responsibility Assignments
+
+RACI Chart: R~Responsible, A~Accountable, C~Consulted, I~Informed
+Work Package
+	Quangtnhe180143
+	Quantmhe171595
+	Truongtqhe172652
+	Quyenntthe180001
+Report 1: Project Introduction
+	A
+	I
+	C
+	R
+Report 3: SRS v0.9 (Overall Requirement)
+	A
+	C
+	I
+	R
+Vertical Prototypes (Code Demo)
+	C
+	R
+	I
+	A
+Report 2: Project Management Plan
+	A
+	I
+	C
+	R
+Report 4: SDS v1.0 (High Level Design)
+	A
+	R
+	I
+	C
+Report 5: Test Planning
+	C
+	I
+	R
+	A
+Implementation Iteration 1
+	A
+	R
+	C
+	I
+Implementation Iteration 2
+	A
+	R
+	C
+	I
+Implementation Iteration 3
+	A
+	R
+	C
+	I
+System Testing
+	C
+	I
+	R
+	A
+User Guides (Installation, User Manual)
+	I
+	I
+	I
+	I
+Report 7: Final Project Report
+	A
+	C
+	I
+	R
+Presentation File
+	A
+	C
+	I
+	R
+
+4. Project Communications
+
+Communication Item
+	Who/ Target
+	Purpose
+	When, Frequency
+	Type, Tool, Method(s)
+Daily Meeting
+	Team
+	Share progress, discuss problem, align task
+	21:00 every day (15-30 minutes)
+	Google Meet
+Weekly Meeting
+	Team, Instructor
+	Review project progress, confirm plan
+	11:00 Monday (1 hour)
+	Face-to-face meeting
+Issue Solution
+	Team, Instructor
+	Report and find way to resolve issue
+	As needed, immediate if critical
+	Email, Google Meet, Direct call (urgent)
+Demo
+	Team, Instructor
+	Demonstrate complete features, collect feedback
+	Every 2 weeks (end of each implementation iteration)
+	Google Meet, face-to-face meeting
+User feedback collection
+	Warehouse staff, Team
+	Gather information such as usability and user friendliness
+	During User Acceptance Testing
+	Google form, feedback session
+Training session
+	Warehouse staff
+	Ensure staff can use system effectively before launch
+	1-2 weeks before going public
+	Record video, user manual
+
+5. Configuration Management
+Configuration Management is applied in the Inventory and Sales Management Solution for SMEs (ISMS) project to ensure that all project artifacts, including documents, source code, and system configurations, are properly controlled, tracked, and maintained throughout the project lifecycle.
+
+5.1 Document Management
+All project documents (requirements, design documents, reports, test plans, and final deliverables) of the Inventory and Sales Management Solution for SMEs will be stored centrally in the team's Google Drive.
+* Versioning: Each document follows a clear version naming convention such as v0.9, v1.0, and v1.1 to reflect its maturity level.
+* Change Control: When a document is updated, the responsible member must record the change in the Document Change Log and notify the team to ensure everyone is working with the latest version.
+* Backups: Weekly backups are performed for all important reports and documents to prevent data loss.
+
+5.2 Source Code Management
+The team uses GitHub as the central source code repository for the Inventory and Sales Management Solution for SMEs (ISMS).
+* Branching Model: Git Flow is applied with the following branches: main, develop, feature/*, and bugfix/*.
+* Commit Convention: Code commits follow a standard naming convention, for example:
+   * feat: add inventory adjustment API
+   * fix: correct stock calculation logic
+* Code Review: All code changes must be reviewed before being merged into the main branch to ensure code quality and consistency.
+
+5.3 Release Management
+Software releases are managed and tracked throughout the project lifecycle.
+* Each major delivery is packaged as a software release (Software Package Version 1, Version 2, Version 3).
+* Source code, database scripts, and related documents are synchronized for each release.
+* Only stable and tested versions are used for demonstrations and final submissions.
+
+5.4 Tools & Infrastructures
+
+Category
+	Tools / Infrastructure
+	Technology
+Development Frameworks
+	Next.js (Frontend), .NET Core (Backend)
+Database
+	SQL Server
+IDEs/Editors
+	Visual Studio, Visual Studio Code
+Diagramming
+	Draw.io
+Documentation
+	MS Office, Google Docs/Sheets/Slides
+Version Control
+	GitHub (Source Codes), Google Drive (Documents)
+Deployment Server
+	Amazon Web Services
+Project Management
+	GitLab: Source code hub, Excel: Task & project tracking</content>
+<parameter name="filePath">d:\Quyen\ISMS\docs\output\Report2_Project Management Plan.txt

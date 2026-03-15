@@ -1,0 +1,1974 @@
+CAPSTONE PROJECT REPORT
+Report 3 – Software Requirement Specification
+
+– Hanoi, Jan 2024 –
+Table of Contents
+I. Record of Changes        3
+II. Software Requirement Specification        4
+1. Overall Requirements        4
+1.1 Context Diagram        4
+1.2 Main Workflows        5
+1.3 User Requirements        5
+1.4 System Functionalities        7
+1.5 Entity Relationship Diagram        7
+2. Use Case Specifications        8
+2.1 <<Feature Name1>>        8
+2.1.3 – Sell Goods        10
+2.1.4 – Activity Log        12
+2.1.5 – Manage VAT Tax Rates        13
+2.1.6 – Manage Personal Income Tax Rates        14
+2.1.7 – Enter Initial Balances        14
+2.2 Xyz Feature        15
+3. Functional Requirements        16
+3.1 Feature Name1        16
+3.2 User Authentication        16
+3.3 System Administration        17
+4. Non-Functional Requirements        18
+4.1 External Interfaces        18
+4.2 Quality Attributes        18
+5. Requirement Appendix        19
+5.1 Business Rules        19
+5.2 System Messages        19
+5.3 Other Requirements…        20
+________________
+
+
+I. Record of Changes
+Date
+	A - Added
+M, D
+	In charge
+	Change Description
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	*A - Added M - Modified D - Deleted
+________________
+
+
+II. Software Requirement Specification
+1. Overall Requirements
+1.1 Context Diagram
+  
+
+
+
+________________
+
+
+1.2 Main Workflows
+1.2.1 Supplier Return (Purchase Return)
+  
+
+1.2.2 Import
+  
+
+1.2.4 Export
+  
+
+1.3 User Requirements
+1.3.1 Actors
+#
+	Actor
+	Description
+	1
+	Administrator
+	Responsible for:
+* System administration, including user account management, role and permission control;
+* Monitoring system logs to ensure secure and stable system operation.
+* Monitoring directories including warehouse, goods group, goods, units, banks, banks accounts, vendor and customer.
+	2
+	Manager
+	Responsible for providing managers with the reports of transactions including: Inventory summary report; Detailed inventory books; Stock transfer book; Inventory summary by inward voucher; Summary report on sales; Detailed goods sales books; Cash on hand ledger; Cash in Bank ledger; Customer balance detail; Receivable summary from customer; Detailed payable debt; Summary payable debt for supplier; Sale journal; Income statement;
+And the system functions as: Block account books; Calculate expense; Tally sheet.  
+	3
+	Staff
+	Responsible for executing daily transactions such as purchasing goods, paying for them, returning goods to the supplier, selling goods, collecting payment, receiving returned goods from the buyer, transferring goods from one warehouse to another, collecting and paying money (cash and bank).
+This kind of user can also receive the following reports for the purpose of controlling work: Summary report on sales; Detailed goods sales books; Cash on hand ledger; Cash in Bank ledger; Customer balance detail; Receivable summary from customer; Detailed payable debt; Summary payable debt for supplier. These reports are a part of Manager’s report
+	
+
+1.3.2 Use Cases (UC)
+ID
+	Use Case
+	Feature
+	Use Case Description
+	UC-01
+	Register Account
+	Authentication
+	Allows user to register a new account in the system.
+	UC-02
+	Login
+	Authentication
+	Allows user to authenticate and access the system.
+	UC-03
+	Change Password
+	Authentication
+	Allows user to change account password.
+	UC-06
+	Reset Password (Forgot Password)
+	Authentication
+	Allows user to reset password via email verification.
+	UC-07
+	Logout
+	Authentication
+	Allows user to log out from the system.
+	
+
+	
+
+	
+
+	
+
+	…
+1.3.2 Use Case Diagrams
+In this section, you need to provide the UC diagram(s) to show the actor-UCs and UC-UC relationships like the sample below. You can have multiple UC diagrams for the system, each diagram is for one actor or one workflow]
+  
+
+1.3.2.1 UCs for Guest
+  
+
+
+
+1.3.2.2 UCs for Student
+  
+
+1.3.2.3 …
+
+
+1.4 System Functionalities
+[Provide functionality overview of software system: screen flow, screen descriptions, system user roles, screen authorization, non-screen functions, ERD]
+1.4.1 Screens Flow
+[This part shows the system screens and the relationship among screens. You can draw the Screens Flow for the system in the form of diagram as below.]
+  
+
+1.4.2 Screen Authorization
+[Provide the system roles authorization to the system features (down to screens, and event to the screen activities if applicable) in the table form as below – replace Role-Name1, Role-Name2,… with your specific system user role names]
+Screen
+	Role-Name1
+	Role-Name2
+	Role-Name3
+	…
+	<<Screen Name1>>
+	X
+	
+
+	X
+	X
+	<<Screen Name2>>
+	
+
+	X
+	
+
+	
+
+	    …
+	
+
+	
+
+	
+
+	
+
+	
+
+1.4.3 Non-UI Functions
+[Provide the descriptions for the non-screen system functions, i.e batch/cron job, service, API, etc.]
+#
+	Feature
+	System Function
+	Description
+	1
+	<<Feature Name>>
+	<<Function Name1>>
+	<<Function Name1 Description>>
+	2
+	…
+	
+
+	
+
+	
+
+1.5 Entity Relationship Diagram
+[Provide the ERD using the Crow-Foot notation and the entity descriptions as below]
+  
+
+Entities Description
+#
+	Entity
+	Description
+	1
+	Patrol
+	Cafeteria’s customer information
+	2
+	Meal
+	…
+	3
+	…
+	
+
+	
+
+2. Use Case Specifications
+[Provide specifications for the use cases (UCs) those are covered in the system. The UCs are grouped by the system features and even sub features. You just need to provide UC specifications for complex UCs involving in the main workflows (business processes). Other UCs (i.e CRUD or data-viewing UCs) are simple, and you just need to refer the descriptions in the Functional Requirement (part 3) below)]
+2.1 <<Feature Name1>>
+2.1.1 UC Name1
+Primary Actors
+	
+
+	Secondary Actors
+	
+
+	Description
+	
+
+	Preconditions
+	
+
+	Postconditions
+	
+
+	Normal Sequence/Flow
+	
+
+	Alternative Sequences/Flows
+	
+
+	
+
+Primary and Secondary Actors
+An actor is a person or other entity external to the software system being specified who interacts with the system and performs use cases to accomplish tasks. Name the primary actor that will be initiating this UC and any other secondary actors who will participate in completing execution of the UC.
+Description
+Provide a brief description of the reason for and outcome of this use case, or a high-level description of the sequence of actions and the outcome of executing the use case. The description can be in the form of a user story (As a <type of user>, I want <some goal> so that <some reasons>)
+Preconditions
+List any activities that must take place, or any conditions that must be true, before the use case can be started. 
+Postconditions
+Describe the state of the system at the successful conclusion of the use case execution. 
+Normal Flow
+Provide a description of the user actions and corresponding system responses that will take place during execution of the use case under normal, expected conditions. 
+Alternative Flows
+Describe below two information if any:
+* Other successful usage scenarios that can take place within this use case. State the alternative flow, and describe any differences in the sequence of steps that take place. 
+* Any anticipated error conditions that could occur during execution of the use case and how the system is to respond to those conditions.
+
+
+2.1.2 Login System
+Primary Actors
+	Customer
+	Secondary Actors
+	None
+	Description
+	As a user, I want to be able to log into the system so that I can use the system’s authenticated features and access my personalized account.
+	Preconditions
+	User account has been created & authorized
+	Postconditions
+	* User logs in the system successfully
+* The system tracked successful login into the Activity Log
+	Normal Sequence/Flow
+	Login System
+1. User clicks Login button from the page header or accesses an authenticated feature (from a link or type the page URL directly into the address bar)
+2. System shows the User Login screen
+3. User types in the login details (email, password)
+4. User clicks the Login button
+5. System validates the login details (BR-01, BR-02)
+6. System allows user to access
+7. System tracks user’s successful login to the Activity Log
+8. System directs user to the Home Page (or the previous calling page if any)
+	Alternative Sequences/Flows
+	Step 2.1_Google Login
+1. User clicks Google Login button to login system using Google account
+2. System redirects the user to the Google’s Login screen
+3. User types in the Google account details and chooses to login
+4. Google validates user’s login information successfully and redirect him/her back to the system
+5. Return to step 5 of normal flow.
+Step 4_System can’t authenticate the user
+User can’t be authenticated and gets a relevant error message in one of below cases
+1. He/she leaves the Email and/or Password field blank (MSG10)
+2. Input Email or Password are incorrect (MSG09)
+3. Input Email/Password are correct but email has not been verified (MSG11)
+4. The user account is blocked / inactive (MSG12)
+If user inputs wrong logging-in details 5 times continuously, system will lock his/her account in 30 minutes (with relevant warning message - MSG13)
+	2.1.2 – Import Order
+Primary Actors
+	Warehouse Keeper
+	Secondary Actors
+	None
+	Description
+	This use case describes a business flow that allows warehouse staff to create or edit an Inward Voucher in the WMS system. The Inward Voucher records goods received into the warehouse from a supplier or other sources, updates inventory.
+The scope includes 5 reasons for receiving goods:
+NK1 — Receiving goods purchased with cash payment
+NK2 — Receiving goods purchased with bank transfer payment
+NK3 — Receiving goods purchased on credit (unpaid)
+NK4 — Receiving returned goods
+	Preconditions
+	1. The user has successfully logged in, and the JWT token is valid.
+2. The Goods category already exists in the system.
+3. The Warehouse category has been configured.
+4. (For NK4) The original sales invoice exists for returning goods lookup.
+	Postconditions
+	1. The record is saved to the database with the corresponding code (NK1..NK5).
+2. The total inventory of each item increases accordingly.
+3. The user receives the message "Warehouse receipt created successfully".
+	Trigger
+	Purchasing Staff selects “Create Purchase Goods Document” from the system menu.
+	Normal Sequence/Flow
+	1. Warehouse Keeper accesses the Add New Import Order page (/dashboard/import/new).
+2. Select the reason for warehousing from the dropdown (NK1–NK5).
+3. Fill in the header information: Date of import, Supplier name, Address, Tax ID, Description.
+4. Enter the Item Code in the first box in the details table.
+5. Select items from the suggested dropdown.
+6. Select the warehouse from the dropdown in each line.
+7. Enter the quantity, adjust the unit price, and select VAT%.
+8. Press the "Save warehouse receipt" button.
+9. System calls POST /api/Import/add-inward with the full payload.
+10. Database successfully saves.
+	Alternative Sequences/Flows
+	3a: Create a new supplier
+If supplier is not found:
+   1. User clicks on Plus-sign to add new supplier
+   2. System opens Supplier Creation form
+   3. After saving, supplier appears in selection list
+7a: Create a new item
+If item is not found:
+1. User clicks Add New Item
+2. System opens Item Creation form
+3. Item is immediately selectable
+	
+
+2.1.3 – Add new sale
+Primary Actors
+	Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows Sales Staff to create a Sales Goods Transaction when goods are sold to customers.
+The system records voucher date, voucher number, customer information, goods information, unit price, quantity, revenue amount, tax rate, tax amount, offset voucher number, cost amount, stockID, status of payment (pay by cash, pay by bank or on credit).
+	Preconditions
+	The user is authenticated and authorized as Sales Staff.
+Customer master data exists (or the staff create a new customer if not exist).
+Goods master data exists.
+Warehouse information exists.
+Cash and bank accounts are configured.
+Tax rate data exists.
+	Postconditions
+	Sales Goods Transaction and status of payment are successfully created and stored.
+	Trigger
+	Sales Staff selects “Add new” from the View Sale screen.
+	Normal Sequence/Flow
+	1. The system displays the Sell Goods creation screen.
+2. The user selects one payment option:
+* Pay by cash (BR11)
+* Pay by bank (BR12)
+* Unpaid (BR13)
+3a. If pay by cash or unpaid is selected:
+The system prepares an Accounts Receivable document with general sales information as following:
+* CustomerId
+* CustomerName
+* Address
+* Description
+* Voucher Date (default: current date, editable)
+* Voucher Number (auto-generated, editable, must be unique)
+3b. If pay by bank is selected:
+The system prepares an Accounts Receivable document with general sales information as following:
+* CustomerId 
+* CustomerName
+* Address
+* Bank Account Number
+* Bank Account Name
+* Description
+* Voucher Date (default: current date, editable)
+* Voucher Number (auto-generated, editable, must be unique)
+4. The system finds the voucherID from the voucherCode table and fills the correspondence value in:
+* Debit_Account1
+* Credit_Account1
+* Debit_Account2
+* Credit_Account2
+5. The user selects a customer by entering customer code or name or tax ID.
+* The system supports key-press search and filtering by one of customer information such as customer code or customer name or tax ID.
+* A “+” button is displayed next to the CustomerId field to allow creating a new customer.
+6. The system automatically displays the customer's information:
+* Customer name
+* Tax code (auto fill-in, editable)
+* Address (auto fill-in, editable)
+7. The user selects a bank account (in case of pay by bank is selected).
+* The system supports key-press search and filtering by bank account number.
+* A “+” button is displayed next to the bank account number field to allow creating a new bank account.
+8. The system automatically displays the bank's information:
+* Bank Account (is required)
+* Bank Name (editable)
+9. The user enters the information:
+* Description
+* Voucher date (default: current date, editable)
+* Voucher number (auto-generated, editable, must be unique)
+10. The user selects an item by entering Item code.
+* The system supports key-press search and filtering by one of item information such as item code or item.
+* A “+” button is displayed next to the Item code field to allow creating a new item.
+11.1 The system displays the item's information:
+* Item Code
+* Item Name
+* On hand quantity
+* Selling price (editable)
+11.2 The system checks the on-hand quantity.
+If On hand quantity > 0:
+→ The user is allowed to enter:
+* CreditWarehouseId (fill by voucher purchases goods)
+* Promotion (user fill)
+* VAT (user fill)
+* Amount2 (system find information from voucher not sold out)
+* OffsetVoucher (system find information from voucher not sold out)
+→ The item can be added to the sales document.
+12. The system automatically fills in:
+   * UserID (ID of user login)
+   * CreatedDateTime (time create voucher)
+13. The system automatically calculates:
+   * Total payment
+14. The user reviews all entered information.
+15. The user clicks Save.
+16. The system:
+   * Saves the sales document,
+   * Creates accounting entries based on the selected payment option.
+	Alternative Sequences/Flows
+	AF01: Create a New Customer
+5a. If the customer is not found:
+   * The user clicks Add New Customer.
+   * The system opens the Customer Creation form.
+   * After saving, the customer becomes selectable immediately.
+AF02: Out of Stock 
+On-hand quantity = 0
+11a. The system still displays the item information.
+11b. The system shows a warning message (MSG01).
+11c. The item cannot be added to the sales document.
+11d. The flow returns to Step 11 for selecting another item.
+	Primary Actors
+	Sale Staff
+	Secondary Actors
+	Warehouse Staff,
+	Description
+	Execute sales transactions with customers, update inventory, generate invoices, and record revenue.
+	Preconditions
+	The user is authenticated and authorized as Sales Staff.
+Customer master data exists (or the staff create a new customer if not exist).
+Goods master data exists.
+Warehouse information exists.
+Cash and bank accounts are configured.
+Tax rate data exists.
+	Postconditions
+	Sales Goods Transaction and status of payment are successfully created and stored.
+	Trigger
+	Sales Staff selects “Add new” from the View Sale screen.
+	Normal Sequence/Flow
+	1. The sales staff logs into the system.
+2. Selects the "Sales" function.
+3. Enters or scans the product code the customer wants to buy.
+4. Enters the quantity of the product.
+5. The system checks inventory:
+If sufficient → continue.
+If insufficient → displays a warning.
+6. The system calculates the total price, tax, and discount.
+7. The staff confirms the order.
+8. The system updates the inventory.
+9. The system records the revenue and updates the sales report.
+
+
+	Alternative Sequences/Flows
+	4a. Insufficient inventory:
+→ The system displays a warning and prevents the transaction from being completed.
+4b. Customer cancels order:
+→ Employee selects “Cancel transaction”, the system does not update inventory or revenue.
+4c. System connection error:
+→ Displays an error message, requesting a retry or manual resolution.
+
+
+	
+
+2.1.4 – Activity Log
+Primary Actors
+	Admin
+	Secondary Actors
+	None
+	Description
+	This use case allows the Administrator to view, filter, export, and delete system activity logs for monitoring and auditing purposes.
+	Preconditions
+	The admin is authenticated and authorized.
+Activity logs exist in the system.
+	Postconditions
+	Logs are viewed, exported, or deleted as requested.
+	Trigger
+	Administrator selects “Activity Log” from the Admin menu.
+	Normal Sequence/Flow
+	1. The system displays the Activity Log screen.
+2. The administrator selects a start date and end date.
+3. The system displays logs within the selected time range.
+4. The administrator may:
+   * Export logs to Excel.
+   * Select one or more logs for deletion.
+5. The system performs the selected action and displays a confirmation message.
+
+
+	Alternative Sequences/Flows
+	   * None
+
+
+	2.1.5 – Manage VAT Tax Rates
+Primary Actors
+	Admin
+	Secondary Actors
+	None
+	Description
+	This use case allows the Administrator to manage VAT tax rate definitions used throughout the system.
+	Preconditions
+	The Admin is authenticated and authorized.
+	Postconditions
+	VAT tax rate list is updated and available for transactions.
+	Trigger
+	Administrator selects “VAT Tax Rate List” from the Admin menu.
+	Normal Sequence/Flow
+	1. The system displays the VAT tax rate list.
+2. Administrator may:
+   * Add a new tax rate.
+   * Edit an existing tax rate.
+   * Delete a tax rate.
+3. The system opens the corresponding form.
+4. Administrator saves changes.
+5. The system validates and updates tax rate data.
+
+
+	Alternative Sequences/Flows
+	   * None
+
+
+	2.1.6 – Manage Personal Income Tax Rates
+Primary Actors
+	Admin
+	Secondary Actors
+	None
+	Description
+	This use case allows the Administrator to manage Personal Income Tax (PIT) rate definitions.
+	Preconditions
+	The Admin is authenticated and authorized.
+	Postconditions
+	PIT tax rates are updated and applied to relevant calculations.
+	Trigger
+	Administrator selects “Personal Income Tax Rate List” from the Admin menu.
+	Normal Sequence/Flow
+	   1. The system displays the PIT tax rate list.
+   2. Administrator adds, edits, or deletes a tax rate.
+   3. The system validates input and saves changes.
+
+
+	Alternative Sequences/Flows
+	None
+
+
+	2.1.7 – Enter Initial Balances
+Primary Actors
+	Admin
+	Secondary Actors
+	None
+	Description
+	This use case allows the Administrator to enter opening balances when the system is first deployed or after a closing period.
+	Preconditions
+	The Admin is authenticated and authorized.
+The system has not been locked by a closing process.
+	Postconditions
+	Administrator selects “Initial Balances” from the Admin menu.
+	Trigger
+	Administrator selects “Initial Balances” from the Admin menu.
+	Normal Sequence/Flow
+	   1. The system displays the Initial Balance menu with sub-sections:
+   1. Cash Balance
+   2. Bank Balance
+   3. Customer Accounts Receivable
+   4. Supplier Accounts Payable
+   5. Beginning Inventory
+   2. Administrator selects a sub-section.
+   3. System displays information according to the previous selection
+3a. The system displays a cash balance input screen.
+3b. The system displays a bank balance screen.
+3c. The system displays a customer balance table.
+3d. The system displays a supplier balance table.
+3e. The system displays an inventory balance table.
+   4. Administrator enters the needed information.
+4a. The administrator enters the opening cash amount.
+4b. The administrator enters the bank name, account number, and balance.
+4c. The administrator enters debit or credit balances.
+4d. The administrator enters debit or credit balances.
+4e. The administrator enters warehouse, date, item, unit, quantity, inventory value
+   5. System saves the data.
+
+
+	Alternative Sequences/Flows
+	None
+	
+
+
+
+2.1.8 Create Purchase Return 
+Primary Actors
+	Purchasing Staff, Accountant
+	Secondary Actors
+	Supplier
+	Description
+	This use case allows the user to create a purchase return transaction to return goods previously purchased from a supplier. The system updates inventory and handles financial adjustments including payable offset or refund receipt.
+	Preconditions
+	- User is authenticated and authorized.
+- A valid purchase invoice exists.
+- Returned items are available in inventory.
+- Accounting period is not closed.
+	Postconditions
+	- Inventory quantities are reduced.
+- Supplier payable or cash/bank balance is updated.
+- Purchase return transaction is saved and auditable.
+	Trigger
+	User selects “Create Purchase Return” from the Purchasing module.
+	Normal Flow
+	1. The system displays the supplier selection screen.
+2. The user selects a supplier.
+3. The system displays purchase invoices related to the selected supplier.
+4. The user selects a purchase invoice.
+5. The system displays purchased items and current inventory balances.
+6. The user enters return quantities and return reason.
+7. The user selects a financial handling method (offset payable / cash refund / bank refund).
+8. The system validates inventory, accounting period, and financial rules.
+9. The system records the purchase return transaction.
+10. The system updates inventory and financial data.
+	Alternative Flow
+	AF1 (from Step 7): If Offset Payable is selected, the system reduces the supplier payable balance.
+AF2 (from Step 7): If Cash Refund is selected, the system creates a cash receipt voucher.
+AF3 (from Step 7): If Bank Refund is selected, the system creates a bank receipt transaction.
+	Exception Flow
+	EF1 (at Step 6): If return quantity exceeds available inventory, the system displays an error and stops the process.
+EF2 (at Step 7): If no financial handling method is selected, the system displays a validation error and does not allow saving.
+EF3 (at Step 8): If document date is on or before the closing date, the system blocks the transaction.
+EF4 (at Step 8): If supplier has no payable balance and Offset Payable is selected, the system displays an error.
+	
+
+2.1.8 Warehouse Transfer
+Primary Actors
+	Warehouse Staff, Accountant
+	Secondary Actors
+	Transporter, Consignment Customer
+	Description
+	This use case allows the user to transfer inventory between warehouses or send goods on consignment to an agent without affecting revenue or cash balances.
+	Preconditions
+	- User is authenticated and authorized.
+- At least two warehouses exist.
+- Source warehouse has sufficient inventory.
+- Accounting period is not closed.
+	Postconditions
+	- Inventory is decreased at the source warehouse.
+- Inventory is increased at the destination warehouse.
+- Warehouse transfer transaction is recorded.
+	Trigger
+	User selects “Warehouse Transfer” from the Inventory module.
+	Normal Flow
+	1. The system displays the warehouse transfer screen.
+2. The user selects the transfer type (internal transfer or consignment).
+3. The user enters transfer order information and document date.
+4. The user enters item details (product, source warehouse, destination warehouse, quantity, unit of measure).
+5. The system validates inventory availability and accounting period.
+6. The system records the warehouse transfer transaction.
+7. The system updates inventory balances for the involved warehouses.
+	Alternative Flow
+	AF1 (from Step 2): If Consignment Transfer is selected, the system requires selection of a consignment customer and links inventory to that customer.
+AF2 (from Step 4): If multiple items are transferred, the system processes each item independently within the same transaction.
+	Exception Flow
+	EF1 (at Step 4): If source warehouse and destination warehouse are the same, the system displays an error.
+EF2 (at Step 5): If available inventory is insufficient, the system blocks the transaction.
+EF3 (at Step 5): If document date is on or before the closing date, the system does not allow saving.
+EF4 (at Step 6): If system fails to update inventory, the transaction is rolled back.
+	
+
+2.1.9 – Inventory Summary Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	This use case allows the Manager to view a summarized inventory ledger by product type and warehouse within a selected date range.
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Inventory summary report is displayed.
+	Trigger
+	Manager selects "Inventory Summary Ledger" from the Management menu.
+	Normal Sequence/Flow
+	   1. The system displays a parameter selection screen.
+   2. Manager selects:
+- From date – To date
+- Warehouses to include
+   3. User clicks "View Report".
+
+   4. System generates report:
+Each warehouse is displayed as a separate table.
+Each product type is displayed as a separate row.
+Columns include:
+      1. Beginning Quantity & Value
+      2. Inventory Receipt
+      3. Inventory Issued
+      4. Ending Quantity & Value
+
+
+	Alternative Sequences/Flows
+	None
+	2.1.10 – Product Details Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays detailed import and export transactions for selected goods.
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Product Detail Ledger is displayed.
+	Trigger
+	Manager selects "Product Detail Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager selects:
+      * From date – To date
+      * Employee (or All)
+      * Warehouses
+      * Product types
+      2. System generates grouped report by:
+      * Product code
+      * Warehouse code
+      3. Report displays:
+      * Date
+      * Document number
+      * Unit
+      * Purchase price
+      * Selling price
+      * Beginning / Import / Export / Ending quantity & value
+      4. Clicking a product displays detailed transactions.
+	Alternative Sequences/Flows
+	None
+	2.1.11 – Internal Warehouse Transfer Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays warehouse-to-warehouse transfer history
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Internal Warehouse Transfer Ledger is displayed.
+	Trigger
+	Manager selects the "Internal Warehouse Transfer Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager selects:
+      * From date – To date
+      * From warehouse
+      * To warehouse
+      2. System displays:
+      * Date
+      * Document number
+      * Product code
+      * Product name
+      * Unit
+      * Quantity
+      * Unit price
+      * Total amount
+	Alternative Sequences/Flows
+	None
+	2.1.12 – Inventory Report by Import Document
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays inventory status based on import documents.
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Inventory Report by Import Document is displayed.
+	Trigger
+	Manager selects the "Inventory Report by Import Document" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager enters parameters:
+      * From date – To date
+      * Product type
+      * Warehouse
+      2. System displays the report includes:
+      * Product name
+      * Import date
+      * Document number
+      * Quantity imported
+      * Unit price
+      * Total amount
+      * Quantity in stock
+      * Value in stock
+	Alternative Sequences/Flows
+	None
+	2.1.13 – Consigned Inventory Report
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays inventory under consignment agreements.
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Consigned Inventory Report is displayed.
+	Trigger
+	Manager selects the "Consigned Inventory Report" from the Management menu.
+	Normal Sequence/Flow
+	System displays:
+      * Supplier
+      * Product
+      * Quantity received
+      * Quantity sold
+      * Remaining stock
+      * Settlement status
+	Alternative Sequences/Flows
+	None
+	2.1.14 – Sales Summary Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays summarized sales data.
+	Preconditions
+	The user is authenticated as a manager.
+Sale transactions exist
+	Postconditions
+	Sales Summary Ledger is displayed.
+	Trigger
+	Manager selects the "Sales Summary Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses to sort:
+      * By Item
+      * By Employee
+      * By Customer
+      * Combined
+      2. System displays:
+      * Total quantity sold
+      * Revenue
+      * Discount
+      * VAT
+      * Profit
+	Alternative Sequences/Flows
+	None
+	2.1.15 – Sales Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays sales data.
+	Preconditions
+	The user is authenticated as a manager.
+Sale transactions exist
+	Postconditions
+	Sales Ledger is displayed.
+	Trigger
+	Manager selects the "Sales Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Employee
+      * By Customer
+      * By Employee & Customer
+      2. System displays:
+      * Document number
+      * Date
+      * Customer
+      * Employee
+      * Item
+      * Amount
+	Alternative Sequences/Flows
+	None
+	2.1.16 – Cash Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays cash transaction data.
+	Preconditions
+	The user is authenticated as a manager.
+Cash transactions exist
+	Postconditions
+	Cash Ledger is displayed.
+	Trigger
+	Manager selects the "Cash Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Employee
+      * All cash resource
+      2. System displays:
+      * Receipt number
+      * Date
+      * Reason
+      * Amount
+      * Balance
+	Alternative Sequences/Flows
+	None
+	2.1.17 – Bank Deposit Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays bank transaction data.
+	Preconditions
+	The user is authenticated as a manager.
+Bank transactions exist
+	Postconditions
+	Bank Deposit Ledger is displayed.
+	Trigger
+	Manager selects the "Bank Deposit Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Bank
+      * All Banks
+      2. System displays:
+      * Transaction date
+      * Bank name
+      * Account number
+      * Amount
+      * Balance
+	Alternative Sequences/Flows
+	None
+	2.1.18 – Accounts Receivable Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays detailed receivable data.
+	Preconditions
+	The user is authenticated as a manager.
+Bank transactions exist
+	Postconditions
+	Accounts Receivable Ledger is displayed.
+	Trigger
+	Manager selects the "Accounts Receivable Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Employee
+      * By Customer
+      2. System displays:
+      * Invoice number
+      * Debit / Credit
+      * Balance
+	Alternative Sequences/Flows
+	None
+	2.1.19 – Accounts Receivable Summary Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays summarized detailed receivable data.
+	Preconditions
+	The user is authenticated as a manager.
+Bank transactions exist
+	Postconditions
+	Accounts Receivable Summary Ledger is displayed.
+	Trigger
+	Manager selects the "Accounts Receivable Summary Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Employee & All Customers
+      * All Employees for One Customer
+      * All Employees & Customers
+      2. System displays detail ledgers:
+	Alternative Sequences/Flows
+	None
+	2.1.20 – Accounts Payable Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays bank transaction data.
+	Preconditions
+	The user is authenticated as a manager.
+Bank transactions exist
+	Postconditions
+	Accounts Payable Ledger is displayed.
+	Trigger
+	Manager selects the "Accounts Payable Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Purchasing Employee
+      * By Supplier
+      2. System displays payable transaction
+	Alternative Sequences/Flows
+	None
+	2.1.21 – Accounts Payable Summary Ledger
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays bank transaction data.
+	Preconditions
+	The user is authenticated as a manager.
+Bank transactions exist
+	Postconditions
+	Accounts Payable Summary Ledger is displayed.
+	Trigger
+	Manager selects the "Accounts Payable Summary Ledger" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager chooses filter:
+      * By Staff
+      * By Supplier
+      * All Staff & Suppliers
+      2. System displays payable transaction
+	Alternative Sequences/Flows
+	None
+	2.1.22 – Delivery Status Report by Order
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays delivery status of sales orders.
+	Preconditions
+	The user is authenticated as a manager.
+Delivery order transactions exist
+	Postconditions
+	Delivery Status Report is displayed.
+	Trigger
+	Manager selects the "Delivery Status Report" from the Management menu.
+	Normal Sequence/Flow
+	System displays delivery status:
+      * Order number
+      * Customer
+      * Ordered quantity
+      * Delivered quantity
+      * Remaining quantity
+      * Status (Completed / Partial / Pending)
+
+
+	Alternative Sequences/Flows
+	None
+	2.1.23 – Order and Receipt Status Report
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays status of purchase and sales orders.
+	Preconditions
+	The user is authenticated as a manager.
+Delivery order transactions exist
+	Postconditions
+	Delivery Status Report is displayed.
+	Trigger
+	Manager selects the "Order and Receipt Status Report" from the Management menu.
+	Normal Sequence/Flow
+	System displays delivery status:
+      * Order number
+      * Related receipt document
+      * Fulfillment percentage
+      * Completion status
+
+
+	Alternative Sequences/Flows
+	None
+	2.1.24 – Inventory Status and Order Quantity Report
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays inventory levels and recommended order quantity.
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Inventory Status is displayed.
+	Trigger
+	Manager selects the "Inventory Status and Order Quantity Report" from the Management menu.
+	Normal Sequence/Flow
+	System displays inventory status:
+      * Product
+      * Current stock
+      * Minimum stock level
+      * Suggested reorder quantity
+	Alternative Sequences/Flows
+	None
+	2.1.25 – Sales Journal
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays chronological sales journal.
+	Preconditions
+	The user is authenticated as a manager.
+Inventory transactions exist
+	Postconditions
+	Sales journal is displayed.
+	Trigger
+	Manager selects the "Sales Journal" from the Management menu.
+	Normal Sequence/Flow
+	System displays sales journal:
+      * Date
+      * Invoice number
+      * Revenue
+      * VAT
+      * Total
+	Alternative Sequences/Flows
+	None
+	2.1.26 – Income Statement
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Displays profit and loss statement for selected period.
+	Preconditions
+	The user is authenticated as a manager.
+Transactions exist
+	Postconditions
+	Income statement is displayed.
+	Trigger
+	Manager selects the "Income Statement" from the Management menu.
+	Normal Sequence/Flow
+	      1. Manager enters parameter:
+      * From date to date
+      2. System displays income statement:
+      * Revenue
+      * Cost of goods sold
+      * Gross profit
+      * Operating expenses
+      * Net profit
+	Alternative Sequences/Flows
+	None
+	
+
+2.1.27 – Close the Books
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Performs accounting period closing.
+	Preconditions
+	The user is authenticated as a manager.
+	Postconditions
+	The transactions which are closed can no longer be modified.
+	Trigger
+	Manager selects the "Close the Books" from the Management menu.
+	Normal Sequence/Flow
+	      1. System displays current closing date:
+      * If never closed → start date of software use
+      * If closed before → last closing date
+      2. User selects new closing date.
+
+      3. System validates:
+         * New date > system start date
+         4. User clicks Execute.
+
+         5. System:
+            * Calculates balances
+            * Locks data before closing date
+            * Updates balance tables
+	Alternative Sequences/Flows
+	None
+	2.1.28 – Inventory Counting (Stocktaking)
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	Allows physical inventory comparison with system data
+	Preconditions
+	The user is authenticated as a manager.
+	Postconditions
+	The system shows physical inventory comparison with system data
+	Trigger
+	Manager selects the "Inventory Counting" from the Management menu.
+	Normal Sequence/Flow
+	            1. User selects:
+            * Warehouse
+            * Inventory date
+            2. System displays:
+            * Item code
+            * Item name
+            * Warehouse
+            * Unit price
+            * Quantity by ledger
+            * Quantity by physical count (user input)
+            3. User clicks Save.
+            * Calculates balances
+            * Locks data before closing date
+            * Updates balance tables
+	Alternative Sequences/Flows
+	2a. Excess Case
+            * System shows button: Create Inventory Receipt
+            * Excess value recorded as extraordinary income (Account 711)
+2b. Shortage Case
+            * System shows button: Create Inventory Issue
+            * Shortage recorded as extraordinary expense (Account 811)
+	________________
+
+
+2.2.1 Export Product from Warehouse
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to export products from the warehouse to fulfill customer orders or internal distribution requests. The system records the exported quantity and updates the inventory.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The products exist in the warehouse inventory.
+The requested export quantity is available in stock.
+	Postconditions
+	The products are exported from the warehouse.
+The inventory quantity is updated.
+The export transaction is recorded in the system.
+	Normal Sequence/Flow
+	            1. The system displays the Export Product screen.
+            2. The warehouse staff selects the warehouse.
+            3. The warehouse staff selects the product to export.
+            4. The warehouse staff enters the export quantity.
+            5. The system verifies the available inventory quantity.
+            6. The warehouse staff confirms the export request.
+            7. The system records the export transaction.
+            8. The system updates the inventory quantity.
+            9. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	5a. If the export quantity exceeds the available stock, the system displays an error message and requests the user to adjust the quantity (go back to step 4).
+	2.2.2 Create Export Receipt
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to create an export receipt that records the details of products being exported from the warehouse.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The products exist in the warehouse inventory.
+	Postconditions
+	An export receipt is created and saved in the system.
+The export receipt can be used for tracking and reporting.
+	Normal Sequence/Flow
+	            1. The system displays the Export Receipt creation screen.
+            2. The warehouse staff enters export information (date, warehouse, and recipient).
+            3. The warehouse staff selects the products to export.
+            4. The warehouse staff enters the export quantity for each product.
+            5. The system validates the entered data.
+            6. The warehouse staff confirms the export receipt.
+            7. The system saves the export receipt in the database.
+            8. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	5a. If the entered data is incomplete or invalid, the system displays an error message and requests the user to correct the information.
+	2.2.3 Export Product Report
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows managers to view and export reports of products that have been exported from the warehouse within a specified time period.
+	Preconditions
+	The manager is authenticated and authorized.
+Export records exist in the system.
+	Postconditions
+	The export report is displayed or exported to a file.
+	Normal Sequence/Flow
+	            1. The system displays the Export Product Report screen.
+            2. The manager selects a start date and end date.
+            3. The manager selects the warehouse (optional).
+            4. The system displays the list of exported products within the selected criteria.
+            5. The manager may export the report to Excel.
+            6. The system generates and downloads the report file.
+	Alternative Sequences/Flows
+	4a. If no records match the selected criteria, the system displays a message indicating that no data was found.
+	2.2.4 Cancel Export Transaction
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to cancel an export transaction if it was created incorrectly or needs to be reversed.
+	Preconditions
+	The manager is authenticated and authorized.
+Export records exist in the system.
+	Postconditions
+	The export transaction is canceled.
+The exported quantity is restored to the inventory.
+	Normal Sequence/Flow
+	            1. The system displays the list of export transactions.
+            2. The warehouse staff selects the transaction to cancel.
+            3. The system displays the transaction details.
+            4. The warehouse staff confirms the cancellation.
+            5. The system restores the exported quantity to the inventory.
+            6. The system marks the transaction as canceled.
+            7. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	5a. If the transaction cannot be canceled due to system restrictions, the system displays an error message.
+	2.2.5 Approve Export Request
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	This use case allows a manager to review and approve export requests submitted by warehouse staff before the products are exported from the warehouse.
+	Preconditions
+	The manager is authenticated and authorized.
+An export request exists in the system.
+	Postconditions
+	The export request is approved or rejected.
+If approved, the request can proceed to the export process.
+	Normal Sequence/Flow
+	            1. The system displays the list of pending export requests.
+            2. The manager selects an export request.
+            3. The system displays the export request details.
+            4. The manager reviews the product information and quantity.
+            5. The manager approves the request.
+            6. The system updates the request status to "Approved".
+            7. The system notifies the warehouse staff that the request has been approved.
+	Alternative Sequences/Flows
+	5a. The manager rejects the export request.
+6a. The system updates the request status to "Rejected" and notifies the warehouse staff.
+	2.2.6 Edit Export Receipt
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to modify information in an export receipt before the export process is finalized.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The export receipt exists and has not been finalized.
+	Postconditions
+	The export receipt information is updated in the system.
+	Normal Sequence/Flow
+	            1. The system displays the list of export receipts.
+            2. The warehouse staff selects an export receipt.
+            3. The system displays the export receipt details.
+            4. The warehouse staff edits the necessary information (product, quantity, or recipient).
+            5. The warehouse staff saves the changes.
+            6. The system validates the updated information.
+            7. The system updates the export receipt in the database.
+            8. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	6a. If the edited quantity exceeds the available inventory, the system displays an error message and requests correction (go back to step 4).
+	2.2.7 Print Export Receipt
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to print an export receipt for documentation and shipment purposes.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The export receipt exists in the system.
+	Postconditions
+	The export receipt is printed or saved as a printable document.
+	Normal Sequence/Flow
+	            1. The system displays the list of export receipts.
+            2. The warehouse staff selects a specific export receipt.
+            3. The system displays the export receipt details.
+            4. The warehouse staff selects the "Print" option.
+            5. The system generates a printable document.
+            6. The system sends the document to the printer or allows the user to download it.
+	Alternative Sequences/Flows
+	6a. If the printer is not available, the system displays a message and allows the user to download the document instead.
+	2.2.8 View Export History
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	This use case allows the manager to view the history of product exports from the warehouse for monitoring and management purposes.
+	Preconditions
+	The manager is authenticated and authorized.
+Export records exist in the system.
+	Postconditions
+	The export history is displayed according to the selected criteria.
+	Normal Sequence/Flow
+	            1. The system displays the Export History screen.
+            2. The manager selects search criteria (date range, warehouse, or product).
+            3. The system retrieves export records that match the criteria.
+            4. The system displays the export history list.
+            5. The manager may view detailed information of a specific export record.
+	Alternative Sequences/Flows
+	4a. If no records match the search criteria, the system displays a message indicating that no results were found.
+	2.2.9 Export Product by Customer Order
+Primary Actors
+	Manager
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to export products from the warehouse based on a confirmed customer order.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+A confirmed customer order exists in the system.
+The required products are available in inventory.
+	Postconditions
+	The products are exported according to the customer order.
+The inventory quantity is updated.
+The order status is updated to "Completed" or "Shipped".
+	Normal Sequence/Flow
+	            1. The system displays the list of confirmed customer orders.
+            2. The warehouse staff selects an order.
+            3. The system displays the order details.
+            4. The warehouse staff verifies the product list and quantity.
+            5. The warehouse staff confirms the export.
+            6. The system records the export transaction.
+            7. The system updates the inventory quantity.
+            8. The system updates the order status.
+            9. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	5a. If the required quantity is not available, the system displays a warning message and prevents the export until the stock is sufficient.
+	2.2.10 Delete Export Receipt
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to delete an export receipt that was created incorrectly before it is finalized.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The export receipt exists in the system.
+The export receipt has not been finalized.
+	Postconditions
+	The export receipt is removed from the system.
+No inventory changes are applied.
+	Normal Sequence/Flow
+	            1. The system displays the list of export receipts.
+            2. The warehouse staff selects an export receipt.
+            3. The system displays the export receipt details.
+            4. The warehouse staff selects the delete option.
+            5. The system asks for confirmation.
+            6. The warehouse staff confirms the deletion.
+            7. The system deletes the export receipt.
+            8. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	5a. If the export receipt has already been finalized, the system prevents deletion and displays an error message.
+	2.2.11 Search Export Receipt
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to search for export receipts based on specific criteria such as receipt ID, product name, or date.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+Export receipts exist in the system.
+	Postconditions
+	The system displays export receipts that match the search criteria.
+	Normal Sequence/Flow
+	            1. The system displays the Export Receipt search screen.
+            2. The warehouse staff enters search criteria (receipt ID, product name, or date).
+            3. The warehouse staff initiates the search.
+            4. The system retrieves matching export receipts.
+            5. The system displays the search results.
+            6. The warehouse staff may select a receipt to view details.
+	Alternative Sequences/Flows
+	5a. If no records match the search criteria, the system displays a message indicating that no results were found.
+	
+
+2.2.12 Warehouse Transfer Export (This use case might be not need)
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to export products from one warehouse to another warehouse within the organization.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The products exist in the source warehouse inventory.
+The destination warehouse exists in the system.
+	Postconditions
+	The products are exported from the source warehouse.
+The system records the warehouse transfer transaction.
+	Normal Sequence/Flow
+	            1. The system displays the Warehouse Transfer screen.
+            2. The warehouse staff selects the source warehouse.
+            3. The warehouse staff selects the destination warehouse.
+            4. The warehouse staff selects the product to transfer.
+            5. The warehouse staff enters the transfer quantity.
+            6. The system verifies that the product quantity is available.
+            7. The warehouse staff confirms the transfer.
+            8. The system records the transfer transaction.
+            9. The system updates the inventory of the source warehouse.
+            10. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	8a. If the transfer quantity exceeds the available stock, the system displays an error message and requests correction.
+	2.2.13 Return Exported Product
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to process the return of products that were previously exported from the warehouse.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The export transaction exists in the system.
+	Postconditions
+	The returned products are added back to the warehouse inventory.
+The system records the return transaction.
+	Normal Sequence/Flow
+	            1. The system displays the list of export transactions.
+            2. The warehouse staff selects the export transaction related to the returned products.
+            3. The system displays the export details.
+            4. The warehouse staff enters the return quantity.
+            5. The warehouse staff confirms the return.
+            6. The system records the return transaction.
+            7. The system updates the warehouse inventory.
+            8. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	6a. If the return quantity exceeds the originally exported quantity, the system displays an error message.
+	2.2.14 Return Imported Product
+Primary Actors
+	Warehouse Staff
+	Secondary Actors
+	None
+	Description
+	This use case allows warehouse staff to process the return of products that were previously imported into the warehouse, usually due to damaged goods, incorrect items, or supplier return requests.
+	Preconditions
+	The warehouse staff is authenticated and authorized.
+The import transaction exists in the system.
+The products are currently stored in the warehouse inventory.
+	Postconditions
+	The returned products are removed from the warehouse inventory.
+The system records the return import transaction.
+	Normal Sequence/Flow
+	            1. The system displays the list of import transactions.
+
+            2. The warehouse staff selects the import transaction related to the products to be returned.
+            3. The system displays the import transaction details.
+            4. The warehouse staff selects the products to return.
+            5. The warehouse staff enters the return quantity.
+            6. The system verifies the return quantity against the available inventory.
+            7. The warehouse staff confirms the return request.
+            8. The system records the return import transaction.
+            9. The system updates the warehouse inventory.
+            10. The system displays a confirmation message.
+	Alternative Sequences/Flows
+	2a. If the selected import transaction does not exist, the system displays a message indicating that the transaction cannot be found.
+6a. If the return quantity exceeds the available inventory, the system displays an error message and requests correction.
+	
+
+2.1.30 Add Inward Voucher
+Use Case Name
+	Add Inward Voucher
+	Actors
+	Warehouse Staff
+	Description
+	As a warehouse staff, I want to create a new inward voucher so that goods received into the warehouse can be recorded and tracked in the inventory system.
+	Preconditions
+	User account has been created and authorized. User has permission to create inward vouchers. User is accessing the Create Inward screen.
+	Postconditions
+	Success: A new inward voucher is created and stored in the system database. The voucher becomes available in the inward voucher list. Failure: No inward voucher is created and the system returns an error message.
+	Normal Sequence / Flow
+	1. User accesses the Create Inward Voucher screen.
+2. System displays the inward voucher entry form.
+3. User enters inward voucher information including header information and item details.
+4. User clicks the Save button.
+5. System validates the request data (BR-IMP-01).
+6. System identifies the current user performing the action.
+7. System sends the creation request to Import Service.
+8. Import Service processes the inward voucher creation logic.
+9. System saves the inward voucher into the database.
+10. System returns success response.
+11. System displays success message and redirects user to voucher detail or list screen.
+	Alternative / Exception Flow
+	Step 5: If request model is invalid, system returns INVALID_MODEL and message “Invalid data”.
+Step 7: If business processing fails in service layer, system returns failure response and voucher is not created.
+Step 9: If database save fails, system returns error response and the system displays the failure message.
+	
+
+2.1.31  View Inward Voucher List
+
+
+Use Case Name
+	View Inward Voucher List
+	Actors
+	Warehouse Staff, Manager
+	Description
+	As a user, I want to view the list of inward vouchers with filtering and pagination so that I can search and monitor warehouse receipt records.
+	Preconditions
+	User account has been created and authorized. User has permission to view inward vouchers.
+	Postconditions
+	Success: System displays inward voucher list according to filter conditions. Failure: System cannot retrieve inward vouchers and displays an error message.
+	Normal Sequence / Flow
+	1. User accesses the Inward Voucher List screen. 
+2. System displays filtering options including date range, keyword, page number and page size. 
+3. User enters filter criteria such as fromDate, toDate, keyword, page and pageSize. 
+4. User clicks the Search button. 
+5. System sends query parameters to Import Service. 
+6. Import Service retrieves inward vouchers based on the filtering and pagination parameters. 
+7. System returns inward voucher list result. 
+8. System displays inward vouchers in the list screen.
+	Alternative / Exception Flow
+	Step 3: If user does not provide filter values, system retrieves inward voucher list using default pagination. 
+Step 6: If no data matches the search criteria, system returns an empty list and UI displays message indicating no records found. 
+Step 6: If service processing fails, system returns error response and displays failure message.
+	
+
+2.1.32 View Inward Voucher Detail
+
+
+Use Case Name
+	View Inward Voucher Detail
+	Actors
+	Warehouse Staff, Manager
+	Description
+	As a user, I want to view the detailed information of an inward voucher so that I can review the warehouse receipt information.
+	Preconditions
+	User account has been created and authorized. User has permission to view inward voucher details. Voucher ID exists in the system.
+	Postconditions
+	Success: System displays detailed inward voucher information. Failure: System cannot retrieve voucher detail and displays an error message.
+	Normal Sequence / Flow
+	1. User opens the Inward Voucher List screen. 
+2. User selects an inward voucher from the list. 
+3. System sends the voucherId to Import Service. 
+4. Import Service retrieves inward voucher detail from database. 
+5. System returns inward voucher detail result. 
+6. System displays voucher information on the detail screen.
+	Alternative / Exception Flow
+	Step 3: If voucherId is invalid, system cannot retrieve the voucher detail and returns error response. 
+Step 4: If voucher does not exist, system returns not-found result and displays message indicating voucher not found. 
+Step 4: If database retrieval fails, system returns failure response and UI displays error message.
+	
+
+2.1.33 Update Inward Voucher
+Use Case Name
+	Update Inward Voucher
+	Actors
+	Warehouse Staff
+	Description
+	As a warehouse staff, I want to update an existing inward voucher so that incorrect or incomplete receipt information can be corrected.
+	Preconditions
+	User account has been created and authorized. User has permission to update inward vouchers. The inward voucher already exists in the system.
+	Postconditions
+	Success: Inward voucher information is updated successfully and saved to the database. Failure: Voucher update fails and the system displays an error message.
+	Normal Sequence / Flow
+	1. User opens the Inward Voucher Detail screen.
+2. User clicks the Edit button.
+3. System displays inward voucher edit form with existing voucher information.
+4. User updates the necessary voucher information.
+5. User clicks the Save Changes button.
+6. System validates the request model (BR-IMP-01).
+7. System checks if voucherId in URL matches VoucherId in request body (BR-IMP-05).
+8. System identifies the current user performing the update.
+9. System sends the update request to Import Service.
+10. Import Service processes the voucher update logic.
+11. System updates the inward voucher in the database.
+12. System returns success response and displays success message.
+	Alternative / Exception Flow
+	Step 6: If request model is invalid, system returns INVALID_MODEL and message “Invalid data”.
+Step 7: If voucherId in URL does not match VoucherId in request body, system returns ID_MISMATCH error.
+Step 10: If service layer fails to process update, system returns failure response.
+Step 11: If database update fails, system returns error response and update is not saved.
+	
+
+
+
+3. Functional Requirements
+[Provide descriptions about the system’s functions/screens. The functions/screens are grouped by the system features, and even sub-features if needed. For the screens, you need to provide the screen layouts (mock-up screens) and relevant specifications if needed]
+3.1 Feature Name1
+3.1.1 SubFeature Name1.1
+3.1.1.1 Screen/Function Name1
+[Content #1: UI layout (Mockup screen prototype)]
+[Content #2: brief descriptions of the screen/function, mapped to the relevant use cases]
+[Content #3: provide further descriptions for the screen’s components/fields using table format below]
+Field Name
+	Description
+	Field Name1
+	Field description: data type min/max length or value, initial data, etc.
+	Field Name2
+	…
+	Field Group-Name1
+	Field Name3
+	…
+	Field Name4
+	…
+	Field Group-Name2
+	…
+	…
+	
+
+3.1.1.2 Screen/Function Name2
+…
+3.1.2 SubFeature Name1.2
+…
+3.2 User Authentication
+3.2.1 User Register
+…
+3.2.2 User Login
+…
+3.2.3 Password Reset
+…
+3.3 System Administration
+3.3.1 Master Data
+3.3.1.1 Setting List
+  
+  
+  
+
+This screen allows the Administrator to: 
+               * View Setting List: view list of current master data. 
+               * Filter Setting List: filter master data by data types, statuses
+               * Search Settings: enter keyword(s) to search master data by their names or values
+               * Sort Setting List: sort master data list (ascending, descending) by clicking column headers
+On the screen, s/he can also 
+               * Activate/Deactivate Setting: change status of a specific inactive/active master data
+               * Choose to go to the Setting Details screens for adding new or updating an existing master data by clicking the New Setting or Edit link.
+Field Description
+Field Name
+	Description
+	(1)
+	Initial values: all the active setting names with null or blank type
+Hover the mouse to show the field name: “Setting Type”
+	(2)
+	Initial values: All Statuses, Active, Inactive (default value “All Status”)
+Hover the mouse to show the field name: “Setting Status”
+	(3)
+	The change-status action is Activate or Deactivate depending on the current status of the relevant setting (Inactive or Active, respectively).
+	
+
+3.3.1.2 Setting Details
+  
+
+
+
+
+
+This screen allows the Administrator to: 
+               * Add New Setting: add new master data. 
+               * Update Setting Details: update details of a specific master data
+Field Description
+Field Name
+	Description
+	Name
+	Data type: non-digit string, max length of 20 characters
+	Type
+	Initial data values: all active setting names (with null or blank type)
+	Value
+	Data type: any string, max length of 100 characters
+	Priority
+	Data type: a positive integer
+	Description
+	Data type: any string, max length of 200 characters
+	
+
+3.3.2 User Management
+3.3.2.1 User List
+…
+3.3.2.2 User Details
+…
+4. Non-Functional Requirements
+4.1 External Interfaces
+[This section provides information to ensure that the system will communicate properly with users and with external hardware or software/system elements.]
+4.2 Quality Attributes
+[List all the required system characteristics (quality attributes) specification. Some of the possible attributes are provided with the guide/descriptions are mentioned here]
+4.2.1 Usability 
+[This section includes all those requirements that affect usability. For example, specify the required training time for a normal user and a power user to become productive at particular operations specify measurable task times for typical tasks or base the new system’s usability requirements on other systems that the users know and like specify requirement to conform to common usability standards, such as IBM’s CUA standards Microsoft’s GUI standards]
+4.2.2 Performance
+[The system’s performance characteristics are outlined in this section. Include specific response times. Where applicable, reference related Use Cases by name.
+Response time for a transaction (average, maximum)
+Throughput, for example, transactions per second
+Capacity, for example, the number of customers or transactions the system can accommodate
+Resource utilization, such as memory, disk, communications, and so forth.]
+
+
+4.2.3 …
+
+
+5. Requirement Appendix
+[Provide business rules, common requirements, or other extra requirements information here]
+5.1 Business Rules
+[Provide common business rules that you must follow. The information can be provided in the table format as the sample below]
+ID
+	Rule Definition
+	BR-01
+	Document Number must be unique
+	BR-02
+	Only one payment option can be selected
+	BR-03
+	Document Date defaults to current date
+	BR-04
+	Invoice Date defaults to Document Date.
+	BR-05
+	Supplier and Item fields must support search-on-key-press
+	BR-06
+	Historical supplier data must not change when master data is updated
+	BR-07
+	Opening balance is calculated based on inventory quantities before the From Date.
+	BR-08
+	Closing balance is calculated as:
+On hand items Quantity + Inward Quantity − Outward Quantity
+	BR-09
+	Inventory values are calculated using the selling unit price.
+	BR-10
+	Each product category appears only once per warehouse table.
+	BR-11
+	If the buyer adds new sale and selects option pay by cash, the system automatically generates voucherID with value BH1
+[f]	
+BR-12
+	If the buyer adds new sale and selects option pay by bank, the system automatically generates voucherID with value BH2
+[g]	
+BR-13
+	If the buyer adds new sale and selects option unpaid, the system automatically generates voucherID with value BH3
+[h]	
+
+
+	
+
+	
+
+	
+
+	
+
+	
+
+5.2 System Messages
+#
+	Message code
+	Message Type
+	Context
+	Content
+	1
+	MSG01
+	In line
+	There is not any search result
+	No search results.  
+	2
+	MSG02
+	In red, under the text box
+	Input-required fields are empty
+	The * field is required. 
+	3
+	MSG03
+	Toast message
+	Updating asset(s) information successfully
+	Update asset(s) successfully. 
+	4
+	MSG04
+	Toast message
+	Adding new asset successfully
+	Add asset successfully. 
+	5
+	MSG05
+	Toast message
+	Confirming email of asset hand-over is sent successfully
+	A confirmation email has been sent to {email_address}. 
+	6
+	MSG06
+	Toast message
+	Resetting asset information successfully
+	Return asset(s) successfully. 
+	7
+	MSG07
