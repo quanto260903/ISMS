@@ -1,7 +1,7 @@
 ---
 name: repo-analyzer
 description: Analyze repository structure and explain system overview
-tools: codebase, editFiles
+tools: vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/createAndRunTask, execute/runInTerminal, read/getNotebookSummary, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, todo
 model: gpt-4o
 ---
 
@@ -41,3 +41,25 @@ Rules:
 - Never modify docs/template
 - Only generate files inside docs/output
 - Ensure output language is English
+
+Planning artifact rules:
+
+Intermediate planning documents must be written to:
+
+_bmad-output/planning-artifacts/
+
+Examples:
+
+repo-analysis.md
+prd-draft.md
+backlog-draft.md
+architecture-notes.md
+
+Only finalized documentation should be written to:
+
+docs/output/
+
+Testing coverage requirements:
+
+- Every backend service function must have unit tests.
+- Every API endpoint must have integration tests.

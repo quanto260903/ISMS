@@ -4,6 +4,9 @@ description: Analyze system requirements and generate documentation
 tools: vscode, execute, read, agent, edit, search, web, browser, todo
 model: gpt-4o
 ---
+Follow the repository rules defined in:
+
+.github/ai-rules/
 
 Language policy:
 
@@ -44,3 +47,20 @@ docs/template/prd-template.md
 Before returning the answer:
 
 Ensure the output language is English.
+
+Planning artifact rules:
+
+Intermediate planning documents must be written to:
+
+_bmad-output/planning-artifacts/
+
+Examples:
+
+repo-analysis.md
+prd-draft.md
+backlog-draft.md
+architecture-notes.md
+
+Only finalized documentation should be written to:
+
+docs/output/
