@@ -4,7 +4,7 @@
 
 import type { PaymentOption, InwardItem, InwardReason } from "../types/import.types";
 
-export const VAT_OPTIONS = [0, 5, 7, 10] as const;
+export const VAT_OPTIONS = [0, 5, 8, 10] as const;
 
 export const getVoucherCodeByPayment = (payment: PaymentOption): string => {
   switch (payment) {
@@ -26,9 +26,9 @@ export const getCreditAccountByPayment = (payment: PaymentOption): string => {
 export const generateVoucherNumber = (): string =>
   "NK" + Date.now().toString().slice(-6);
 
-// Thành tiền = SL × Đơn giá
+// Thành tiền = SL × Đơn giá × (1 + VAT%)
 export const calcAmount = (item: InwardItem): number =>
-  item.quantity * item.unitPrice;
+  item.quantity * item.unitPrice * (1 + item.vat / 100);
 
 export const PAYMENT_LABELS: Record<PaymentOption, string> = {
   CASH:   "Tiền mặt",

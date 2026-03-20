@@ -14,7 +14,7 @@ const fmtMoney = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigit
 
 const VOUCHER_CODE_LABELS: Record<string, string> = {
   XH1: "Hàng nhập trả lại",
-  XH2: "Xuất hàng kiểm kê",
+  XH2: "Xuất khác",
 };
 
 const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {

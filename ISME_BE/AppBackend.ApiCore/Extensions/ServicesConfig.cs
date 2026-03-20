@@ -10,7 +10,6 @@ using AppBackend.Repositories.Repositories.OpenInventoryRepo;
 using AppBackend.Repositories.Repositories.StockTakeRepo;
 using AppBackend.Repositories.Repositories.SupplierRepo;
 using AppBackend.Repositories.Repositories.UserRepo;
-using AppBackend.Repositories.Repositories.WarehouseRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
@@ -27,7 +26,6 @@ using AppBackend.Services.Services.OpenInventoryServices;
 using AppBackend.Services.Services.StockTakeServices;
 using AppBackend.Services.Services.SupplierServices;
 using AppBackend.Services.Services.UserServices;
-using AppBackend.Services.Services.WarehouseServices;
 using SWS.Repositories.UnitOfWork;
 
 namespace AppBackend.Extensions;
@@ -45,7 +43,6 @@ public static class ServicesConfig
         services.AddScoped<ISaleGoodsRepository, SaleGoodsRepository>();
         services.AddScoped<IItemRepository, ItemRepository>();
         services.AddScoped<IImportRepository, ImportRepository>();
-        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IExportRepository, ExportRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
@@ -66,7 +63,6 @@ public static class ServicesConfig
         services.AddScoped<ISaleGoodsService, SaleGoodsService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IImportServices, ImportService>();
-        services.AddScoped<IWarehouseService, WarehouseService>();
         services.AddScoped<IExportServices, ExportService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IAuditService, AuditService>();

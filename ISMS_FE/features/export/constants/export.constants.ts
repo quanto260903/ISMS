@@ -4,7 +4,7 @@
 
 import type { ExportItem, ExportReason } from "../types/export.types";
 
-export const VAT_OPTIONS = [0, 5, 7, 10] as const;
+export const VAT_OPTIONS = [0, 5, 8, 10] as const;
 
 // XH1 = Hàng nhập bị trả lại, XH2 = Xuất khác
 export const getVoucherCodeByReason = (reason: ExportReason): string => {
@@ -25,14 +25,19 @@ export const getDebitAccountByReason = (reason: ExportReason): string => {
 export const generateVoucherNumber = (): string =>
   "XH" + Date.now().toString().slice(-6);
 
+// Amount1 xuất kho = costPerUnit × qty (giá vốn bình quân theo phiếu nhập)
+// Fallback về unitPrice × qty nếu chưa chọn phiếu nhập
 export const calcAmount = (item: ExportItem): number =>
-  item.quantity * item.unitPrice;
+  item.costPerUnit > 0
+    ? item.quantity * item.costPerUnit
+    : item.quantity * item.unitPrice;
 
 export const EXPORT_REASON_LABELS: Record<ExportReason, string> = {
   IMPORT_RETURN: "Hàng nhập bị trả lại",
-  OTHER:         "Xuất khác",
+  OTHER:         "Hủy hàng",
 };
 
+// Không có cột VAT — Amount2 = null cho phiếu xuất kho (chỉ dùng trong luồng bán hàng)
 export const EXPORT_TABLE_COLUMNS = [
   { label: "#",           w: 32  },
   { label: "Mã hàng",     w: 110 },
@@ -40,8 +45,6 @@ export const EXPORT_TABLE_COLUMNS = [
   { label: "ĐV",          w: 50  },
   { label: "SL",          w: 60  },
   { label: "Đơn giá",     w: 100 },
-  { label: "Thuế VAT",    w: 72  },
-  { label: "Tiền VAT",    w: 90  },
   { label: "Thành tiền",  w: 105 },
   { label: "CT đối trừ",  w: 120 },
   { label: "",             w: 80  },  // Actions: 📦 Kho + Xóa

@@ -1,13 +1,11 @@
 // ============================================================
 //  features/export/hooks/useExportForm.ts
-//  Thêm: FIFO preview trước khi submit
 // ============================================================
 
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { createExport, updateExport, getFifoPreview } from "../export.api";
-import type { FifoPreviewResult } from "../export.api";
+import { createExport, updateExport } from "../export.api";
 import type { ExportReason, ExportVoucher, ExportItem } from "../types/export.types";
 import {
   generateVoucherNumber,
@@ -43,12 +41,6 @@ export function useExportForm({
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ── FIFO preview state ────────────────────────────────────
-  // showFifoPreview = true khi user nhấn Lưu và có items không có offsetVoucher
-  const [fifoPreview,     setFifoPreview]     = useState<FifoPreviewResult[]>([]);
-  const [showFifoPreview, setShowFifoPreview] = useState(false);
-  const [fifoLoading,     setFifoLoading]     = useState(false);
-
   const [voucher, setVoucher] = useState<ExportVoucher>(
     initialData ?? {
       voucherId:          generateVoucherNumber(),
@@ -82,12 +74,13 @@ export function useExportForm({
   // ── Items ─────────────────────────────────────────────────
   const createEmptyItem = (r: ExportReason): ExportItem => ({
     goodsId: "", goodsName: "", unit: "",
-    quantity: 1, unitPrice: 0, amount1: 0, vat: 10, promotion: 0,
+    quantity: 1, unitPrice: 0, amount1: 0,
+    vat: 0, promotion: 0,          // Không dùng VAT cho phiếu xuất kho
     debitAccount1:     getDebitAccountByReason(r),
     creditAccount1:    "156",
-    creditWarehouseId: "",
-    debitAccount2:     "3331",
-    creditAccount2:    "156",
+    debitAccount2:     "",         // Không có bút toán thứ 2 cho xuất kho
+    creditAccount2:    "",
+    costPerUnit:       0,          // set khi chọn phiếu nhập từ modal
     userId:            userId,
     createdDateTime:   new Date().toISOString(),
     offsetVoucher:     "",
@@ -127,17 +120,15 @@ export function useExportForm({
     [filledItems]
   );
 
-  const totalVat = useMemo(
-    () => filledItems.reduce((s, i) => s + i.amount1 * (i.vat / 100), 0),
-    [filledItems]
-  );
-
   // ── Validate ──────────────────────────────────────────────
   const validate = (): string | null => {
     if (!voucher.voucherId.trim())    return "Chưa có số phiếu";
     if (!voucher.customerName.trim()) return "Chưa nhập tên đối tượng";
     if (!voucher.voucherDate)         return "Chưa chọn ngày";
     if (filledItems.length === 0)     return "Chưa có hàng hóa nào";
+    const missingOffset = filledItems.find((i) => !i.offsetVoucher?.trim());
+    if (missingOffset)
+      return `'${missingOffset.goodsName || missingOffset.goodsId}': chưa chọn chứng từ nhập kho đối trừ`;
     return null;
   };
 
@@ -163,73 +154,23 @@ export function useExportForm({
       promotion:         item.promotion,
       debitAccount1:     item.debitAccount1,
       creditAccount1:    item.creditAccount1,
-      creditWarehouseId: item.creditWarehouseId,
+
       debitAccount2:     item.debitAccount2,
       creditAccount2:    item.creditAccount2,
       userId:            item.userId || userId,
       createdDateTime:   item.createdDateTime || new Date().toISOString(),
-      offsetVoucher:     item.offsetVoucher || "",
+      offsetVoucher:     item.offsetVoucher,
     })),
   });
 
   // ══════════════════════════════════════════════════════════
-  // SUBMIT FLOW:
-  //
-  // Bước 1 — handleSubmit (user nhấn "Lưu"):
-  //   - Validate cơ bản
-  //   - Kiểm tra items nào chưa có offsetVoucher
-  //   - Nếu có → gọi getFifoPreview → hiện modal preview
-  //   - Nếu không → gọi doSave() trực tiếp
-  //
-  // Bước 2 — confirmSave (user xác nhận trong modal preview):
-  //   - Đóng modal
-  //   - Gọi doSave()
+  // SUBMIT: validate → lưu thẳng (không có FIFO preview vì backend
+  // yêu cầu offsetVoucher bắt buộc, modal SelectInbound đã xử lý ở UI)
   // ══════════════════════════════════════════════════════════
   const handleSubmit = async () => {
     const error = validate();
     if (error) { setMessage(error); return; }
-
-    // Items hợp lệ (không tính dòng trống cuối)
-    const itemsWithoutOffset = filledItems.filter(
-      (i) => i.goodsId.trim() && !i.offsetVoucher?.trim()
-    );
-
-    if (itemsWithoutOffset.length > 0) {
-      // Có items chưa chọn offsetVoucher → show FIFO preview
-      setFifoLoading(true);
-      setMessage("");
-      try {
-        const preview = await getFifoPreview(
-          itemsWithoutOffset.map((i) => ({
-            goodsId:   i.goodsId,
-            goodsName: i.goodsName,
-            quantity:  i.quantity,
-          }))
-        );
-        setFifoPreview(preview);
-        setShowFifoPreview(true);
-      } catch {
-        setMessage("Không thể tải preview FIFO, vui lòng thử lại");
-      } finally {
-        setFifoLoading(false);
-      }
-    } else {
-      // Tất cả đã có offsetVoucher → lưu thẳng
-      await doSave();
-    }
-  };
-
-  // Xác nhận sau khi xem preview FIFO
-  const confirmSave = async () => {
-    setShowFifoPreview(false);
-    setFifoPreview([]);
     await doSave();
-  };
-
-  // Hủy preview
-  const cancelFifoPreview = () => {
-    setShowFifoPreview(false);
-    setFifoPreview([]);
   };
 
   const doSave = async () => {
@@ -259,16 +200,10 @@ export function useExportForm({
   };
 
   return {
-    // State
     voucher, reason, message, loading, isEditMode,
-    totalAmount, totalVat,
-    // FIFO preview
-    fifoPreview, showFifoPreview, fifoLoading,
-    // Actions
+    totalAmount,
     setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
-    handleSubmit,   // Bước 1: validate + preview
-    confirmSave,    // Bước 2: xác nhận lưu sau preview
-    cancelFifoPreview,
+    handleSubmit,
   };
 }

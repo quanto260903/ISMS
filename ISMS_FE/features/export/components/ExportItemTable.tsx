@@ -7,9 +7,8 @@
 
 import React from "react";
 import styles from "@/shared/styles/sale.styles";
-import { VAT_OPTIONS, EXPORT_TABLE_COLUMNS } from "../constants/export.constants";
+import { EXPORT_TABLE_COLUMNS } from "../constants/export.constants";
 import type { ExportItem, GoodsSearchResult, DropdownState, DropdownPos } from "../types/export.types";
-import type { WarehouseOption } from "../hooks/useWarehouseList";
 
 // ExportItem mở rộng với offsetVoucher
 export type ExportItemWithLot = ExportItem & { offsetVoucher?: string };
@@ -20,7 +19,6 @@ interface Props {
   dropdownPos:  DropdownPos | null;
   dropdownRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
   inputRefs:    React.MutableRefObject<(HTMLInputElement | null)[]>;
-  warehouses:   WarehouseOption[];
   onUpdateItem:     (index: number, field: keyof ExportItemWithLot, value: unknown) => void;
   onRemoveItem:     (index: number) => void;
   onGoodsIdChange:  (index: number, value: string) => void;
@@ -33,7 +31,6 @@ interface Props {
 
 export default function ExportItemTable({
   items, dropdowns, dropdownPos, dropdownRefs, inputRefs,
-  warehouses,
   onUpdateItem, onRemoveItem, onGoodsIdChange, onInputFocus,
   onSelectGoods, onSetDropdownPos,
   onViewWarehouse,
@@ -54,8 +51,7 @@ export default function ExportItemTable({
           </thead>
           <tbody>
             {items.map((item, index) => {
-              const dd        = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
-              const vatAmount = item.amount1 * (item.vat / 100);
+              const dd = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
 
               return (
                 <tr key={index} style={{ background: index % 2 === 0 ? "#fff" : "#f8f9ff" }}>
@@ -114,19 +110,6 @@ export default function ExportItemTable({
                       value={item.unitPrice}
                       onChange={(e) => onUpdateItem(index, "unitPrice", Number(e.target.value))}
                     />
-                  </td>
-
-                  {/* Thuế VAT */}
-                  <td style={{ ...styles.itemTd, width: 72 }}>
-                    <select style={styles.selectVat} value={item.vat}
-                      onChange={(e) => onUpdateItem(index, "vat", Number(e.target.value))}>
-                      {VAT_OPTIONS.map((v) => <option key={v} value={v}>{v}%</option>)}
-                    </select>
-                  </td>
-
-                  {/* Tiền VAT */}
-                  <td style={{ ...styles.itemTd, width: 90, textAlign: "right", color: "#b45309", fontWeight: 600 }}>
-                    {vatAmount.toLocaleString("vi-VN")}
                   </td>
 
                   {/* Thành tiền */}

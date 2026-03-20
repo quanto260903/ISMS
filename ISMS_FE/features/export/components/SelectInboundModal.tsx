@@ -17,6 +17,8 @@ export interface InboundSelection {
   remainingQty:       number;   // tồn còn lại = warehouseIn - warehouseOut
   warehouseIn:        number;   // tổng đã nhập
   warehouseOut:       number;   // tổng đã xuất
+  unitPrice:          number;   // đơn giá nhập tại thời điểm nhập kho
+  costPerUnit:        number;   // cost / warehouseIn — dùng tính Amount1 khi xuất
 }
 
 interface Props {

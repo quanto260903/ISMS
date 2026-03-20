@@ -99,12 +99,10 @@ namespace AppBackend.Services.Services.GoodsServices
                         Amount1 = itemRequest.Amount1,
                         DebitAccount1 = itemRequest.DebitAccount1,
                         CreditAccount1 = itemRequest.CreditAccount1,
-                        CreditWarehouseId = itemRequest.CreditWarehouseId,
                         DebitAccount2 = itemRequest.DebitAccount2,
                         CreditAccount2 = itemRequest.CreditAccount2,
                         Amount2 = itemRequest.Amount2,
                         Promotion = itemRequest.Promotion,
-                        Vat = itemRequest.Vat,
                         OffsetVoucher = itemRequest.OffsetVoucher,
                         UserId = itemRequest.UserId,
                         CreatedDateTime = itemRequest.CreatedDateTime,
@@ -174,11 +172,9 @@ namespace AppBackend.Services.Services.GoodsServices
                         Quantity = d.Quantity,
                         UnitPrice = d.UnitPrice,
                         Amount1 = d.Amount1,
-                        Vat = d.Vat,
                         Promotion = d.Promotion,
                         DebitAccount1 = d.DebitAccount1,
                         CreditAccount1 = d.CreditAccount1,
-                        CreditWarehouseId = d.CreditWarehouseId,
                     }).ToList()
                 };
 

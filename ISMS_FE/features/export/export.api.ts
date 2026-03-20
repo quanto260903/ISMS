@@ -160,7 +160,8 @@ export interface WarehouseTransactionItem {
   warehouseIn:   number;
   warehouseOut:  number;
   customInHand:  number;          // tồn còn lại = dùng làm remainingQty
-  cost:          number;
+  cost:          number;          // tổng Amount1 phiếu nhập (bao gồm VAT)
+  unitPrice:     number;          // đơn giá nhập tại thời điểm nhập kho
 }
 
 export async function getWarehouseReport(goodsId: string): Promise<WarehouseTransactionItem[]> {

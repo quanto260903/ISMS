@@ -92,7 +92,6 @@ namespace AppBackend.Services.Services.AuditServices
                     Amount1 = diff,                        // Chênh lệch
                     DebitAccount1 = diff > 0 ? "156" : "632",
                     CreditAccount1 = diff > 0 ? "3381" : "156",                      // Xử lý
-                    DebitWarehouseId = request.WarehouseId,         // Kho kiểm
                     UserId = userId,                      // Tự điền từ JWT
                     CreatedDateTime = DateTime.Now,
                 });
@@ -204,7 +203,6 @@ namespace AppBackend.Services.Services.AuditServices
                         Amount1 = diff,
                         DebitAccount1 = reason,
                         CreditAccount1 = action,
-                        DebitWarehouseId = request.WarehouseId,
                         UserId = userId,               // Tự điền từ JWT
                         CreatedDateTime = DateTime.Now,
                     });

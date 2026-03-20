@@ -24,9 +24,9 @@ export interface ExportItem {
   promotion:         number;
   debitAccount1:     string;
   creditAccount1:    string;
-  creditWarehouseId: string;
   debitAccount2:     string;
   creditAccount2:    string;
+  costPerUnit:       number;   // cost/warehouseIn từ phiếu nhập — dùng tính Amount1 khi xuất
   userId:            string;
   createdDateTime:   string;
   offsetVoucher?:    string;

@@ -220,7 +220,8 @@ namespace AppBackend.Services.Services.StockTakeServices
                 var exportRequest = new ExportOrder
                 {
                     VoucherId = exportVoucherId,
-                    VoucherCode = "XH2",  // XK1 = xuất kho nội bộ / điều chỉnh
+                    VoucherCode = "XH2" +
+                    "",  // XK1 = xuất kho nội bộ / điều chỉnh
                     VoucherDescription = $"Xuất kho từ kiểm kê {voucher.VoucherCode} — hàng thiếu",
                     VoucherDate = dateOnly,
                     Items = shortageItems.Select(d => new CreateExportItemRequest

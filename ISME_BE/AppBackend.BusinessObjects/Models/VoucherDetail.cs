@@ -23,11 +23,7 @@ public partial class VoucherDetail
 
     public string? DebitAccount1 { get; set; }
 
-    public string? DebitWarehouseId { get; set; }
-
     public string? CreditAccount1 { get; set; }
-
-    public string? CreditWarehouseId { get; set; }
 
     public string? DebitAccount2 { get; set; }
 
@@ -37,17 +33,11 @@ public partial class VoucherDetail
 
     public decimal? Promotion { get; set; }
 
-    public decimal? Vat { get; set; }
-
     public string? OffsetVoucher { get; set; }
 
     public string? UserId { get; set; }
 
     public DateTime? CreatedDateTime { get; set; }
-
-    public virtual Warehouse? CreditWarehouse { get; set; }
-
-    public virtual Warehouse? DebitWarehouse { get; set; }
 
     public virtual Voucher? Voucher { get; set; }
 }

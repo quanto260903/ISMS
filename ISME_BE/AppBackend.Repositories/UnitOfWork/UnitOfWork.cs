@@ -4,6 +4,7 @@ using AppBackend.Repositories.Repositories.ImportRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
 using AppBackend.Repositories.Repositories.StockTakeRepo;
 using AppBackend.Repositories.Repositories.UserRepo;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using AppBackend.Repositories.UnitOfWork;
 
@@ -35,6 +36,9 @@ namespace SWS.Repositories.UnitOfWork
         public IStockTakeDetailRepository StockTakeDetails
             => _stockTakeDetails ??= new StockTakeDetailRepository(_context);
         public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+            => await _context.Database.BeginTransactionAsync();
 
         public void Dispose() => _context?.Dispose();
     }

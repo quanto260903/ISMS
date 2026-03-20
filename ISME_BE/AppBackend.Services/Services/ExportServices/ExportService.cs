@@ -1,10 +1,10 @@
 ﻿// ============================================================
 //  ExportService.cs
-//  Xử lý đầy đủ:
-//  1. Validate tồn kho
-//  2. FIFO tự động — tách thành NHIỀU VoucherDetail nếu cần nhiều phiếu nhập
-//  3. User chọn thủ công offsetVoucher — vẫn hỗ trợ
-//  4. Update: hoàn tồn kho cũ trước khi trừ mới
+//  Nghiệp vụ xuất kho:
+//  - User BẮT BUỘC chọn chứng từ nhập kho đối trừ (offsetVoucher) cho từng dòng.
+//  - Validate số lượng xuất không vượt tồn còn lại của từng phiếu nhập.
+//  - Toàn bộ thao tác Create/Update bọc trong transaction để đảm bảo toàn vẹn dữ liệu.
+//  - Update: validate trước → hoàn tồn kho cũ → trừ tồn kho mới → lưu.
 // ============================================================
 using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
@@ -32,10 +32,28 @@ namespace AppBackend.Services.Services.ExportServices
         }
 
         // ════════════════════════════════════════════════════════
-        // VALIDATE — tồn tại hàng, số lượng hợp lệ, tồn kho đủ
+        // VALIDATE
+        //
+        // Quy tắc:
+        //   1. GoodsId, Quantity, UnitPrice hợp lệ.
+        //   2. [ERROR 1] offsetVoucher BẮT BUỘC — user phải chọn chứng từ nhập kho.
+        //   3. [ERROR 2] Tổng số lượng xuất từ mỗi (GoodsId, offsetVoucher) không được
+        //      vượt quá tồn còn lại trong phiếu nhập đó.
+        //      Hỗ trợ nhiều dòng cùng trỏ vào một phiếu nhập: tổng hợp trước khi check.
+        //
+        // excludeVoucherId: dùng khi Update — loại trừ phiếu xuất đang sửa khỏi
+        //   phép tính "đã xuất", tránh tự block chính mình.
         // ════════════════════════════════════════════════════════
-        private async Task<ResultModel<int>?> ValidateItems(List<CreateExportItemRequest> items)
+        private async Task<ResultModel<int>?> ValidateItems(
+            List<CreateExportItemRequest> items,
+            string? excludeVoucherId = null)
         {
+            if (items == null || items.Count == 0)
+                return Fail(400, "EMPTY_ITEMS", "Phiếu xuất phải có ít nhất một dòng hàng hóa");
+
+            // Gom tổng số lượng theo (GoodsId, OffsetVoucher) để kiểm tra aggregate
+            var inboundTotals = new Dictionary<(string goodsId, string offsetVoucher), int>();
+
             foreach (var item in items)
             {
                 if (string.IsNullOrWhiteSpace(item.GoodsId))
@@ -53,81 +71,54 @@ namespace AppBackend.Services.Services.ExportServices
                     return Fail(400, "INVALID_PRICE",
                         $"Đơn giá không hợp lệ cho '{goods.GoodsName}'");
 
-                var currentStock = await _exportRepository.GetCurrentStockAsync(item.GoodsId);
-                if (item.Quantity > currentStock)
-                    return Fail(400, "INSUFFICIENT_STOCK",
-                        $"'{goods.GoodsName}': số lượng xuất ({item.Quantity}) " +
-                        $"vượt quá tồn kho hiện tại ({currentStock})");
+                // [ERROR 1] offsetVoucher bắt buộc
+                if (string.IsNullOrWhiteSpace(item.OffsetVoucher))
+                    return Fail(400, "MISSING_OFFSET_VOUCHER",
+                        $"'{goods.GoodsName}': phải chọn chứng từ nhập kho đối trừ");
+
+                var key = (item.GoodsId!, item.OffsetVoucher!);
+                inboundTotals[key] = inboundTotals.GetValueOrDefault(key) + item.Quantity.Value;
             }
+
+            // [ERROR 2] Kiểm tra tồn còn lại theo từng phiếu nhập (aggregate)
+            foreach (var ((goodsId, offsetVoucher), totalQty) in inboundTotals)
+            {
+                var remaining = await _exportRepository
+                    .GetRemainingQtyForInboundAsync(goodsId, offsetVoucher, excludeVoucherId);
+
+                if (totalQty > remaining)
+                {
+                    var goods = await _itemRepository.GetByIdAsync(goodsId);
+                    return Fail(400, "EXCEEDS_INBOUND_STOCK",
+                        $"'{goods?.GoodsName ?? goodsId}': " +
+                        $"số lượng xuất từ phiếu '{offsetVoucher}' ({totalQty:N0}) " +
+                        $"vượt quá tồn còn lại ({remaining:N0})");
+                }
+            }
+
             return null;
         }
 
         // ════════════════════════════════════════════════════════
-        // BUILD DETAILS — core logic xử lý FIFO + thủ công
+        // BUILD DETAILS
         //
-        // Với mỗi item trong request, sinh ra 1 hoặc NHIỀU VoucherDetail:
+        // Mỗi item request → 1 VoucherDetail.
+        // offsetVoucher đã được validate là không rỗng trước khi vào đây.
         //
-        // TH1: User đã chọn offsetVoucher thủ công (từ modal Kho)
-        //      → 1 VoucherDetail với offsetVoucher = user chọn
-        //
-        // TH2: User KHÔNG chọn → FIFO tự động
-        //      → Gọi GetFifoAllocationsAsync → nhận danh sách phân bổ
-        //      → Sinh N VoucherDetail, mỗi cái ứng với 1 phiếu nhập
-        //
-        // Ví dụ TH2: Xuất 15 bánh A
-        //   FIFO trả về: [{NK001, 10}, {NK002, 5}]
-        //   → Sinh 2 VoucherDetail:
-        //     VoucherDetail(qty=10, offsetVoucher=NK001)
-        //     VoucherDetail(qty=5,  offsetVoucher=NK002)
+        // Lưu ý tồn kho: trigger trg_UpdateItemOnHand_OnInsert tự động GIẢM
+        // ItemOnHand khi VoucherDetail với CreditAccount = 156 được INSERT.
+        // → KHÔNG gọi DeductStockAsync ở đây để tránh double-deduction.
+        //   (DeductStockAsync chỉ dùng nếu trigger bị tắt/xóa.)
         // ════════════════════════════════════════════════════════
-        private async Task<List<VoucherDetail>> BuildDetailsAsync(
+        private static List<VoucherDetail> BuildDetails(
             string voucherId, List<CreateExportItemRequest> items)
         {
             var result = new List<VoucherDetail>();
 
             foreach (var item in items)
             {
-                if (!string.IsNullOrWhiteSpace(item.OffsetVoucher))
-                {
-                    // ── TH1: User đã chọn thủ công ──────────────
-                    result.Add(MapDetail(voucherId, item, item.Quantity!.Value,
-                        item.OffsetVoucher, item.CreditWarehouseId));
-                }
-                else
-                {
-                    // ── TH2: FIFO tự động ────────────────────────
-                    var allocations = await _exportRepository
-                        .GetFifoAllocationsAsync(item.GoodsId, item.Quantity!.Value);
-
-                    if (!allocations.Any())
-                    {
-                        // Fallback: tồn kho đủ (đã validate) nhưng không tìm được
-                        // phiếu nhập nào có OffsetVoucher → lưu với offsetVoucher = null
-                        result.Add(MapDetail(voucherId, item, item.Quantity!.Value,
-                            null, item.CreditWarehouseId));
-                    }
-                    else if (allocations.Count == 1)
-                    {
-                        // Chỉ cần 1 phiếu nhập → giữ nguyên 1 VoucherDetail
-                        result.Add(MapDetail(voucherId, item, allocations[0].AllocatedQty,
-                            allocations[0].InboundVoucherCode,
-                            allocations[0].WarehouseId ?? item.CreditWarehouseId));
-                    }
-                    else
-                    {
-                        // Cần nhiều phiếu nhập → tách thành N VoucherDetail
-                        // Tính đơn giá theo tỉ lệ số lượng
-                        foreach (var alloc in allocations)
-                        {
-                            result.Add(MapDetail(voucherId, item, alloc.AllocatedQty,
-                                alloc.InboundVoucherCode,
-                                alloc.WarehouseId ?? item.CreditWarehouseId));
-                        }
-                    }
-                }
-
-                // Trừ tồn kho cho dòng này
-                await _exportRepository.DeductStockAsync(item.GoodsId, item.Quantity!.Value);
+                result.Add(MapDetail(voucherId, item, item.Quantity!.Value,
+                    item.OffsetVoucher!));
             }
 
             return result;
@@ -136,7 +127,7 @@ namespace AppBackend.Services.Services.ExportServices
         // ── Mapper: 1 request item → 1 VoucherDetail ─────────────────────
         private static VoucherDetail MapDetail(
             string voucherId, CreateExportItemRequest item,
-            int qty, string? offsetVoucher, string? warehouseId) => new()
+            int qty, string? offsetVoucher) => new()
             {
                 VoucherId = voucherId,
                 GoodsId = item.GoodsId,
@@ -144,15 +135,15 @@ namespace AppBackend.Services.Services.ExportServices
                 Unit = item.Unit,
                 Quantity = qty,
                 UnitPrice = item.UnitPrice,
-                // Amount tính theo qty thực tế của từng dòng phân bổ
-                Amount1 = (item.UnitPrice ?? 0) * qty * (1 - (item.Promotion ?? 0) / 100),
+                // Amount1: frontend tính sẵn (inboundCost / inboundQty × exportQty)
+                //          nếu không có thì fallback về UnitPrice × qty
+                // Amount2: null — chỉ dùng trong luồng bán hàng
+                Amount1 = item.Amount1 ?? (item.UnitPrice ?? 0) * qty,
                 DebitAccount1 = item.DebitAccount1,
                 CreditAccount1 = item.CreditAccount1,
-                CreditWarehouseId = warehouseId,
                 DebitAccount2 = item.DebitAccount2,
                 CreditAccount2 = item.CreditAccount2,
                 Promotion = item.Promotion,
-                Vat = item.Vat,
                 UserId = item.UserId,
                 CreatedDateTime = item.CreatedDateTime ?? DateTime.UtcNow,
                 OffsetVoucher = offsetVoucher,
@@ -160,9 +151,13 @@ namespace AppBackend.Services.Services.ExportServices
 
         // ════════════════════════════════════════════════════════
         // CREATE
+        // [ERROR 9] Bọc transaction: validate → build → save → commit.
+        // Tồn kho được GIẢM tự động bởi trigger AFTER INSERT khi SaveChanges.
+        // Nếu bất kỳ bước nào lỗi, transaction tự rollback khi dispose.
         // ════════════════════════════════════════════════════════
         public async Task<ResultModel<int>> CreateExportAsync(ExportOrder request, string userId)
         {
+            await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var validErr = await ValidateItems(request.Items);
@@ -183,11 +178,12 @@ namespace AppBackend.Services.Services.ExportServices
                     VoucherDetails = new List<VoucherDetail>(),
                 };
 
-                var details = await BuildDetailsAsync(export.VoucherId, request.Items);
+                var details = BuildDetails(export.VoucherId, request.Items);
                 export.VoucherDetails = details;
 
                 await _exportRepository.AddAsync(export);
                 var rows = await _unitOfWork.SaveChangesAsync();
+                await tx.CommitAsync();
                 return Ok(rows, "Tạo phiếu xuất kho thành công");
             }
             catch (Exception ex) { return Error(ex); }
@@ -195,28 +191,44 @@ namespace AppBackend.Services.Services.ExportServices
 
         // ════════════════════════════════════════════════════════
         // UPDATE
-        // Quan trọng: hoàn tồn kho từ phiếu CŨ trước, rồi trừ lại từ phiếu MỚI
+        // [ERROR 9] Bọc transaction.
+        //
+        // Thứ tự quan trọng:
+        //   1. Validate TRƯỚC (dùng excludeVoucherId để bỏ qua export hiện tại
+        //      khi tính "đã xuất", tránh tự block chính mình).
+        //   2. Zero-out details cũ: set Quantity = 0 (GIỮ LẠI để báo cáo),
+        //      đồng thời cộng lại tồn kho thủ công (trigger chỉ AFTER INSERT,
+        //      không bắt UPDATE → phải gọi AddStockAsync bằng tay).
+        //   3. INSERT details mới → trigger AFTER INSERT tự GIẢM ItemOnHand.
+        //   4. SaveChanges + Commit.
         // ════════════════════════════════════════════════════════
         public async Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string userId)
         {
+            await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var voucher = await _exportRepository.GetByIdAsync(request.VoucherId);
                 if (voucher == null)
                     return Fail(404, "NOT_FOUND", $"Không tìm thấy phiếu xuất: {request.VoucherId}");
 
-                var validErr = await ValidateItems(request.Items);
+                // ── 1. Validate với excludeVoucherId ──────────────
+                var validErr = await ValidateItems(request.Items, excludeVoucherId: request.VoucherId);
                 if (validErr != null) return validErr;
 
-                // ── Hoàn tồn kho từ các dòng CŨ ─────────────────
+                // ── 2. Zero-out details cũ: GIỮ LẠI dòng (dùng cho báo cáo),
+                //       set Quantity = 0 + hoàn tồn kho thủ công ──────────────
                 foreach (var oldDetail in voucher.VoucherDetails)
                 {
-                    if (!string.IsNullOrWhiteSpace(oldDetail.GoodsId) && oldDetail.Quantity > 0)
-                        await _exportRepository.AddStockAsync(
-                            oldDetail.GoodsId, oldDetail.Quantity!.Value);
+                    var oldQty = oldDetail.Quantity ?? 0;
+                    if (!string.IsNullOrWhiteSpace(oldDetail.GoodsId) && oldQty > 0)
+                    {
+                        await _exportRepository.AddStockAsync(oldDetail.GoodsId, oldQty);
+                        oldDetail.Quantity = 0;
+                        oldDetail.Amount1   = 0;
+                    }
                 }
 
-                // ── Cập nhật header ───────────────────────────────
+                // ── 3. Cập nhật header ────────────────────────────
                 voucher.VoucherCode = request.VoucherCode;
                 voucher.CustomerId = request.CustomerId;
                 voucher.CustomerName = request.CustomerName;
@@ -227,13 +239,13 @@ namespace AppBackend.Services.Services.ExportServices
                 voucher.BankName = request.BankName;
                 voucher.BankAccountNumber = request.BankAccountNumber;
 
-                // ── Xóa details cũ, build lại từ request mới ─────
-                voucher.VoucherDetails.Clear();
-                var newDetails = await BuildDetailsAsync(voucher.VoucherId, request.Items);
+                // ── 4. INSERT details mới (trigger AFTER INSERT tự GIẢM stock) ─
+                var newDetails = BuildDetails(voucher.VoucherId, request.Items);
                 foreach (var d in newDetails) voucher.VoucherDetails.Add(d);
 
                 await _exportRepository.UpdateAsync(voucher);
                 var rows = await _unitOfWork.SaveChangesAsync();
+                await tx.CommitAsync();
                 return Ok(rows, "Cập nhật phiếu xuất kho thành công");
             }
             catch (Exception ex) { return Error(ex); }
@@ -277,11 +289,9 @@ namespace AppBackend.Services.Services.ExportServices
                         Quantity = d.Quantity,
                         UnitPrice = d.UnitPrice,
                         Amount1 = d.Amount1,
-                        Vat = d.Vat,
                         Promotion = d.Promotion,
                         DebitAccount1 = d.DebitAccount1,
                         CreditAccount1 = d.CreditAccount1,
-                        CreditWarehouseId = d.CreditWarehouseId,
                         DebitAccount2 = d.DebitAccount2,
                         CreditAccount2 = d.CreditAccount2,
                         UserId = d.UserId,

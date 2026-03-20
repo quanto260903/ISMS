@@ -48,7 +48,7 @@ export default function InwardItemTable({
           <tbody>
             {items.map((item, index) => {
               const dd        = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
-              const vatAmount = item.amount1 * (item.vat / 100);
+              const vatAmount = item.unitPrice * item.quantity * (item.vat / 100);
 
               return (
                 <tr key={index} style={{ background: index % 2 === 0 ? "#fff" : "#f8f9ff" }}>

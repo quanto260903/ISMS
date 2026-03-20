@@ -43,7 +43,6 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                     )
                     && vd.GoodsId == goodsId)
                 .Include(vd => vd.Voucher)
-                .Include(vd => vd.DebitWarehouse)   // 🔥 thêm dòng này
                 .ToListAsync();
 
             var result = data
@@ -71,9 +70,6 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                         OffsetVoucher = g.Key,
                         GoodsId = goodsId,
 
-                        WarehouseId = importRow?.DebitWarehouseId, 
-                        WarehouseName = importRow?.DebitWarehouse?.WarehouseName,
-
                         VoucherDate = importRow?.Voucher?.VoucherDate,
                         WarehouseIn = import,
                         WarehouseOut = export,
@@ -82,7 +78,9 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                         Cost = g
                             .Where(vd => vd.DebitAccount1 == "156"
                                       || vd.DebitAccount2 == "156")
-                            .Sum(vd => (decimal?)vd.Amount1 ?? 0)
+                            .Sum(vd => (decimal?)vd.Amount1 ?? 0),
+
+                        UnitPrice = importRow?.UnitPrice ?? 0
                     };
                 })
                 .Where(x => x.CustomInHand > 0)

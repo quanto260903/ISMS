@@ -49,8 +49,6 @@ public partial class IndividualBusinessContext : DbContext
 
     public virtual DbSet<VoucherDetail> VoucherDetails { get; set; }
 
-    public virtual DbSet<Warehouse> Warehouses { get; set; }
-
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Data Source=localhost\\SQLEXPRESS;Initial Catalog=IndividualBusiness;Integrated Security=True;TrustServerCertificate=True");
@@ -336,10 +334,8 @@ public partial class IndividualBusinessContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.CreditAccount1).HasMaxLength(50);
             entity.Property(e => e.CreditAccount2).HasMaxLength(50);
-            entity.Property(e => e.CreditWarehouseId).HasMaxLength(50);
             entity.Property(e => e.DebitAccount1).HasMaxLength(50);
             entity.Property(e => e.DebitAccount2).HasMaxLength(50);
-            entity.Property(e => e.DebitWarehouseId).HasMaxLength(50);
             entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.GoodsName).HasMaxLength(255);
             entity.Property(e => e.OffsetVoucher).HasMaxLength(50);
@@ -349,33 +345,13 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.UserId)
                 .HasMaxLength(16)
                 .HasColumnName("UserID");
-            entity.Property(e => e.Vat)
-                .HasColumnType("decimal(5, 2)")
-                .HasColumnName("VAT");
             entity.Property(e => e.VoucherId)
                 .HasMaxLength(50)
                 .HasColumnName("VoucherID");
 
-            entity.HasOne(d => d.CreditWarehouse).WithMany(p => p.VoucherDetailCreditWarehouses)
-                .HasForeignKey(d => d.CreditWarehouseId)
-                .HasConstraintName("FK_VoucherDetail_CreditWarehouse");
-
-            entity.HasOne(d => d.DebitWarehouse).WithMany(p => p.VoucherDetailDebitWarehouses)
-                .HasForeignKey(d => d.DebitWarehouseId)
-                .HasConstraintName("FK_VoucherDetail_DebitWarehouse");
-
             entity.HasOne(d => d.Voucher).WithMany(p => p.VoucherDetails)
                 .HasForeignKey(d => d.VoucherId)
                 .HasConstraintName("FK_Detail_Header");
-        });
-
-        modelBuilder.Entity<Warehouse>(entity =>
-        {
-            entity.HasKey(e => e.WarehouseId).HasName("PK__Warehous__2608AFF97C8285D2");
-
-            entity.Property(e => e.WarehouseId).HasMaxLength(50);
-            entity.Property(e => e.Address).HasMaxLength(500);
-            entity.Property(e => e.WarehouseName).HasMaxLength(255);
         });
 
         OnModelCreatingPartial(modelBuilder);

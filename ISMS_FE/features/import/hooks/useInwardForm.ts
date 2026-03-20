@@ -135,12 +135,12 @@ export function useInwardForm({
   );
 
   const totalAmount = useMemo(
-    () => filledItems.reduce((s, i) => s + i.amount1, 0),
+    () => filledItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0),
     [filledItems]
   );
 
   const totalVat = useMemo(
-    () => filledItems.reduce((s, i) => s + i.amount1 * (i.vat / 100), 0),
+    () => filledItems.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vat / 100), 0),
     [filledItems]
   );
 
