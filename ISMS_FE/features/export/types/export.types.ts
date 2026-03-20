@@ -2,7 +2,7 @@
 //  features/export/types/export.types.ts
 // ============================================================
 
-export type ExportReason = "IMPORT_RETURN" | "OTHER";  // XH1 = Hàng nhập trả lại, XH2 = Xuất khác
+export type ExportReason = "IMPORT_RETURN" | "OTHER";
 
 export interface GoodsSearchResult {
   goodsId:    string;
@@ -13,30 +13,28 @@ export interface GoodsSearchResult {
   itemOnHand: number;
 }
 
-// Khớp 1-1 với CreateExportItemRequest ở backend
 export interface ExportItem {
   goodsId:           string;
   goodsName:         string;
   unit:              string;
   quantity:          number;
   unitPrice:         number;
-  amount1:           number;       // Thành tiền = quantity × unitPrice
-  vat:               number;       // % thuế VAT
+  amount1:           number;
+  vat:               number;
   promotion:         number;
-  debitAccount1:     string;       // Nợ TK 632/138...
-  creditAccount1:    string;       // Có TK 156
-  creditWarehouseId: string;       // Kho xuất — bắt buộc
+  debitAccount1:     string;
+  creditAccount1:    string;
+  creditWarehouseId: string;
   debitAccount2:     string;
   creditAccount2:    string;
   userId:            string;
   createdDateTime:   string;
-  offsetVoucher?:    string; 
+  offsetVoucher?:    string;
 }
 
-// Khớp 1-1 với ExportOrder ở backend
 export interface ExportVoucher {
   voucherId:          string;
-  voucherCode:        string;      // XH1, XH2
+  voucherCode:        string;
   customerId:         string;
   customerName:       string;
   taxCode:            string;
@@ -48,7 +46,6 @@ export interface ExportVoucher {
   items:              ExportItem[];
 }
 
-// Dòng trong bảng danh sách phiếu xuất
 export interface ExportListItem {
   voucherId:     string;
   voucherCode:   string | null;
@@ -59,7 +56,6 @@ export interface ExportListItem {
   itemCount:     number;
 }
 
-// Kết quả phân trang
 export interface ExportListResult {
   items:      ExportListItem[];
   total:      number;
@@ -79,4 +75,12 @@ export interface DropdownPos {
   left:  number;
   width: number;
   index: number;
+}
+
+// ── FIFO Preview types ────────────────────────────────────────
+// Backend trả về danh sách phân bổ FIFO cho 1 goodsId
+export interface FifoPreviewItem {
+  inboundVoucherCode: string;   // mã phiếu nhập đối trừ, VD: NK000001
+  allocatedQty:       number;   // số lượng lấy từ phiếu nhập này
+  warehouseId:        string | null;
 }

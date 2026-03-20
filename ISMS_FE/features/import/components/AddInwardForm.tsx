@@ -1,6 +1,5 @@
 // ============================================================
 //  features/inward/components/AddInwardForm.tsx
-//  Phiếu nhập kho — tích hợp autocomplete NCC + modal tạo mới
 // ============================================================
 
 "use client";
@@ -55,47 +54,33 @@ export default function AddInwardForm() {
   const handleSelectSupplier = (supplier: SupplierSearchResult) => {
     setField("customerId",   supplier.supplierId);
     setField("customerName", supplier.supplierName);
-    if (supplier.taxId)  setField("taxCode", supplier.taxId);
+    if (supplier.taxId)   setField("taxCode", supplier.taxId);
     if (supplier.address) setField("address", supplier.address);
     setSupplierQuery(supplier.supplierId);
   };
 
   const supplierSearch = useSupplierSearch({ onSelect: handleSelectSupplier });
 
-  // ── Khi đổi lý do → cập nhật voucherCode ────────────────
   const handleReasonChange = (r: InwardReason) => {
     setReason(r);
-    const payment = r === "OTHER" ? "CASH" : paymentOption;
-    if (r === "OTHER") handlePaymentChange("CASH");
-    setField("voucherCode", getVoucherCodeByReason(r, payment));
+    setField("voucherCode", getVoucherCodeByReason(r, paymentOption));
     saleVoucherLookup.clearLookup();
   };
 
-  // ── Khi tìm thấy phiếu bán → auto-fill toàn bộ bảng ────
   useEffect(() => {
     const result = saleVoucherLookup.lookupResult;
     if (!result || reason !== "SALES_RETURN") return;
-
     setField("customerName",       result.customerName);
     setField("voucherDescription", `Hàng bán bị trả lại - ${result.voucherId}`);
-
     const creditAcc = getCreditAccountByPayment(paymentOption);
     const newItems = result.items.map((d) => ({
-      goodsId:          d.goodsId,
-      goodsName:        d.goodsName,
-      unit:             d.unit,
-      quantity:         d.quantity,
-      unitPrice:        d.unitPrice,
-      amount1:          d.amount1,
-      vat:              d.vat,
-      promotion:        d.promotion,
-      debitAccount1:    "156",
-      creditAccount1:   creditAcc,
+      goodsId: d.goodsId, goodsName: d.goodsName, unit: d.unit,
+      quantity: d.quantity, unitPrice: d.unitPrice, amount1: d.amount1,
+      vat: d.vat, promotion: d.promotion,
+      debitAccount1: "156", creditAccount1: creditAcc,
       debitWarehouseId: d.creditWarehouseId,
-      debitAccount2:    "1331",
-      creditAccount2:   creditAcc,
-      userId:           currentUserId,
-      createdDateTime:  new Date().toISOString(),
+      debitAccount2: "1331", creditAccount2: creditAcc,
+      userId: currentUserId, createdDateTime: new Date().toISOString(),
     }));
     replaceAllItems([...newItems, createEmptyItemShim(creditAcc)]);
   }, [saleVoucherLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -108,7 +93,6 @@ export default function AddInwardForm() {
     userId: currentUserId, createdDateTime: new Date().toISOString(),
   });
 
-  // ── Autocomplete hàng hóa ───────────────────────────────
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
     updateItem(index, "goodsName", goods.goodsName);
@@ -155,15 +139,17 @@ export default function AddInwardForm() {
             onChange={(e) => handleReasonChange(e.target.value as InwardReason)}
             style={s.reasonSelect}
           >
-            {(["PURCHASE", "SALES_RETURN", "OTHER"] as InwardReason[]).map((r) => (
+            {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
               <option key={r} value={r}>
-                {r === "PURCHASE" ? "🛒 " : r === "SALES_RETURN" ? "↩️ " : "📝 "}
+                {r === "PURCHASE" ? "🛒 " : "↩️ "}
                 {INWARD_REASON_LABELS[r]}
               </option>
             ))}
           </select>
           <span style={s.codeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>{getVoucherCodeByReason(reason, paymentOption)}</strong>
+            Mã CT: <strong style={{ color: "#2255cc" }}>
+              {getVoucherCodeByReason(reason, paymentOption)}
+            </strong>
           </span>
         </div>
       </section>
@@ -220,137 +206,131 @@ export default function AddInwardForm() {
         </>
       )}
 
-      {/* ── Hình thức thanh toán ── */}
-      {reason === "PURCHASE" && (
-        <>
-          <section style={s.card}>
-            <h3 style={s.cardTitle}><span style={s.titleDot} />Hình thức thanh toán</h3>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {(["UNPAID", "CASH", "BANK"] as PaymentOption[]).map((opt) => (
-                <label key={opt} style={styles.radioLabel}>
-                  <input type="radio" value={opt}
-                    checked={paymentOption === opt}
-                    onChange={() => handlePaymentChange(opt)}
-                    style={{ marginRight: 6 }}
-                  />
-                  {PAYMENT_LABELS[opt]}
-                </label>
-              ))}
-            </div>
-          </section>
-          <hr style={styles.hr} />
-        </>
-      )}
-
-      {/* ── Thông tin phiếu ── */}
-      <section style={s.card}>
+      {/* ════════════════════════════════════════════════════════
+          THÔNG TIN PHIẾU NHẬP
+          Layout 2 cột giống MISA:
+          - Trái (~65%): NCC, Tên NCC, MST, Địa chỉ, Diễn giải
+          - Phải (~35%): Số phiếu, Ngày nhập kho, Người lập
+          ════════════════════════════════════════════════════════ */}
+      <section style={{ ...s.card, maxWidth: "100%" }}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin phiếu nhập</h3>
 
-        {/* Số phiếu + Ngày */}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ ...styles.fieldGroup, flex: 1 }}>
-            <label style={styles.label}>Số phiếu *</label>
-            <input style={styles.input} value={voucher.voucherId}
-              onChange={(e) => setField("voucherId", e.target.value)}
-              placeholder="Tự sinh, có thể sửa" />
-          </div>
-          <div style={{ ...styles.fieldGroup, flex: 1 }}>
-            <label style={styles.label}>Ngày nhập kho *</label>
-            <input type="date" style={styles.input} value={voucher.voucherDate}
-              onChange={(e) => setField("voucherDate", e.target.value)} />
-          </div>
-        </div>
+        <div style={s.twoCol}>
 
-        {/* Người lập phiếu */}
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>Người lập phiếu</label>
-          <input style={{ ...styles.input, background: "#f5f5f5", color: "#555" }}
-            value={currentUserName} readOnly />
-        </div>
+          {/* ── CỘT TRÁI ── */}
+          <div style={s.colLeft}>
 
-        {/* ══ MÃ NCC — autocomplete + nút tạo mới ══ */}
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>
-            {isSalesReturn ? "Mã khách hàng" : "Mã nhà cung cấp *"}
-          </label>
-          {!isSalesReturn ? (
-            <SupplierSearchInput
-              value={supplierQuery}
-              loading={supplierSearch.dropdown.loading}
-              inputRef={supplierSearch.inputRef}
-              onChange={(val) => {
-                setSupplierQuery(val);
-                setField("customerId", val);
-                supplierSearch.handleChange(val);
-              }}
-              onFocus={supplierSearch.handleFocus}
-              onAddNew={() => setShowSupplierModal(true)}
-              placeholder="Nhập mã NCC để tìm kiếm..."
-            />
-          ) : (
-            <input
-              style={{ ...styles.input, background: "#f5f5f5", color: "#555" }}
-              value={voucher.customerId ?? ""}
-              readOnly
-              placeholder="Tự điền từ phiếu bán"
-            />
-          )}
-        </div>
+            {/* Mã NCC */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>
+                {isSalesReturn ? "Mã khách hàng" : "Nhà cung cấp *"}
+              </label>
+              {!isSalesReturn ? (
+                <div style={{ flex: 1 }}>
+                <SupplierSearchInput
+                  value={supplierQuery}
+                  loading={supplierSearch.dropdown.loading}
+                  inputRef={supplierSearch.inputRef}
+                  onChange={(val) => {
+                    setSupplierQuery(val);
+                    setField("customerId", val);
+                    supplierSearch.handleChange(val);
+                  }}
+                  onFocus={supplierSearch.handleFocus}
+                  onAddNew={() => setShowSupplierModal(true)}
+                  placeholder="Nhập mã NCC để tìm kiếm..."
+                />
+                </div>
+              ) : (
+                <input
+                  style={{ ...styles.input, background: "#f5f5f5", color: "#555" }}
+                  value={voucher.customerId ?? ""}
+                  readOnly
+                  placeholder="Tự điền từ phiếu bán"
+                />
+              )}
+            </div>
 
-        {/* ══ TÊN NCC — tự điền khi chọn, có thể sửa tay ══ */}
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>
-            {isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *"}
-          </label>
-          <input
-            style={{
-              ...styles.input,
-              background: isSalesReturn
-                ? "#f5f5f5"
-                : voucher.customerName ? "#f0fdf4" : "#fff",
-              color: isSalesReturn
-                ? "#555"
-                : voucher.customerName ? "#15803d" : "#64748b",
-              fontWeight: !isSalesReturn && voucher.customerName ? 600 : 400,
-              borderColor: !voucher.customerName ? "#fca5a5" : "#e2e8f0",
-            }}
-            placeholder={isSalesReturn ? "Tự điền từ phiếu bán" : "Tự điền khi chọn NCC, hoặc nhập tay"}
-            value={voucher.customerName ?? ""}
-            readOnly={isSalesReturn}
-            onChange={(e) => !isSalesReturn && setField("customerName", e.target.value)}
-          />
-        </div>
+            {/* Tên NCC */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>
+                {isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *"}
+              </label>
+              <input
+                style={{
+                  ...styles.input,
+                  background:  isSalesReturn ? "#f5f5f5" : voucher.customerName ? "#f0fdf4" : "#fff",
+                  color:       isSalesReturn ? "#555"    : voucher.customerName ? "#15803d" : "#64748b",
+                  fontWeight:  !isSalesReturn && voucher.customerName ? 600 : 400,
+                  borderColor: !voucher.customerName ? "#fca5a5" : "#e2e8f0",
+                }}
+                placeholder={isSalesReturn ? "Tự điền từ phiếu bán" : "Tự điền khi chọn NCC, hoặc nhập tay"}
+                value={voucher.customerName ?? ""}
+                readOnly={isSalesReturn}
+                onChange={(e) => !isSalesReturn && setField("customerName", e.target.value)}
+              />
+            </div>
 
-        {/* Các trường còn lại */}
-        {([
-          { label: "Mã số thuế", field: "taxCode"           as const, placeholder: "Nhập MST" },
-          { label: "Địa chỉ",   field: "address"            as const, placeholder: "Nhập địa chỉ" },
-          { label: "Diễn giải", field: "voucherDescription" as const, placeholder: "Nhập diễn giải" },
-        ] as const).map(({ label, field, placeholder }) => (
-          <div key={field} style={styles.fieldGroup}>
-            <label style={styles.label}>{label}</label>
-            <input style={styles.input} placeholder={placeholder}
-              value={(voucher[field] as string) ?? ""}
-              onChange={(e) => setField(field, e.target.value)} />
-          </div>
-        ))}
+            {/* Diễn giải */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Diễn giải</label>
+              <input style={styles.input} placeholder="Nhập diễn giải"
+                value={(voucher.voucherDescription as string) ?? ""}
+                onChange={(e) => setField("voucherDescription", e.target.value)} />
+            </div>
 
-        {/* Thông tin ngân hàng — chỉ khi NK2 */}
-        {paymentOption === "BANK" && reason === "PURCHASE" && (
-          <>
-            {([
-              { label: "Số tài khoản ngân hàng *", field: "bankAccountNumber" as const, placeholder: "Nhập số TK" },
-              { label: "Tên tài khoản ngân hàng *", field: "bankName"          as const, placeholder: "Nhập tên TK" },
-            ] as const).map(({ label, field, placeholder }) => (
-              <div key={field} style={styles.fieldGroup}>
-                <label style={styles.label}>{label}</label>
-                <input style={styles.input} placeholder={placeholder}
-                  value={(voucher[field] as string) ?? ""}
-                  onChange={(e) => setField(field, e.target.value)} />
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Mã số thuế</label>
+                <input style={styles.input} placeholder="Nhập MST"
+                  value={(voucher.taxCode as string) ?? ""}
+                  onChange={(e) => setField("taxCode", e.target.value)} />
               </div>
-            ))}
-          </>
-        )}
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Địa chỉ</label>
+                <input style={styles.input} placeholder="Nhập địa chỉ"
+                  value={(voucher.address as string) ?? ""}
+                  onChange={(e) => setField("address", e.target.value)} />
+              </div>
+          </div>
+
+          {/* ── DIVIDER ── */}
+          <div style={s.divider} />
+
+          {/* ── CỘT PHẢI ── */}
+          <div style={s.colRight}>
+
+            {/* Số phiếu */}
+            <div style={s.rightRow}>
+              <label style={s.rightLabel}>Số phiếu *</label>
+              <input style={{ ...styles.input, ...s.rightInput,
+                fontWeight: 700, color: "#1d4ed8", fontFamily: "monospace" }}
+                value={voucher.voucherId}
+                onChange={(e) => setField("voucherId", e.target.value)}
+                placeholder="Tự sinh, có thể sửa"
+              />
+            </div>
+
+            {/* Ngày nhập kho */}
+            <div style={s.rightRow}>
+              <label style={s.rightLabel}>Ngày nhập kho *</label>
+              <input type="date" style={{ ...styles.input, ...s.rightInput }}
+                value={voucher.voucherDate}
+                onChange={(e) => setField("voucherDate", e.target.value)}
+              />
+            </div>
+
+            {/* Người lập phiếu */}
+            <div style={s.rightRow}>
+              <label style={s.rightLabel}>Người lập phiếu</label>
+              <input style={{ ...styles.input, ...s.rightInput,
+                background: "#f5f5f5", color: "#555" }}
+                value={currentUserName}
+                readOnly
+              />
+            </div>
+
+          </div>
+        </div>
       </section>
 
       <hr style={styles.hr} />
@@ -435,7 +415,6 @@ export default function AddInwardForm() {
         query={supplierQuery}
       />
 
-      {/* ── Modal tạo mới NCC ── */}
       {showSupplierModal && (
         <CreateSupplierModal
           initialId={supplierQuery}
@@ -450,6 +429,7 @@ export default function AddInwardForm() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
   heroBanner: {
     position: "relative", overflow: "hidden",
@@ -464,7 +444,7 @@ const s: Record<string, React.CSSProperties> = {
   card: {
     background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
     padding: "20px 24px", marginBottom: 16,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.05)", maxWidth: 860,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
   },
   cardTitle: {
     display: "flex", alignItems: "center", gap: 8,
@@ -476,6 +456,64 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-block", width: 10, height: 10, borderRadius: "50%",
     background: "linear-gradient(135deg, #7c3aed, #6366f1)", flexShrink: 0,
   },
+
+  // ── 2-column layout ──────────────────────────────────────
+  twoCol: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto 320px",  // trái linh hoạt | divider | phải cố định 320px
+    gap: 0,
+    alignItems: "flex-start",
+    minWidth: 0,  // ngăn overflow
+  },
+  colLeft: {
+    minWidth: 0,
+    paddingRight: 20,
+    overflow: "hidden",
+  },
+  divider: {
+    width: 1,
+    alignSelf: "stretch",
+    background: "#e2e8f0",
+    margin: "0 4px",
+  },
+  colRight: {
+    width: 320,
+    paddingLeft: 20,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    flexShrink: 0,
+  },
+  // Label + input theo hàng ngang (giống MISA bên phải)
+  rightRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    borderBottom: "1px solid #f1f5f9",
+    paddingBottom: 10,
+  },
+  rightLabel: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: 500,
+    whiteSpace: "nowrap" as const,
+    width: 120,
+    flexShrink: 0,
+  },
+  rightInput: {
+    flex: 1,
+    minWidth: 0,
+    border: "none",
+    borderBottom: "1.5px solid #e2e8f0",
+    borderRadius: 0,
+    background: "transparent",
+    padding: "4px 0",
+    fontSize: 13,
+    width: "100%",
+    boxSizing: "border-box" as const,
+  },
+
+  // Các style cũ giữ nguyên
   reasonSelect: {
     height: 38, padding: "0 36px 0 12px",
     border: "1.5px solid #c7d7ff", borderRadius: 8,

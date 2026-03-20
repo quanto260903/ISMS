@@ -1,7 +1,7 @@
 // features/stock-take/stockTake.api.ts
 
 import type {
-  StockTakeListResult, StockTakeFullDto, StockTakeListDto,
+  StockTakeListDto, StockTakeFullDto,
   GoodsDto, CreateStockTakeRequest, UpdateStockTakeHeaderRequest,
   ProcessStockTakeResultDto,
   BackendVoucherDetailRaw, BackendListRaw,
@@ -9,7 +9,7 @@ import type {
 import { getGoodsList } from "../goods/goods.api";
 import type { GoodsListResult, GoodsListDto } from "../goods/types/goods.types";
 
-const BASE     = process.env.NEXT_PUBLIC_API_URL;  // e.g. https://localhost:7001/api
+const BASE     = process.env.NEXT_PUBLIC_API_URL;
 const ENDPOINT = `${BASE}/stock-take-vouchers`;
 
 function authHeader(): Record<string, string> {
@@ -65,9 +65,6 @@ function mapListItem(raw: BackendListRaw): StockTakeListDto {
     isCompleted:        raw.isCompleted ?? false,
     createdBy:          raw.createdBy,
     createdDate:        raw.createdDate,
-    totalGoods:    0,
-    totalSurplus:  0,
-    totalShortage: 0,
   };
 }
 
@@ -75,8 +72,7 @@ function mapListItem(raw: BackendListRaw): StockTakeListDto {
 // API CALLS
 // ═══════════════════════════════════════════════════════════════
 
-// ── Lấy toàn bộ hàng hóa — tái sử dụng getGoodsList từ goods.api ──
-// GoodsListDto.itemOnHand = số lượng tồn kho hiện tại
+// ── Lấy toàn bộ hàng hóa ─────────────────────────────────────
 export async function getAllGoods(): Promise<GoodsDto[]> {
   const result: GoodsListResult = await getGoodsList({ page: 1, pageSize: 9999, isInactive: false });
   return (result.items ?? []).map((g: GoodsListDto) => ({
@@ -87,16 +83,11 @@ export async function getAllGoods(): Promise<GoodsDto[]> {
   }));
 }
 
-// ── Danh sách phiếu kiểm kê ────────────────────────────────────
-// Hỗ trợ cả 2 response shape từ backend:
-//   - { isSuccess: true, data: [...] }  ← wrapped (giống goods.api)
-//   - [...]                              ← REST array trực tiếp
-export async function getStockTakeList(params: {
-  keyword?:     string;
-  isCompleted?: boolean | "";
-  page?:        number;
-  pageSize?:    number;
-}): Promise<StockTakeListResult> {
+// ── Danh sách phiếu kiểm kê (toàn bộ) ───────────────────────
+// NOTE: Filter + pagination được thực hiện hoàn toàn ở client (component).
+// TODO: Khi backend hỗ trợ server-side filter/pagination, truyền params vào
+//       query string và xóa logic lọc trong StockTakeListPage.
+export async function getStockTakeList(): Promise<StockTakeListDto[]> {
   const res  = await fetch(ENDPOINT, {
     headers: { "Content-Type": "application/json", ...authHeader() },
     cache: "no-store",
@@ -112,23 +103,7 @@ export async function getStockTakeList(params: {
     throw new Error(body?.message ?? `HTTP ${res.status}`);
   }
 
-  let items = rawList.map(mapListItem);
-
-  if (params.keyword) {
-    const kw = params.keyword.toLowerCase();
-    items = items.filter(
-      (i) => i.voucherCode.toLowerCase().includes(kw) || (i.purpose ?? "").toLowerCase().includes(kw)
-    );
-  }
-  if (params.isCompleted !== "" && params.isCompleted !== undefined) {
-    items = items.filter((i) => i.isCompleted === params.isCompleted);
-  }
-
-  const total    = items.length;
-  const page     = params.page     ?? 1;
-  const pageSize = params.pageSize ?? 20;
-  const paged    = items.slice((page - 1) * pageSize, page * pageSize);
-  return { items: paged, total, page, pageSize };
+  return rawList.map(mapListItem);
 }
 
 // ── Chi tiết 1 phiếu ─────────────────────────────────────────
@@ -153,9 +128,8 @@ export async function updateStockTake(id: string, req: UpdateStockTakeHeaderRequ
   return mapDetail(raw);
 }
 
-// ── Xử lý phiếu → tạo phiếu nhập/xuất, vẫn ở lại trang ──────
+// ── Xử lý phiếu → tạo phiếu nhập/xuất ───────────────────────
 export async function processStockTake(id: string): Promise<{ result: ProcessStockTakeResultDto; voucher: StockTakeFullDto }> {
-  // Gọi trực tiếp fetch để kiểm soát response shape rõ ràng hơn
   const res = await fetch(`${ENDPOINT}/${id}/process`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
@@ -164,27 +138,22 @@ export async function processStockTake(id: string): Promise<{ result: ProcessSto
 
   const body = await res.json().catch(() => null);
 
-  // Backend trả 400 khi thất bại với { message: "..." }
   if (!res.ok) {
     throw new Error(body?.message ?? body?.title ?? `HTTP ${res.status}: Xử lý thất bại`);
   }
-
-  // Backend trả 200 với ProcessStockTakeResultDto
-  // Kiểm tra thêm field success nếu có
   if (body && body.success === false) {
     throw new Error(body.message ?? "Xử lý thất bại");
   }
 
   const result: ProcessStockTakeResultDto = {
-    success:           body?.success         ?? true,
-    message:           body?.message         ?? "Xử lý thành công",
-    importVoucherId:   body?.importVoucherId  ?? null,
+    success:           body?.success          ?? true,
+    message:           body?.message          ?? "Xử lý thành công",
+    importVoucherId:   body?.importVoucherId   ?? null,
     importVoucherCode: body?.importVoucherCode ?? null,
-    exportVoucherId:   body?.exportVoucherId  ?? null,
+    exportVoucherId:   body?.exportVoucherId   ?? null,
     exportVoucherCode: body?.exportVoucherCode ?? null,
   };
 
-  // Fetch lại voucher để cập nhật isCompleted = true trên UI
   const voucher = await getStockTakeById(id);
   return { result, voucher };
 }

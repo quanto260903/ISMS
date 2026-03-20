@@ -49,7 +49,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
   },
   label: {
-    minWidth: 220,
+    minWidth: 120,
     color: "#64748b",
     fontWeight: 500,
     fontSize: 13,

@@ -92,5 +92,22 @@ namespace AppBackend.ApiCore.Controllers
             var result = await _exportService.UpdateExportAsync(request, userId);
             return StatusCode(result.StatusCode, result);
         }
+        // ============================================================
+        //  Thêm vào ExportController — chỉ gọi service
+        // ============================================================
+
+        // GET /Export/fifo-preview?goodsId=SP001&quantity=15
+        [HttpGet("fifo-preview")]
+        public async Task<IActionResult> FifoPreview(
+            [FromQuery] string goodsId,
+            [FromQuery] int quantity)
+        {
+            if (string.IsNullOrWhiteSpace(goodsId) || quantity <= 0)
+                return BadRequest(new { message = "goodsId và quantity là bắt buộc" });
+
+            // Controller chỉ gọi service — không chạm repository
+            var result = await _exportService.GetFifoPreviewAsync(goodsId, quantity);
+            return Ok(result);
+        }
     }
 }

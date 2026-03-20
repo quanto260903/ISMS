@@ -117,7 +117,6 @@ namespace AppBackend.Services.Services.ImportServices
                         Amount1 = itemRequest.Amount1,
                         DebitAccount1 = itemRequest.DebitAccount1,
                         CreditAccount1 = itemRequest.CreditAccount1,
-                        DebitWarehouseId = itemRequest.DebitWarehouseId,
                         DebitAccount2 = itemRequest.DebitAccount2,
                         CreditAccount2 = itemRequest.CreditAccount2,
                         Promotion = itemRequest.Promotion,

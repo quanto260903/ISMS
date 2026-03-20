@@ -49,10 +49,7 @@ export default function ExportItemTable({
                   {label}
                 </th>
               ))}
-              {/* Thêm cột CT đối trừ */}
-              <th style={{ ...styles.itemTh, width: 110, minWidth: 110 }}>CT đối trừ</th>
-              {/* Cột actions — đủ chỗ cho 2 nút */}
-              <th style={{ ...styles.itemTh, width: 80, minWidth: 80 }}></th>
+              
             </tr>
           </thead>
           <tbody>
@@ -91,24 +88,6 @@ export default function ExportItemTable({
                       value={item.goodsName} readOnly tabIndex={-1}
                       placeholder="Tự động điền"
                     />
-                  </td>
-
-                  {/* Kho xuất */}
-                  <td style={{ ...styles.itemTd, width: 130 }}>
-                    <select
-                      style={{
-                        ...styles.selectVat, width: "100%",
-                        color: item.creditWarehouseId ? "#222" : "#aaa",
-                        borderColor: !item.creditWarehouseId ? "#f87171" : undefined,
-                      }}
-                      value={item.creditWarehouseId}
-                      onChange={(e) => onUpdateItem(index, "creditWarehouseId", e.target.value)}
-                    >
-                      <option value="">-- Chọn kho --</option>
-                      {warehouses.map((w) => (
-                        <option key={w.warehouseId} value={w.warehouseId}>{w.warehouseName}</option>
-                      ))}
-                    </select>
                   </td>
 
                   {/* Đơn vị — readonly */}

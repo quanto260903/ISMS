@@ -14,5 +14,6 @@ namespace AppBackend.Services.Services.ExportServices
         Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string userId);
         Task<ResultModel<ExportOrder>> GetByIdAsync(string voucherId);
         Task<ResultModel<PagedResult<ExportListDto>>> GetListAsync(GetExportListRequest request);
+        Task<IEnumerable<FifoAllocationDto>> GetFifoPreviewAsync(string goodsId, int quantity);
     }
 }

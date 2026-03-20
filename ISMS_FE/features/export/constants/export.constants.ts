@@ -37,7 +37,6 @@ export const EXPORT_TABLE_COLUMNS = [
   { label: "#",           w: 32  },
   { label: "Mã hàng",     w: 110 },
   { label: "Tên hàng",    w: 160 },
-  { label: "Kho xuất",    w: 130 },
   { label: "ĐV",          w: 50  },
   { label: "SL",          w: 60  },
   { label: "Đơn giá",     w: 100 },

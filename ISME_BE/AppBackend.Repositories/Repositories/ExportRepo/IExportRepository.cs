@@ -1,10 +1,8 @@
-﻿using AppBackend.BusinessObjects.Dtos;
+﻿// ============================================================
+//  IExportRepository.cs
+// ============================================================
+using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AppBackend.Repositories.Repositories.ExportRepo
 {
@@ -14,5 +12,22 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
         Task UpdateAsync(Voucher voucher);
         Task<Voucher?> GetByIdAsync(string voucherId);
         Task<(IEnumerable<Voucher> Items, int Total)> GetListAsync(GetExportListRequest request);
+
+        Task<int> GetCurrentStockAsync(string goodsId);
+
+        // FIFO nâng cấp: trả về danh sách phân bổ (phiếu nhập → số lượng)
+        // thay vì chỉ 1 phiếu nhập đơn lẻ
+        Task<List<FifoAllocation>> GetFifoAllocationsAsync(string goodsId, int requiredQty);
+
+        Task AddStockAsync(string goodsId, int quantity);    // hoàn tồn kho khi hủy/sửa
+        Task DeductStockAsync(string goodsId, int quantity); // trừ tồn kho khi xuất
+    }
+
+    // Kết quả phân bổ FIFO cho 1 dòng hàng
+    public class FifoAllocation
+    {
+        public string InboundVoucherCode { get; set; } = null!; // phiếu nhập đối trừ
+        public int AllocatedQty { get; set; }          // số lượng lấy từ phiếu này
+        public string? WarehouseId { get; set; }          // kho của phiếu nhập
     }
 }

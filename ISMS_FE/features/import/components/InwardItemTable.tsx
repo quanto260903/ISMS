@@ -84,27 +84,6 @@ export default function InwardItemTable({
                     />
                   </td>
 
-                  {/* Kho nhập — select từ danh sách kho */}
-                  <td style={{ ...styles.itemTd, width: 130 }}>
-                    <select
-                      style={{
-                        ...styles.selectVat,
-                        width: "100%",
-                        color: item.debitWarehouseId ? "#222" : "#aaa",
-                        borderColor: !item.debitWarehouseId ? "#f87171" : undefined,
-                      }}
-                      value={item.debitWarehouseId}
-                      onChange={(e) => onUpdateItem(index, "debitWarehouseId", e.target.value)}
-                    >
-                      <option value="">-- Chọn kho --</option>
-                      {warehouses.map((w) => (
-                        <option key={w.warehouseId} value={w.warehouseId}>
-                          {w.warehouseName}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
                   {/* Đơn vị — readonly */}
                   <td style={{ ...styles.itemTd, width: 50 }}>
                     <input
@@ -155,6 +134,16 @@ export default function InwardItemTable({
                   {/* Thành tiền — tính tự động */}
                   <td style={{ ...styles.itemTd, width: 105, textAlign: "right", color: "#2255cc", fontWeight: 700 }}>
                     {item.amount1.toLocaleString("vi-VN")}
+                  </td>
+
+                  {/* Khuyến mãi */}
+                  <td style={{ ...styles.itemTd, width: 100 }}>
+                    <input
+                      type="number" min={0} max={100}
+                      style={{ ...styles.inputTable, textAlign: "right" }}
+                      value={item.promotion}
+                      onChange={(e) => onUpdateItem(index, "promotion", Number(e.target.value))}
+                    />
                   </td>
 
                   {/* Xóa */}

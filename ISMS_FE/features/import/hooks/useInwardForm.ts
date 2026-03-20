@@ -154,10 +154,6 @@ export function useInwardForm({
       if (!voucher.bankName?.trim())          return "Chưa nhập tên tài khoản ngân hàng";
     }
     if (filledItems.length === 0) return "Chưa có hàng hóa nào";
-    for (const item of filledItems) {
-      if (!item.debitWarehouseId.trim())
-        return `Chưa chọn kho nhập cho: ${item.goodsName || item.goodsId}`;
-    }
     return null;
   };
 

@@ -58,12 +58,13 @@ export const INWARD_TABLE_COLUMNS = [
   { label: "#",          w: 32  },
   { label: "Mã hàng",    w: 110 },
   { label: "Tên hàng",   w: 160 },
-  { label: "Kho nhập",   w: 130 },
   { label: "ĐV",         w: 50  },
   { label: "SL",         w: 60  },
   { label: "Đơn giá",    w: 100 },
   { label: "Thuế VAT",   w: 72  },
   { label: "Tiền VAT",   w: 90  },
   { label: "Thành tiền", w: 105 },
+  { label: "Khuyến mãi",   w: 100 },
+
   { label: "",           w: 52  },
 ] as const;

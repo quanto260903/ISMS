@@ -10,18 +10,18 @@ export interface StockTakeDetailDto {
   differenceQuantity: number;
 }
 
+// totalGoods / totalSurplus / totalShortage đã xóa:
+// Backend list endpoint không trả aggregation — các field này luôn là 0 (fake).
+// Xem chi tiết phiếu (StockTakeFullDto.lines) để tính nếu cần.
 export interface StockTakeListDto {
   stockTakeVoucherId: string;
   voucherCode:        string;
   voucherDate:        string;
   stockTakeDate:      string;
   purpose:            string | null;
-  isCompleted:        boolean | null;
+  isCompleted:        boolean;
   createdBy:          string | null;
   createdDate:        string | null;
-  totalGoods:         number;
-  totalSurplus:       number;
-  totalShortage:      number;
 }
 
 export interface StockTakeFullDto {
@@ -42,13 +42,6 @@ export interface StockTakeFullDto {
   lines:              StockTakeDetailDto[];
 }
 
-export interface StockTakeListResult {
-  items:    StockTakeListDto[];
-  total:    number;
-  page:     number;
-  pageSize: number;
-}
-
 // Hàng hóa từ danh mục — dùng để auto-load khi tạo phiếu
 export interface GoodsDto {
   goodsId:       string;
@@ -58,6 +51,9 @@ export interface GoodsDto {
 }
 
 export interface CreateStockTakeRequest {
+  // voucherCode do FE tự sinh và gửi lên (backend chưa có auto-generate)
+  // TODO: Khi backend tự sinh mã, có thể xóa field này
+  voucherCode?:     string;
   voucherDate:      string;
   stockTakeDate:    string;
   purpose?:         string;
@@ -90,9 +86,9 @@ export interface ProcessStockTakeResultDto {
   success:           boolean;
   message:           string;
   importVoucherId:   string | null;
-  importVoucherCode: string | null;  // VD: NK000001
+  importVoucherCode: string | null;
   exportVoucherId:   string | null;
-  exportVoucherCode: string | null;  // VD: XK000001
+  exportVoucherCode: string | null;
 }
 
 // ── Raw backend shapes ─────────────────────────────────────────

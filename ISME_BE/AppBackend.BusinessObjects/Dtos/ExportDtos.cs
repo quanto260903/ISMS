@@ -82,4 +82,17 @@ namespace AppBackend.BusinessObjects.Dtos
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 50;
     }
+    public class FifoAllocationDto
+    {
+        public string InboundVoucherCode { get; set; } = null!;
+        public int AllocatedQty { get; set; }
+        public string? WarehouseId { get; set; }
+    }
+    public class InboundStockDto
+    {
+        public string InboundVoucherCode { get; set; } = null!; // VD: NK000001
+        public int RemainingQty { get; set; }          // Tồn còn lại
+        public string? WarehouseId { get; set; }          // Kho nhập
+        public string? VoucherDate { get; set; }          // Ngày nhập (dd/MM/yyyy)
+    }
 }
