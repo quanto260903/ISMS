@@ -43,7 +43,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
         {
             var query = _context.Vouchers
                 .Include(v => v.VoucherDetails)
-                .Where(v => v.VoucherCode != null && v.VoucherCode.StartsWith("XH"))
+                .Where(v => v.VoucherCode != null && v.VoucherCode.StartsWith("XK"))
                 .AsQueryable();
 
             if (request.FromDate.HasValue)

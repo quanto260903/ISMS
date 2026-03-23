@@ -56,8 +56,6 @@ namespace AppBackend.BusinessObjects.Dtos
 
         public string? DebitAccount1 { get; set; }
 
-        public string? DebitWarehouseId { get; set; }
-
         public string? CreditAccount1 { get; set; }
 
         public string? DebitAccount2 { get; set; }
@@ -65,8 +63,6 @@ namespace AppBackend.BusinessObjects.Dtos
         public string? CreditAccount2 { get; set; }
 
         public decimal? Promotion { get; set; }
-
-        public decimal? Vat { get; set; }
 
         public string? UserId { get; set; }
         public DateTime? CreatedDateTime { get; set; }

@@ -1,15 +1,13 @@
 // ============================================================
 //  features/inward/components/InwardItemTable.tsx
-//  Bảng chi tiết hàng hóa nhập kho — khớp backend ImportOrderItem
 // ============================================================
 
 "use client";
 
 import React from "react";
 import styles from "@/shared/styles/sale.styles";
-import { VAT_OPTIONS, INWARD_TABLE_COLUMNS } from "../constants/import.constants";
+import { INWARD_TABLE_COLUMNS } from "../constants/import.constants";
 import type { InwardItem, GoodsSearchResult, DropdownState, DropdownPos } from "../types/import.types";
-import type { WarehouseOption } from "../hooks/useWarehouseList";
 
 interface Props {
   items: InwardItem[];
@@ -17,7 +15,6 @@ interface Props {
   dropdownPos: DropdownPos | null;
   dropdownRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
   inputRefs: React.MutableRefObject<(HTMLInputElement | null)[]>;
-  warehouses: WarehouseOption[];
   onUpdateItem: (index: number, field: keyof InwardItem, value: unknown) => void;
   onRemoveItem: (index: number) => void;
   onGoodsIdChange: (index: number, value: string) => void;
@@ -28,10 +25,13 @@ interface Props {
 
 export default function InwardItemTable({
   items, dropdowns, dropdownPos, dropdownRefs, inputRefs,
-  warehouses,
   onUpdateItem, onRemoveItem, onGoodsIdChange, onInputFocus,
   onSelectGoods, onSetDropdownPos,
 }: Props) {
+  const setPromotion = (index: number, val: number) => {
+  const clamped = Math.max(0, Math.min(val, 100));
+  onUpdateItem(index, "promotion", clamped);
+};
   return (
     <>
       <div style={{ overflowX: "auto", marginTop: 12 }}>
@@ -47,15 +47,23 @@ export default function InwardItemTable({
           </thead>
           <tbody>
             {items.map((item, index) => {
-              const dd        = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
-              const vatAmount = item.unitPrice * item.quantity * (item.vat / 100);
+              const dd = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
+              // Highlight dòng trống cuối để user biết đây là dòng placeholder
+              const isEmpty = item.goodsId.trim() === "";
 
               return (
-                <tr key={index} style={{ background: index % 2 === 0 ? "#fff" : "#f8f9ff" }}>
-
+                <tr
+                  key={index}
+                  style={{
+                    background: isEmpty
+                      ? "#fffbf0"                                      // vàng nhạt cho dòng placeholder
+                      : index % 2 === 0 ? "#fff" : "#f8f9ff",
+                    opacity: isEmpty ? 0.7 : 1,
+                  }}
+                >
                   {/* # */}
                   <td style={{ ...styles.itemTd, textAlign: "center", color: "#999", width: 32 }}>
-                    {index + 1}
+                    {isEmpty ? <span style={{ color: "#ccc" }}>—</span> : index + 1}
                   </td>
 
                   {/* Mã hàng + autocomplete dropdown */}
@@ -79,7 +87,8 @@ export default function InwardItemTable({
                     <input
                       style={{ ...styles.inputTable, background: "#f4f4f4", color: "#555" }}
                       value={item.goodsName}
-                      readOnly tabIndex={-1}
+                      readOnly
+                      tabIndex={-1}
                       placeholder="Tự động điền"
                     />
                   </td>
@@ -89,68 +98,72 @@ export default function InwardItemTable({
                     <input
                       style={{ ...styles.inputTable, background: "#f4f4f4", color: "#555", textAlign: "center" }}
                       value={item.unit}
-                      readOnly tabIndex={-1}
+                      readOnly
+                      tabIndex={-1}
                     />
                   </td>
 
                   {/* Số lượng */}
-                  <td style={{ ...styles.itemTd, width: 60 }}>
+                  <td style={{ ...styles.itemTd, width: 70 }}>
                     <input
-                      type="number" min={1}
+                      type="number"
+                      min={1}
                       style={{ ...styles.inputTable, textAlign: "right" }}
                       value={item.quantity}
                       onChange={(e) => onUpdateItem(index, "quantity", Number(e.target.value))}
+                      disabled={isEmpty}
+                      tabIndex={isEmpty ? -1 : undefined}
                     />
                   </td>
 
                   {/* Đơn giá */}
-                  <td style={{ ...styles.itemTd, width: 100 }}>
+                  <td style={{ ...styles.itemTd, width: 110 }}>
                     <input
-                      type="number" min={0}
+                      type="number"
+                      min={0}
                       style={{ ...styles.inputTable, textAlign: "right" }}
                       value={item.unitPrice}
                       onChange={(e) => onUpdateItem(index, "unitPrice", Number(e.target.value))}
+                      disabled={isEmpty}
+                      tabIndex={isEmpty ? -1 : undefined}
                     />
                   </td>
 
-                  {/* Thuế VAT */}
-                  <td style={{ ...styles.itemTd, width: 72 }}>
-                    <select
-                      style={styles.selectVat}
-                      value={item.vat}
-                      onChange={(e) => onUpdateItem(index, "vat", Number(e.target.value))}
-                    >
-                      {VAT_OPTIONS.map((v) => (
-                        <option key={v} value={v}>{v}%</option>
-                      ))}
-                    </select>
-                  </td>
-
-                  {/* Tiền VAT — tính tự động */}
-                  <td style={{ ...styles.itemTd, width: 90, textAlign: "right", color: "#b45309", fontWeight: 600 }}>
-                    {vatAmount.toLocaleString("vi-VN")}
+                  {/* Khuyến mãi % */}
+                  <td style={{ ...styles.itemTd, width: 90 }}>
+                    <input
+  type="number"
+  min={0}
+  max={100}
+  step={0.01}
+  style={{ ...styles.inputTable, textAlign: "right" }}
+  value={item.promotion === 0 ? "" : item.promotion}
+  placeholder="0"
+  onChange={(e) =>
+    setPromotion(index, Number(e.target.value))
+  }
+  disabled={isEmpty}
+  tabIndex={isEmpty ? -1 : undefined}
+/>
                   </td>
 
                   {/* Thành tiền — tính tự động */}
-                  <td style={{ ...styles.itemTd, width: 105, textAlign: "right", color: "#2255cc", fontWeight: 700 }}>
-                    {item.amount1.toLocaleString("vi-VN")}
+                  <td style={{
+                    ...styles.itemTd, width: 120,
+                    textAlign: "right",
+                    color: isEmpty ? "#ccc" : "#2255cc",
+                    fontWeight: 700,
+                  }}>
+                    {isEmpty ? "—" : item.amount1.toLocaleString("vi-VN")}
                   </td>
 
-                  {/* Khuyến mãi */}
-                  <td style={{ ...styles.itemTd, width: 100 }}>
-                    <input
-                      type="number" min={0} max={100}
-                      style={{ ...styles.inputTable, textAlign: "right" }}
-                      value={item.promotion}
-                      onChange={(e) => onUpdateItem(index, "promotion", Number(e.target.value))}
-                    />
-                  </td>
-
-                  {/* Xóa */}
+                  {/* Xóa — ẩn nút xóa ở dòng placeholder */}
                   <td style={{ ...styles.itemTd, width: 52, textAlign: "center" }}>
-                    <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
-                      Xóa
-                    </button>
+                    {!isEmpty && (
+                      <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
+                        Xóa
+                      </button>
+                    )}
                   </td>
                 </tr>
               );

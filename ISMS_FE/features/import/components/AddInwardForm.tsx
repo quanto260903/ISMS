@@ -4,17 +4,15 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styles from "@/shared/styles/sale.styles";
 import {
-  PAYMENT_LABELS,
   INWARD_REASON_LABELS,
   getVoucherCodeByReason,
-  getCreditAccountByPayment,
+  DEFAULT_CREDIT_ACCOUNT,
 } from "../constants/import.constants";
 import { useInwardForm }        from "../hooks/useInwardForm";
 import { useGoodsSearch }       from "../hooks/useGoodsSearch";
-import { useWarehouseList }     from "../hooks/useWarehouseList";
 import { useSaleVoucherLookup } from "../hooks/useSaleVoucherLookup";
 import InwardItemTable          from "./InwardItemTable";
 import SupplierSearchInput      from "@/shared/components/supplier/SupplierSearchInput";
@@ -22,30 +20,29 @@ import SupplierDropdown         from "@/shared/components/supplier/SupplierDropd
 import CreateSupplierModal      from "@/shared/components/supplier/CreateSupplierModal";
 import { useSupplierSearch }    from "@/shared/hooks/supplier/useSupplierSearch";
 import { useAuthStore }         from "@/store/authStore";
-import type {
-  PaymentOption,
-  InwardReason,
-  GoodsSearchResult,
-} from "../types/import.types";
+import type { InwardReason, InwardItem, GoodsSearchResult } from "../types/import.types";
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 
 export default function AddInwardForm() {
   const [reason, setReason] = useState<InwardReason>("PURCHASE");
 
   const { user } = useAuthStore();
-  const currentUserId   = String(user?.userId   ?? "");
+  const currentUserId   = String(user?.userId ?? "");
   const currentUserName = user?.fullName ?? "";
 
   const {
-    voucher, paymentOption, message,
-    totalAmount, totalVat,
-    setField, handlePaymentChange,
+    voucher, message,
+    totalAmount,
+    setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
-  } = useInwardForm({ userId: currentUserId, userFullName: currentUserName });
+  } = useInwardForm({ userId: currentUserId });
 
-  const { warehouses }    = useWarehouseList();
   const saleVoucherLookup = useSaleVoucherLookup();
+
+  // Dùng ref để tránh stale closure
+  const reasonRef = useRef(reason);
+  reasonRef.current = reason;
 
   // ── Supplier search + modal ──────────────────────────────
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -54,45 +51,71 @@ export default function AddInwardForm() {
   const handleSelectSupplier = (supplier: SupplierSearchResult) => {
     setField("customerId",   supplier.supplierId);
     setField("customerName", supplier.supplierName);
-    if (supplier.taxId)   setField("taxCode", supplier.taxId);
-    if (supplier.address) setField("address", supplier.address);
+    if (supplier.taxId)   setField("taxCode",  supplier.taxId);
+    if (supplier.address) setField("address",  supplier.address);
     setSupplierQuery(supplier.supplierId);
   };
 
   const supplierSearch = useSupplierSearch({ onSelect: handleSelectSupplier });
 
-  const handleReasonChange = (r: InwardReason) => {
+  // ── Đổi lý do nhập kho ──────────────────────────────────
+  const onReasonChange = (r: InwardReason) => {
     setReason(r);
-    setField("voucherCode", getVoucherCodeByReason(r, paymentOption));
+    handleReasonChange(r);
     saleVoucherLookup.clearLookup();
+    // Reset thông tin đối tượng và items khi đổi lý do
+    setField("customerId",   "");
+    setField("customerName", "");
+    setSupplierQuery("");
+    replaceAllItems([createEmptyItemShim()]);
   };
 
-  useEffect(() => {
-    const result = saleVoucherLookup.lookupResult;
-    if (!result || reason !== "SALES_RETURN") return;
-    setField("customerName",       result.customerName);
-    setField("voucherDescription", `Hàng bán bị trả lại - ${result.voucherId}`);
-    const creditAcc = getCreditAccountByPayment(paymentOption);
-    const newItems = result.items.map((d) => ({
-      goodsId: d.goodsId, goodsName: d.goodsName, unit: d.unit,
-      quantity: d.quantity, unitPrice: d.unitPrice, amount1: d.amount1,
-      vat: d.vat, promotion: d.promotion,
-      debitAccount1: "156", creditAccount1: creditAcc,
-      debitWarehouseId: d.creditWarehouseId,
-      debitAccount2: "1331", creditAccount2: creditAcc,
-      userId: currentUserId, createdDateTime: new Date().toISOString(),
-    }));
-    replaceAllItems([...newItems, createEmptyItemShim(creditAcc)]);
-  }, [saleVoucherLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const createEmptyItemShim = (creditAcc: string) => ({
-    goodsId: "", goodsName: "", unit: "",
-    quantity: 1, unitPrice: 0, amount1: 0, vat: 10, promotion: 0,
-    debitAccount1: "156", creditAccount1: creditAcc,
-    debitWarehouseId: "", debitAccount2: "1331", creditAccount2: creditAcc,
-    userId: currentUserId, createdDateTime: new Date().toISOString(),
+  const createEmptyItemShim = (): InwardItem => ({
+    goodsId:         "",
+    goodsName:       "",
+    unit:            "",
+    quantity:        1,
+    unitPrice:       0,
+    amount1:         0,
+    promotion:       0,
+    debitAccount1:   "156",
+    creditAccount1:  DEFAULT_CREDIT_ACCOUNT,
+    debitAccount2:   "1331",
+    creditAccount2:  DEFAULT_CREDIT_ACCOUNT,
+    userId:          currentUserId,
+    createdDateTime: new Date().toISOString(),
   });
 
+  // ── Auto-fill từ phiếu bán (SALES_RETURN) ───────────────
+  useEffect(() => {
+    const result = saleVoucherLookup.lookupResult;
+    if (!result || reasonRef.current !== "SALES_RETURN") return;
+
+    setField("customerId",         result.customerId   ?? "");
+    setField("customerName",       result.customerName ?? "");
+    setField("voucherDescription", `Hàng bán bị trả lại - ${result.voucherId}`);
+
+    const newItems: InwardItem[] = result.items.map((d) => ({
+      goodsId:         d.goodsId,
+      goodsName:       d.goodsName,
+      unit:            d.unit,
+      quantity:        d.quantity,
+      unitPrice:       d.unitPrice,
+      amount1:         d.amount1,
+      promotion:       d.promotion ?? 0,
+      debitAccount1:   "156",
+      creditAccount1:  DEFAULT_CREDIT_ACCOUNT,
+      debitAccount2:   "1331",
+      creditAccount2:  DEFAULT_CREDIT_ACCOUNT,
+      offsetVoucher:   result.voucherId,
+      userId:          currentUserId,
+      createdDateTime: new Date().toISOString(),
+    }));
+
+    replaceAllItems([...newItems, createEmptyItemShim()]);
+  }, [saleVoucherLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Goods search ─────────────────────────────────────────
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
     updateItem(index, "goodsName", goods.goodsName);
@@ -103,12 +126,14 @@ export default function AddInwardForm() {
     updateItem, onSelectGoods: handleSelectGoods, onAddItem: addItem,
   });
 
-  const initialized = React.useRef(false);
+  // Init dòng đầu tiên
+  const initialized = useRef(false);
   useEffect(() => {
     if (!initialized.current) { addItem(); initialized.current = true; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const prevLengthRef = React.useRef(voucher.items.length);
+  // Sync số dropdown với số dòng items
+  const prevLengthRef = useRef(voucher.items.length);
   useEffect(() => {
     const cur = voucher.items.length, prev = prevLengthRef.current;
     if (cur > prev) for (let i = 0; i < cur - prev; i++) goodsSearch.addDropdown();
@@ -136,7 +161,7 @@ export default function AddInwardForm() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <select
             value={reason}
-            onChange={(e) => handleReasonChange(e.target.value as InwardReason)}
+            onChange={(e) => onReasonChange(e.target.value as InwardReason)}
             style={s.reasonSelect}
           >
             {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
@@ -147,8 +172,9 @@ export default function AddInwardForm() {
             ))}
           </select>
           <span style={s.codeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>
-              {getVoucherCodeByReason(reason, paymentOption)}
+            Mã CT:{" "}
+            <strong style={{ color: "#2255cc" }}>
+              {getVoucherCodeByReason(reason)}
             </strong>
           </span>
         </div>
@@ -182,7 +208,7 @@ export default function AddInwardForm() {
               </button>
               {saleVoucherLookup.lookupResult && (
                 <button style={{ ...styles.btnDanger, padding: "8px 14px" }}
-                  onClick={saleVoucherLookup.clearLookup} title="Xóa kết quả">✕ Xóa</button>
+                  onClick={saleVoucherLookup.clearLookup}>✕ Xóa</button>
               )}
             </div>
             {saleVoucherLookup.lookupError && (
@@ -206,27 +232,20 @@ export default function AddInwardForm() {
         </>
       )}
 
-      {/* ════════════════════════════════════════════════════════
-          THÔNG TIN PHIẾU NHẬP
-          Layout 2 cột giống MISA:
-          - Trái (~65%): NCC, Tên NCC, MST, Địa chỉ, Diễn giải
-          - Phải (~35%): Số phiếu, Ngày nhập kho, Người lập
-          ════════════════════════════════════════════════════════ */}
+      {/* ── Thông tin phiếu nhập — layout 2 cột ── */}
       <section style={{ ...s.card, maxWidth: "100%" }}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin phiếu nhập</h3>
 
         <div style={s.twoCol}>
 
-          {/* ── CỘT TRÁI ── */}
+          {/* Cột trái */}
           <div style={s.colLeft}>
 
-            {/* Mã NCC */}
             <div style={styles.fieldGroup}>
               <label style={styles.label}>
                 {isSalesReturn ? "Mã khách hàng" : "Nhà cung cấp *"}
               </label>
               {!isSalesReturn ? (
-                <div style={{ flex: 1 }}>
                 <SupplierSearchInput
                   value={supplierQuery}
                   loading={supplierSearch.dropdown.loading}
@@ -240,7 +259,6 @@ export default function AddInwardForm() {
                   onAddNew={() => setShowSupplierModal(true)}
                   placeholder="Nhập mã NCC để tìm kiếm..."
                 />
-                </div>
               ) : (
                 <input
                   style={{ ...styles.input, background: "#f5f5f5", color: "#555" }}
@@ -251,7 +269,6 @@ export default function AddInwardForm() {
               )}
             </div>
 
-            {/* Tên NCC */}
             <div style={styles.fieldGroup}>
               <label style={styles.label}>
                 {isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *"}
@@ -271,64 +288,57 @@ export default function AddInwardForm() {
               />
             </div>
 
-            {/* Diễn giải */}
             <div style={styles.fieldGroup}>
               <label style={styles.label}>Diễn giải</label>
               <input style={styles.input} placeholder="Nhập diễn giải"
-                value={(voucher.voucherDescription as string) ?? ""}
+                value={voucher.voucherDescription ?? ""}
                 onChange={(e) => setField("voucherDescription", e.target.value)} />
             </div>
 
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Mã số thuế</label>
-                <input style={styles.input} placeholder="Nhập MST"
-                  value={(voucher.taxCode as string) ?? ""}
-                  onChange={(e) => setField("taxCode", e.target.value)} />
-              </div>
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Địa chỉ</label>
-                <input style={styles.input} placeholder="Nhập địa chỉ"
-                  value={(voucher.address as string) ?? ""}
-                  onChange={(e) => setField("address", e.target.value)} />
-              </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Mã số thuế</label>
+              <input style={styles.input} placeholder="Nhập MST"
+                value={voucher.taxCode ?? ""}
+                onChange={(e) => setField("taxCode", e.target.value)} />
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Địa chỉ</label>
+              <input style={styles.input} placeholder="Nhập địa chỉ"
+                value={voucher.address ?? ""}
+                onChange={(e) => setField("address", e.target.value)} />
+            </div>
           </div>
 
-          {/* ── DIVIDER ── */}
           <div style={s.divider} />
 
-          {/* ── CỘT PHẢI ── */}
+          {/* Cột phải */}
           <div style={s.colRight}>
-
-            {/* Số phiếu */}
             <div style={s.rightRow}>
               <label style={s.rightLabel}>Số phiếu *</label>
-              <input style={{ ...styles.input, ...s.rightInput,
-                fontWeight: 700, color: "#1d4ed8", fontFamily: "monospace" }}
+              <input
+                style={{ ...styles.input, ...s.rightInput, fontWeight: 700, color: "#1d4ed8", fontFamily: "monospace" }}
                 value={voucher.voucherId}
                 onChange={(e) => setField("voucherId", e.target.value)}
                 placeholder="Tự sinh, có thể sửa"
               />
             </div>
-
-            {/* Ngày nhập kho */}
             <div style={s.rightRow}>
               <label style={s.rightLabel}>Ngày nhập kho *</label>
-              <input type="date" style={{ ...styles.input, ...s.rightInput }}
+              <input type="date"
+                style={{ ...styles.input, ...s.rightInput }}
                 value={voucher.voucherDate}
                 onChange={(e) => setField("voucherDate", e.target.value)}
               />
             </div>
-
-            {/* Người lập phiếu */}
             <div style={s.rightRow}>
               <label style={s.rightLabel}>Người lập phiếu</label>
-              <input style={{ ...styles.input, ...s.rightInput,
-                background: "#f5f5f5", color: "#555" }}
+              <input
+                style={{ ...styles.input, ...s.rightInput, background: "#f5f5f5", color: "#555" }}
                 value={currentUserName}
                 readOnly
               />
             </div>
-
           </div>
         </div>
       </section>
@@ -351,7 +361,6 @@ export default function AddInwardForm() {
             dropdownPos={goodsSearch.dropdownPos}
             dropdownRefs={goodsSearch.dropdownRefs}
             inputRefs={goodsSearch.inputRefs}
-            warehouses={warehouses}
             onUpdateItem={updateItem}
             onRemoveItem={removeItem}
             onGoodsIdChange={(index, value) =>
@@ -367,17 +376,9 @@ export default function AddInwardForm() {
 
         {voucher.items.length > 0 && (
           <div style={styles.summaryBox}>
-            <div style={styles.summaryRow}>
-              <span>Tổng tiền hàng (chưa VAT):</span>
-              <strong>{totalAmount.toLocaleString("vi-VN")} ₫</strong>
-            </div>
-            <div style={styles.summaryRow}>
-              <span>Tổng thuế VAT:</span>
-              <strong>{totalVat.toLocaleString("vi-VN")} ₫</strong>
-            </div>
             <div style={{ ...styles.summaryRow, ...styles.summaryTotal }}>
-              <span>Tổng cộng:</span>
-              <strong>{(totalAmount + totalVat).toLocaleString("vi-VN")} ₫</strong>
+              <span>Tổng tiền hàng:</span>
+              <strong>{totalAmount.toLocaleString("vi-VN")} ₫</strong>
             </div>
           </div>
         )}
@@ -407,10 +408,7 @@ export default function AddInwardForm() {
         dropdown={supplierSearch.dropdown}
         dropdownPos={supplierSearch.dropdownPos}
         dropdownRef={supplierSearch.dropdownRef}
-        onSelect={(sup) => {
-          handleSelectSupplier(sup);
-          supplierSearch.handleSelect(sup);
-        }}
+        onSelect={(sup) => { handleSelectSupplier(sup); supplierSearch.handleSelect(sup); }}
         onAddNew={() => setShowSupplierModal(true)}
         query={supplierQuery}
       />
@@ -419,17 +417,13 @@ export default function AddInwardForm() {
         <CreateSupplierModal
           initialId={supplierQuery}
           onClose={() => setShowSupplierModal(false)}
-          onCreated={(sup) => {
-            handleSelectSupplier(sup);
-            setShowSupplierModal(false);
-          }}
+          onCreated={(sup) => { handleSelectSupplier(sup); setShowSupplierModal(false); }}
         />
       )}
     </div>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
   heroBanner: {
     position: "relative", overflow: "hidden",
@@ -437,14 +431,13 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 14, padding: "22px 28px", marginBottom: 20,
     boxShadow: "0 8px 24px rgba(109,40,217,0.28)",
   },
-  heroOrb:  { position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.07)" },
-  heroOrb2: { position: "absolute", bottom: -30, left: 80, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.05)" },
+  heroOrb:     { position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.07)" },
+  heroOrb2:    { position: "absolute", bottom: -30, left: 80, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.05)" },
   heroEyebrow: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 },
   heroTitle:   { fontSize: 22, fontWeight: 800, color: "#fff", margin: 0 },
   card: {
     background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
-    padding: "20px 24px", marginBottom: 16,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+    padding: "20px 24px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
   },
   cardTitle: {
     display: "flex", alignItems: "center", gap: 8,
@@ -456,64 +449,13 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-block", width: 10, height: 10, borderRadius: "50%",
     background: "linear-gradient(135deg, #7c3aed, #6366f1)", flexShrink: 0,
   },
-
-  // ── 2-column layout ──────────────────────────────────────
-  twoCol: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto 320px",  // trái linh hoạt | divider | phải cố định 320px
-    gap: 0,
-    alignItems: "flex-start",
-    minWidth: 0,  // ngăn overflow
-  },
-  colLeft: {
-    minWidth: 0,
-    paddingRight: 20,
-    overflow: "hidden",
-  },
-  divider: {
-    width: 1,
-    alignSelf: "stretch",
-    background: "#e2e8f0",
-    margin: "0 4px",
-  },
-  colRight: {
-    width: 320,
-    paddingLeft: 20,
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
-    flexShrink: 0,
-  },
-  // Label + input theo hàng ngang (giống MISA bên phải)
-  rightRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    borderBottom: "1px solid #f1f5f9",
-    paddingBottom: 10,
-  },
-  rightLabel: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: 500,
-    whiteSpace: "nowrap" as const,
-    width: 120,
-    flexShrink: 0,
-  },
-  rightInput: {
-    flex: 1,
-    minWidth: 0,
-    border: "none",
-    borderBottom: "1.5px solid #e2e8f0",
-    borderRadius: 0,
-    background: "transparent",
-    padding: "4px 0",
-    fontSize: 13,
-    width: "100%",
-    boxSizing: "border-box" as const,
-  },
-
-  // Các style cũ giữ nguyên
+  twoCol:   { display: "grid", gridTemplateColumns: "1fr auto 320px", gap: 0, alignItems: "flex-start", minWidth: 0 },
+  colLeft:  { minWidth: 0, paddingRight: 20, overflow: "hidden" },
+  divider:  { width: 1, alignSelf: "stretch", background: "#e2e8f0", margin: "0 4px" },
+  colRight: { width: 320, paddingLeft: 20, display: "flex", flexDirection: "column" as const, gap: 10, flexShrink: 0 },
+  rightRow: { display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f1f5f9", paddingBottom: 10 },
+  rightLabel: { fontSize: 12, color: "#64748b", fontWeight: 500, whiteSpace: "nowrap" as const, width: 120, flexShrink: 0 },
+  rightInput: { flex: 1, minWidth: 0, border: "none", borderBottom: "1.5px solid #e2e8f0", borderRadius: 0, background: "transparent", padding: "4px 0", fontSize: 13, width: "100%", boxSizing: "border-box" as const },
   reasonSelect: {
     height: 38, padding: "0 36px 0 12px",
     border: "1.5px solid #c7d7ff", borderRadius: 8,
@@ -523,23 +465,8 @@ const s: Record<string, React.CSSProperties> = {
     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232255cc' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
     backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", minWidth: 220,
   },
-  codeBadge: {
-    padding: "4px 12px", background: "#f0f4ff",
-    color: "#555", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 12,
-  },
-  lookupResult: {
-    marginTop: 10, padding: "12px 16px", background: "#f0fdf4",
-    border: "1.5px solid #86efac", borderRadius: 10,
-    display: "flex", alignItems: "center", gap: 12, fontSize: 13,
-  },
-  lookupBadge: {
-    padding: "3px 12px", background: "#16a34a", color: "#fff",
-    borderRadius: 20, fontWeight: 700, fontSize: 11,
-    whiteSpace: "nowrap" as const, letterSpacing: "0.04em",
-  },
-  autoFilledBadge: {
-    marginLeft: 10, padding: "3px 12px", background: "#eff6ff",
-    color: "#4f46e5", border: "1.5px solid #c7d7ff",
-    borderRadius: 20, fontSize: 11, fontWeight: 700,
-  },
-};
+  codeBadge: { padding: "4px 12px", background: "#f0f4ff", color: "#555", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 12 },
+  lookupResult: { marginTop: 10, padding: "12px 16px", background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, display: "flex", alignItems: "center", gap: 12, fontSize: 13 },
+  lookupBadge:  { padding: "3px 12px", background: "#16a34a", color: "#fff", borderRadius: 20, fontWeight: 700, fontSize: 11, whiteSpace: "nowrap" as const, letterSpacing: "0.04em" },
+  autoFilledBadge: { marginLeft: 10, padding: "3px 12px", background: "#eff6ff", color: "#4f46e5", border: "1.5px solid #c7d7ff", borderRadius: 20, fontSize: 11, fontWeight: 700 },
+};  

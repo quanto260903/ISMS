@@ -339,7 +339,7 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.GoodsName).HasMaxLength(255);
             entity.Property(e => e.OffsetVoucher).HasMaxLength(50);
-            entity.Property(e => e.Promotion).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.Promotion).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.UserId)

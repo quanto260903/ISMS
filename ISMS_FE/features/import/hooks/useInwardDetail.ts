@@ -7,7 +7,8 @@
 
 import { useState, useEffect } from "react";
 import { getInward } from "../import.api";
-import type { InwardVoucher } from "../types/import.types";
+import type { InwardVoucher, InwardItem } from "../types/import.types";
+import { DEFAULT_CREDIT_ACCOUNT } from "../constants/import.constants";
 
 export function useInwardDetail(voucherId: string) {
   const [data,    setData]    = useState<InwardVoucher | null>(null);
@@ -34,24 +35,22 @@ export function useInwardDetail(voucherId: string) {
   return { data, loading, error };
 }
 
-// Tạo dòng trống kế thừa account từ dòng cuối cùng
-function createEmptyRow(voucher: InwardVoucher) {
+// Tạo dòng trống kế thừa account từ dòng cuối cùng của phiếu
+function createEmptyRow(voucher: InwardVoucher): InwardItem {
   const last = voucher.items[voucher.items.length - 1];
   return {
-    goodsId:          "",
-    goodsName:        "",
-    unit:             "",
-    quantity:         1,
-    unitPrice:        0,
-    amount1:          0,
-    vat:              10,
-    promotion:        0,
-    debitAccount1:    last?.debitAccount1  ?? "156",
-    creditAccount1:   last?.creditAccount1 ?? "331",
-    debitWarehouseId: "",
-    debitAccount2:    last?.debitAccount2  ?? "1331",
-    creditAccount2:   last?.creditAccount2 ?? "331",
-    userId:           last?.userId         ?? "",
-    createdDateTime:  new Date().toISOString(),
+    goodsId:         "",
+    goodsName:       "",
+    unit:            "",
+    quantity:        1,
+    unitPrice:       0,
+    amount1:         0,
+    promotion:       0,
+    debitAccount1:   last?.debitAccount1  ?? "156",
+    creditAccount1:  last?.creditAccount1 ?? DEFAULT_CREDIT_ACCOUNT,
+    debitAccount2:   last?.debitAccount2  ?? "1331",
+    creditAccount2:  last?.creditAccount2 ?? DEFAULT_CREDIT_ACCOUNT,
+    userId:          last?.userId         ?? "",
+    createdDateTime: new Date().toISOString(),
   };
 }

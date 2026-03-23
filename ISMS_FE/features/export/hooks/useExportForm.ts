@@ -11,6 +11,7 @@ import {
   generateVoucherNumber,
   getVoucherCodeByReason,
   getDebitAccountByReason,
+  detectReasonFromCode,
   calcAmount,
 } from "../constants/export.constants";
 
@@ -30,13 +31,8 @@ export function useExportForm({
 
   const isEditMode = !!initialData;
 
-  const detectReason = (code?: string): ExportReason => {
-    if (code === "XH1") return "IMPORT_RETURN";
-    return "OTHER";
-  };
-
   const [reason,  setReason]  = useState<ExportReason>(
-    isEditMode ? detectReason(initialData?.voucherCode) : "OTHER"
+    isEditMode ? detectReasonFromCode(initialData?.voucherCode) : "IMPORT_RETURN"
   );
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,25 +40,25 @@ export function useExportForm({
   const [voucher, setVoucher] = useState<ExportVoucher>(
     initialData ?? {
       voucherId:          generateVoucherNumber(),
-      voucherCode:        getVoucherCodeByReason("OTHER"),
+      voucherCode:        getVoucherCodeByReason("IMPORT_RETURN"),
       customerId:         "",
       customerName:       "",
       taxCode:            "",
       address:            "",
-      voucherDescription: userFullName ? `Người lập phiếu: ${userFullName}` : "",
+      voucherDescription: "",
       voucherDate:        new Date().toISOString().split("T")[0],
-      bankName:           "",
-      bankAccountNumber:  "",
       items:              [],
     }
   );
 
+  // Khi initialData fetch xong (trang edit) → sync lại state
   useEffect(() => {
     if (!initialData) return;
     setVoucher(initialData);
-    setReason(detectReason(initialData.voucherCode));
+    setReason(detectReasonFromCode(initialData.voucherCode));
   }, [initialData?.voucherId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Field helpers ─────────────────────────────────────────
   const setField = <K extends keyof ExportVoucher>(field: K, value: ExportVoucher[K]) =>
     setVoucher((prev) => ({ ...prev, [field]: value }));
 
@@ -73,17 +69,20 @@ export function useExportForm({
 
   // ── Items ─────────────────────────────────────────────────
   const createEmptyItem = (r: ExportReason): ExportItem => ({
-    goodsId: "", goodsName: "", unit: "",
-    quantity: 1, unitPrice: 0, amount1: 0,
-    vat: 0, promotion: 0,          // Không dùng VAT cho phiếu xuất kho
-    debitAccount1:     getDebitAccountByReason(r),
-    creditAccount1:    "156",
-    debitAccount2:     "",         // Không có bút toán thứ 2 cho xuất kho
-    creditAccount2:    "",
-    costPerUnit:       0,          // set khi chọn phiếu nhập từ modal
-    userId:            userId,
-    createdDateTime:   new Date().toISOString(),
-    offsetVoucher:     "",
+    goodsId:         "",
+    goodsName:       "",
+    unit:            "",
+    quantity:        1,
+    unitPrice:       0,
+    amount1:         0,
+    debitAccount1:   getDebitAccountByReason(r),
+    creditAccount1:  "156",
+    debitAccount2:   "",
+    creditAccount2:  "",
+    costPerUnit:     0,
+    userId:          userId,
+    createdDateTime: new Date().toISOString(),
+    offsetVoucher:   "",
   });
 
   const reasonRef = useRef(reason);
@@ -91,11 +90,22 @@ export function useExportForm({
 
   const addItem = () =>
     setVoucher((prev) => ({
-      ...prev, items: [...prev.items, createEmptyItem(reasonRef.current)],
+      ...prev,
+      items: [...prev.items, createEmptyItem(reasonRef.current)],
     }));
 
+  // ── removeItem: luôn giữ placeholder cuối — giống useInwardForm ──
   const removeItem = (index: number) =>
-    setVoucher((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
+    setVoucher((prev) => {
+      const next = prev.items.filter((_, i) => i !== index);
+      const lastIsEmpty = next.length > 0 && next[next.length - 1].goodsId.trim() === "";
+      return {
+        ...prev,
+        items: next.length === 0 || !lastIsEmpty
+          ? [...next, createEmptyItem(reasonRef.current)]
+          : next,
+      };
+    });
 
   const updateItem = (index: number, field: keyof ExportItem, value: unknown) => {
     setVoucher((prev) => {
@@ -109,12 +119,13 @@ export function useExportForm({
   const replaceAllItems = (newItems: ExportItem[]) =>
     setVoucher((prev) => ({ ...prev, items: newItems }));
 
-  // ── Totals ────────────────────────────────────────────────
+  // ── filledItems: filter thay vì slice — giống useInwardForm ──
   const filledItems = useMemo(
-    () => voucher.items.slice(0, -1),
+    () => voucher.items.filter((i) => i.goodsId.trim() !== ""),
     [voucher.items]
   );
 
+  // ── Totals ────────────────────────────────────────────────
   const totalAmount = useMemo(
     () => filledItems.reduce((s, i) => s + i.amount1, 0),
     [filledItems]
@@ -124,14 +135,24 @@ export function useExportForm({
   const validate = (): string | null => {
     if (!voucher.voucherId.trim())    return "Chưa có số phiếu";
     if (!voucher.customerName.trim()) return "Chưa nhập tên đối tượng";
-    if (!voucher.voucherDate)         return "Chưa chọn ngày";
+    if (!voucher.voucherDate)         return "Chưa chọn ngày xuất kho";
     if (filledItems.length === 0)     return "Chưa có hàng hóa nào";
-    const missingOffset = filledItems.find((i) => !i.offsetVoucher?.trim());
-    if (missingOffset)
-      return `'${missingOffset.goodsName || missingOffset.goodsId}': chưa chọn chứng từ nhập kho đối trừ`;
+
+    for (const item of filledItems) {
+      const label = item.goodsName || item.goodsId;
+      if (item.quantity <= 0)
+        return `Dòng "${label}": Số lượng phải lớn hơn 0`;
+      if (item.unitPrice < 0)
+        return `Dòng "${label}": Đơn giá không hợp lệ`;
+      // Bắt buộc có offsetVoucher — XK1/XK2 đều cần chứng từ đối trừ
+      if (!item.offsetVoucher?.trim())
+        return `Dòng "${label}": chưa chọn chứng từ nhập kho đối trừ`;
+    }
+
     return null;
   };
 
+  // ── Build payload ─────────────────────────────────────────
   const buildPayload = () => ({
     voucherId:          voucher.voucherId,
     voucherCode:        voucher.voucherCode,
@@ -141,39 +162,29 @@ export function useExportForm({
     address:            voucher.address,
     voucherDescription: voucher.voucherDescription,
     voucherDate:        voucher.voucherDate,
-    bankName:           voucher.bankName,
-    bankAccountNumber:  voucher.bankAccountNumber,
     items: filledItems.map((item) => ({
-      goodsId:           item.goodsId,
-      goodsName:         item.goodsName,
-      unit:              item.unit,
-      quantity:          item.quantity,
-      unitPrice:         item.unitPrice,
-      amount1:           item.amount1,
-      vat:               item.vat,
-      promotion:         item.promotion,
-      debitAccount1:     item.debitAccount1,
-      creditAccount1:    item.creditAccount1,
-
-      debitAccount2:     item.debitAccount2,
-      creditAccount2:    item.creditAccount2,
-      userId:            item.userId || userId,
-      createdDateTime:   item.createdDateTime || new Date().toISOString(),
-      offsetVoucher:     item.offsetVoucher,
+      goodsId:         item.goodsId,
+      goodsName:       item.goodsName,
+      unit:            item.unit,
+      quantity:        item.quantity,
+      unitPrice:       item.unitPrice,
+      amount1:         item.amount1,
+      debitAccount1:   item.debitAccount1,
+      creditAccount1:  item.creditAccount1,
+      debitAccount2:   item.debitAccount2,
+      creditAccount2:  item.creditAccount2,
+      costPerUnit:     item.costPerUnit,
+      offsetVoucher:   item.offsetVoucher ?? null,
+      userId:          item.userId || userId,
+      createdDateTime: item.createdDateTime || new Date().toISOString(),
     })),
   });
 
-  // ══════════════════════════════════════════════════════════
-  // SUBMIT: validate → lưu thẳng (không có FIFO preview vì backend
-  // yêu cầu offsetVoucher bắt buộc, modal SelectInbound đã xử lý ở UI)
-  // ══════════════════════════════════════════════════════════
+  // ── Submit ────────────────────────────────────────────────
   const handleSubmit = async () => {
     const error = validate();
     if (error) { setMessage(error); return; }
-    await doSave();
-  };
 
-  const doSave = async () => {
     setLoading(true);
     setMessage("");
     try {
@@ -183,10 +194,9 @@ export function useExportForm({
         : await createExport(payload);
 
       if (result.isSuccess) {
-        setMessage(
-          isEditMode
-            ? "Cập nhật phiếu xuất kho thành công"
-            : "Tạo phiếu xuất kho thành công"
+        setMessage(isEditMode
+          ? "Cập nhật phiếu xuất kho thành công"
+          : "Tạo phiếu xuất kho thành công"
         );
         onSuccess?.();
       } else {

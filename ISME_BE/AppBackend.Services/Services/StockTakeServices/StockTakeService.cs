@@ -5,11 +5,6 @@ using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services.ApiModels;
 using AppBackend.Services.Services.ExportServices;
 using AppBackend.Services.Services.ImportServices;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AppBackend.Services.Services.StockTakeServices
 {
@@ -20,9 +15,9 @@ namespace AppBackend.Services.Services.StockTakeServices
         private readonly IExportServices _exportService;
 
         public StockTakeService(
-    IUnitOfWork uow,
-    IImportServices inwardService,
-    IExportServices exportService)
+            IUnitOfWork uow,
+            IImportServices inwardService,
+            IExportServices exportService)
         {
             _uow = uow;
             _inwardService = inwardService;
@@ -42,7 +37,7 @@ namespace AppBackend.Services.Services.StockTakeServices
                 Purpose = v.Purpose,
                 IsCompleted = v.IsCompleted,
                 CreatedBy = v.CreatedBy,
-                CreatedDate = v.CreatedDate
+                CreatedDate = v.CreatedDate,
             });
         }
 
@@ -55,6 +50,9 @@ namespace AppBackend.Services.Services.StockTakeServices
         }
 
         // ===================== CREATE =====================
+        // Lỗi 6 đã sửa: BookQuantity lấy từ DB (Goods.ItemOnHand)
+        // thay vì tin tưởng giá trị client gửi lên
+        // → tránh trường hợp client gửi sai BookQuantity làm DifferenceQuantity tính sai
         public async Task<StockTakeVoucherDetailDto> CreateAsync(CreateStockTakeVoucherDto dto, string createdBy)
         {
             var voucherCode = await _uow.StockTakeVouchers.GenerateVoucherCodeAsync();
@@ -73,22 +71,30 @@ namespace AppBackend.Services.Services.StockTakeServices
                 Position3 = dto.Position3,
                 IsCompleted = false,
                 CreatedBy = createdBy,
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow,
             };
 
             await _uow.StockTakeVouchers.AddAsync(voucher);
 
-            // Thêm chi tiết hàng hóa
-            var details = dto.StockTakeDetails.Select(d => new StockTakeDetail
+            // Lấy BookQuantity từ DB cho từng mặt hàng
+            var details = new List<StockTakeDetail>();
+            foreach (var d in dto.StockTakeDetails)
             {
-                StockTakeVoucherId = voucher.StockTakeVoucherId,
-                GoodsId = d.GoodsId,
-                GoodsName = d.GoodsName,
-                Unit = d.Unit,
-                BookQuantity = d.BookQuantity,
-                ActualQuantity = d.ActualQuantity,
-                DifferenceQuantity = d.ActualQuantity - d.BookQuantity
-            }).ToList();
+                // Lấy tồn kho thực tế từ DB — không tin tưởng client
+                var goods = await _uow.Goods.GetByIdAsync(d.GoodsId);
+                var bookQty = (decimal)(goods?.ItemOnHand ?? 0);
+
+                details.Add(new StockTakeDetail
+                {
+                    StockTakeVoucherId = voucher.StockTakeVoucherId,
+                    GoodsId = d.GoodsId,
+                    GoodsName = d.GoodsName,
+                    Unit = d.Unit,
+                    BookQuantity = bookQty,                    // ← từ DB
+                    ActualQuantity = d.ActualQuantity,
+                    DifferenceQuantity = d.ActualQuantity - bookQty, // ← tính đúng
+                });
+            }
 
             await _uow.StockTakeDetails.AddRangeAsync(details);
             await _uow.SaveChangesAsync();
@@ -98,12 +104,12 @@ namespace AppBackend.Services.Services.StockTakeServices
         }
 
         // ===================== UPDATE =====================
+        // Lỗi 6 đã sửa tương tự CreateAsync — BookQuantity lấy từ DB
         public async Task<StockTakeVoucherDetailDto?> UpdateAsync(string id, UpdateStockTakeVoucherDto dto)
         {
             var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
             if (voucher == null) return null;
 
-            // Không cho sửa nếu đã xử lý xong
             if (voucher.IsCompleted == true)
                 throw new InvalidOperationException("Phiếu kiểm kê đã được xử lý, không thể chỉnh sửa.");
 
@@ -119,19 +125,26 @@ namespace AppBackend.Services.Services.StockTakeServices
 
             await _uow.StockTakeVouchers.UpdateAsync(voucher);
 
-            // Xóa chi tiết cũ, thêm lại mới
+            // Xóa chi tiết cũ, thêm lại mới với BookQuantity từ DB
             await _uow.StockTakeDetails.DeleteByVoucherIdAsync(id);
 
-            var details = dto.StockTakeDetails.Select(d => new StockTakeDetail
+            var details = new List<StockTakeDetail>();
+            foreach (var d in dto.StockTakeDetails)
             {
-                StockTakeVoucherId = id,
-                GoodsId = d.GoodsId,
-                GoodsName = d.GoodsName,
-                Unit = d.Unit,
-                BookQuantity = d.BookQuantity,
-                ActualQuantity = d.ActualQuantity,
-                DifferenceQuantity = d.ActualQuantity - d.BookQuantity
-            }).ToList();
+                var goods = await _uow.Goods.GetByIdAsync(d.GoodsId);
+                var bookQty = (decimal)(goods?.ItemOnHand ?? 0);
+
+                details.Add(new StockTakeDetail
+                {
+                    StockTakeVoucherId = id,
+                    GoodsId = d.GoodsId,
+                    GoodsName = d.GoodsName,
+                    Unit = d.Unit,
+                    BookQuantity = bookQty,
+                    ActualQuantity = d.ActualQuantity,
+                    DifferenceQuantity = d.ActualQuantity - bookQty,
+                });
+            }
 
             await _uow.StockTakeDetails.AddRangeAsync(details);
             await _uow.SaveChangesAsync();
@@ -155,12 +168,10 @@ namespace AppBackend.Services.Services.StockTakeServices
             return true;
         }
 
-        // ===================== PROCESS (Xử lý kiểm kê) =====================
-        // Nếu thừa (DifferenceQuantity > 0) → tự động tạo phiếu nhập kho
-        // Nếu thiếu (DifferenceQuantity < 0) → tự động tạo phiếu xuất kho
+        // ===================== PROCESS =====================
         public async Task<ProcessStockTakeResultDto> ProcessAsync(string id, string userId)
         {
-            // ── 1. Load phiếu kiểm kê ────────────────────────
+            // ── 1. Load phiếu kiểm kê ────────────────────────────
             var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
             if (voucher == null)
                 return Fail("Không tìm thấy phiếu kiểm kê.");
@@ -174,100 +185,121 @@ namespace AppBackend.Services.Services.StockTakeServices
             var now = DateTime.Now;
             var dateOnly = DateOnly.FromDateTime(now);
 
-            string? importVoucherId = null;
-            string? exportVoucherId = null;
+            // Mã phiếu nhập/xuất dựa vào VoucherCode — unique, không trùng
+            var importVoucherId = $"NK{voucher.VoucherCode}";
+            var exportVoucherId = $"XK{voucher.VoucherCode}";
 
-            // ── 2. Hàng THỪA (Actual > Book) → Nhập kho ─────
             var surplusItems = details.Where(d => d.DifferenceQuantity > 0).ToList();
-            if (surplusItems.Any())
-            {
-                // Sinh mã phiếu nhập: NK + mã kiểm kê, VD: NKKK000012
-                importVoucherId = $"NK{voucher.VoucherCode}{now:mmss}";
-
-                var inwardRequest = new ImportOrder
-                {
-                    VoucherId = importVoucherId,
-                    VoucherCode = "NK5",  // NK3 = chưa thanh toán (điều chỉnh kho nội bộ)
-                    VoucherDescription = $"Nhập kho từ kiểm kê {voucher.VoucherCode} — hàng thừa",
-                    VoucherDate = dateOnly,
-                    Items = surplusItems.Select(d => new CreateInwardItemRequest
-                    {
-                        GoodsId = d.GoodsId,
-                        GoodsName = d.GoodsName,
-                        Unit = d.Unit,
-                        Quantity = (int)d.DifferenceQuantity,  // số lượng thừa
-                        UnitPrice = 0,
-                        Amount1 = 0,
-                        DebitAccount1 = "156",    // Hàng hoá tồn kho
-                        CreditAccount1 = "3381",   // Tài sản thừa chờ xử lý
-                        UserId = userId,
-                        CreatedDateTime = now,
-                    }).ToList(),
-                };
-
-                var inwardResult = await _inwardService.CreateInwardAsync(inwardRequest, userId);
-                if (!inwardResult.IsSuccess)
-                    return Fail($"Lỗi tạo phiếu nhập: {inwardResult.Message}");
-            }
-
-            // ── 3. Hàng THIẾU (Actual < Book) → Xuất kho ────
             var shortageItems = details.Where(d => d.DifferenceQuantity < 0).ToList();
-            if (shortageItems.Any())
-            {
-                // Sinh mã phiếu xuất: PX + mã kiểm kê, VD: PXKK000012
-                exportVoucherId = $"PX{voucher.VoucherCode}{now:mmss}";
 
-                var exportRequest = new ExportOrder
+            // ── 2. Bắt đầu transaction ───────────────────────────
+            using var transaction = await _uow.BeginTransactionAsync();
+            try
+            {
+                // ── 3. Hàng THỪA → Nhập kho NK3 ─────────────────
+                string? createdImportId = null;
+                if (surplusItems.Any())
                 {
-                    VoucherId = exportVoucherId,
-                    VoucherCode = "XH2" +
-                    "",  // XK1 = xuất kho nội bộ / điều chỉnh
-                    VoucherDescription = $"Xuất kho từ kiểm kê {voucher.VoucherCode} — hàng thiếu",
-                    VoucherDate = dateOnly,
-                    Items = shortageItems.Select(d => new CreateExportItemRequest
+                    var inwardRequest = new ImportOrder
                     {
-                        GoodsId = d.GoodsId,
-                        GoodsName = d.GoodsName,
-                        Unit = d.Unit,
-                        Quantity = (int)Math.Abs(d.DifferenceQuantity),  // số lượng thiếu
-                        UnitPrice = 0,
-                        Amount1 = 0,
-                        DebitAccount1 = "1381",   // Tài sản thiếu chờ xử lý
-                        CreditAccount1 = "156",    // Hàng hoá tồn kho
-                        UserId = userId,
-                        CreatedDateTime = now,
-                    }).ToList(),
+                        VoucherId = importVoucherId,
+                        VoucherCode = "NK3",
+                        VoucherDescription = $"Nhập kho từ kiểm kê {voucher.VoucherCode} — hàng thừa",
+                        VoucherDate = dateOnly,
+                        Items = surplusItems.Select(d => new CreateInwardItemRequest
+                        {
+                            GoodsId = d.GoodsId,
+                            GoodsName = d.GoodsName,
+                            Unit = d.Unit,
+                            Quantity = (int)d.DifferenceQuantity,
+                            UnitPrice = 0,
+                            Amount1 = 0,
+                            DebitAccount1 = "156",
+                            CreditAccount1 = "3381",
+                            UserId = userId,
+                            CreatedDateTime = now,
+                        }).ToList(),
+                    };
+
+                    var inwardResult = await _inwardService.CreateInwardAsync(inwardRequest, userId);
+                    if (!inwardResult.IsSuccess)
+                    {
+                        await transaction.RollbackAsync();
+                        return Fail($"Lỗi tạo phiếu nhập: {inwardResult.Message}");
+                    }
+
+                    createdImportId = importVoucherId;
+                }
+
+                // ── 4. Hàng THIẾU → Xuất kho XK3 ────────────────
+                string? createdExportId = null;
+                if (shortageItems.Any())
+                {
+                    var exportRequest = new ExportOrder
+                    {
+                        VoucherId = exportVoucherId,
+                        VoucherCode = "XK3",
+                        VoucherDescription = $"Xuất kho từ kiểm kê {voucher.VoucherCode} — hàng thiếu",
+                        VoucherDate = dateOnly,
+                        Items = shortageItems.Select(d => new CreateExportItemRequest
+                        {
+                            GoodsId = d.GoodsId,
+                            GoodsName = d.GoodsName,
+                            Unit = d.Unit,
+                            Quantity = (int)Math.Abs(d.DifferenceQuantity),
+                            UnitPrice = 0,
+                            Amount1 = 0,
+                            DebitAccount1 = "1381",
+                            CreditAccount1 = "156",
+                            OffsetVoucher = voucher.VoucherCode,
+                            UserId = userId,
+                            CreatedDateTime = now,
+                        }).ToList(),
+                    };
+
+                    var exportResult = await _exportService.CreateExportAsync(exportRequest, userId);
+                    if (!exportResult.IsSuccess)
+                    {
+                        await transaction.RollbackAsync();
+                        return Fail($"Lỗi tạo phiếu xuất: {exportResult.Message}");
+                    }
+
+                    createdExportId = exportVoucherId;
+                }
+
+                // ── 5. Đánh dấu phiếu hoàn thành ─────────────────
+                voucher.IsCompleted = true;
+                await _uow.StockTakeVouchers.UpdateAsync(voucher);
+                await _uow.SaveChangesAsync();
+
+                // ── 6. Commit ─────────────────────────────────────
+                await transaction.CommitAsync();
+
+                // ── 7. Trả kết quả ────────────────────────────────
+                var messages = new List<string>();
+                if (createdImportId != null)
+                    messages.Add($"Đã tạo phiếu nhập kho {createdImportId} ({surplusItems.Count} mặt hàng thừa)");
+                if (createdExportId != null)
+                    messages.Add($"Đã tạo phiếu xuất kho {createdExportId} ({shortageItems.Count} mặt hàng thiếu)");
+                if (!messages.Any())
+                    messages.Add("Không có chênh lệch — phiếu kiểm kê đã hoàn thành");
+
+                return new ProcessStockTakeResultDto
+                {
+                    Success = true,
+                    Message = string.Join(". ", messages),
+                    ImportVoucherId = createdImportId,
+                    ExportVoucherId = createdExportId,
                 };
-
-                var exportResult = await _exportService.CreateExportAsync(exportRequest, userId);
-                if (!exportResult.IsSuccess)
-                    return Fail($"Lỗi tạo phiếu xuất: {exportResult.Message}");
             }
-
-            // ── 4. Đánh dấu phiếu hoàn thành ────────────────
-            voucher.IsCompleted = true;
-            await _uow.StockTakeVouchers.UpdateAsync(voucher);
-            await _uow.SaveChangesAsync();
-
-            // ── 5. Trả kết quả ───────────────────────────────
-            var messages = new List<string>();
-            if (importVoucherId != null)
-                messages.Add($"Đã tạo phiếu nhập kho {importVoucherId} ({surplusItems.Count} mặt hàng thừa)");
-            if (exportVoucherId != null)
-                messages.Add($"Đã tạo phiếu xuất kho {exportVoucherId} ({shortageItems.Count} mặt hàng thiếu)");
-            if (!messages.Any())
-                messages.Add("Không có chênh lệch — phiếu kiểm kê đã hoàn thành");
-
-            return new ProcessStockTakeResultDto
+            catch (Exception ex)
             {
-                Success = true,
-                Message = string.Join(". ", messages),
-                ImportVoucherId = importVoucherId,
-                ExportVoucherId = exportVoucherId,
-            };
+                await transaction.RollbackAsync();
+                return Fail($"Lỗi xử lý kiểm kê, đã rollback toàn bộ thay đổi: {ex.Message}");
+            }
         }
 
-        // ── Helpers ───────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────
         private static ProcessStockTakeResultDto Fail(string msg) =>
             new() { Success = false, Message = msg };
 

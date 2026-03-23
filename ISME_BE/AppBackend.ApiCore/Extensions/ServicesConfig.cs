@@ -1,5 +1,4 @@
 using AppBackend.Repositories.Generic;
-using AppBackend.Repositories.Repositories.AuditRepo;
 using AppBackend.Repositories.Repositories.CustomerRepo;
 using AppBackend.Repositories.Repositories.ExportRepo;
 using AppBackend.Repositories.Repositories.GoodsCategoryRepo;
@@ -13,7 +12,6 @@ using AppBackend.Repositories.Repositories.UserRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
-using AppBackend.Services.Services.AuditServices;
 using AppBackend.Services.Services.AuthServices;
 using AppBackend.Services.Services.CustomerServices;
 using AppBackend.Services.Services.Email;
@@ -45,7 +43,6 @@ public static class ServicesConfig
         services.AddScoped<IImportRepository, ImportRepository>();
         services.AddScoped<IExportRepository, ExportRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
-        services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<IGoodsCategoryRepository, GoodsCategoryRepository>();
         services.AddScoped<IGoodsRepository, GoodsRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
@@ -65,7 +62,6 @@ public static class ServicesConfig
         services.AddScoped<IImportServices, ImportService>();
         services.AddScoped<IExportServices, ExportService>();
         services.AddScoped<ISupplierService, SupplierService>();
-        services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IGoodsCategoryService, GoodsCategoryService>();
         services.AddScoped<IGoodsService, GoodsService>();
         services.AddScoped<ICustomerService, CustomerService>();

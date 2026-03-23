@@ -91,7 +91,6 @@ export default function EditExportForm({ voucherId }: Props) {
     const emptyShim: ExportItem = {
       goodsId: "", goodsName: "", unit: "",
       quantity: 1, unitPrice: 0, amount1: 0,
-      vat: 0, promotion: 0,
       debitAccount1: getDebitAccountByReason("IMPORT_RETURN"),
       creditAccount1: "156",
       debitAccount2: "", creditAccount2: "",
