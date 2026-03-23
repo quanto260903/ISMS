@@ -46,10 +46,15 @@ namespace AppBackend.Services.Services.ExportServices
         // ════════════════════════════════════════════════════════
         private async Task<ResultModel<int>?> ValidateItems(
             List<CreateExportItemRequest> items,
+            string? voucherCode = null,
             string? excludeVoucherId = null)
         {
             if (items == null || items.Count == 0)
                 return Fail(400, "EMPTY_ITEMS", "Phiếu xuất phải có ít nhất một dòng hàng hóa");
+
+            // XK3 = xuất kiểm kê — bỏ qua OffsetVoucher và kiểm tra FIFO
+            // vì đây là phiếu điều chỉnh tồn kho, không phải xuất bán hàng thông thường
+            bool isStockTakeExport = voucherCode == "XK3";
 
             // Gom tổng số lượng theo (GoodsId, OffsetVoucher) để kiểm tra aggregate
             var inboundTotals = new Dictionary<(string goodsId, string offsetVoucher), int>();
@@ -71,16 +76,19 @@ namespace AppBackend.Services.Services.ExportServices
                     return Fail(400, "INVALID_PRICE",
                         $"Đơn giá không hợp lệ cho '{goods.GoodsName}'");
 
-                // [ERROR 1] offsetVoucher bắt buộc
-                if (string.IsNullOrWhiteSpace(item.OffsetVoucher))
+                // [ERROR 1] offsetVoucher bắt buộc — trừ XK3 (xuất kiểm kê không trỏ vào phiếu nhập)
+                if (!isStockTakeExport && string.IsNullOrWhiteSpace(item.OffsetVoucher))
                     return Fail(400, "MISSING_OFFSET_VOUCHER",
                         $"'{goods.GoodsName}': phải chọn chứng từ nhập kho đối trừ");
 
-                var key = (item.GoodsId!, item.OffsetVoucher!);
-                inboundTotals[key] = inboundTotals.GetValueOrDefault(key) + item.Quantity.Value;
+                if (!isStockTakeExport && !string.IsNullOrWhiteSpace(item.OffsetVoucher))
+                {
+                    var key = (item.GoodsId!, item.OffsetVoucher!);
+                    inboundTotals[key] = inboundTotals.GetValueOrDefault(key) + item.Quantity.Value;
+                }
             }
 
-            // [ERROR 2] Kiểm tra tồn còn lại theo từng phiếu nhập (aggregate)
+            // [ERROR 2] Kiểm tra tồn còn lại theo từng phiếu nhập (aggregate) — bỏ qua cho XK3
             foreach (var ((goodsId, offsetVoucher), totalQty) in inboundTotals)
             {
                 var remaining = await _exportRepository
@@ -104,11 +112,7 @@ namespace AppBackend.Services.Services.ExportServices
         //
         // Mỗi item request → 1 VoucherDetail.
         // offsetVoucher đã được validate là không rỗng trước khi vào đây.
-        //
-        // Lưu ý tồn kho: trigger trg_UpdateItemOnHand_OnInsert tự động GIẢM
-        // ItemOnHand khi VoucherDetail với CreditAccount = 156 được INSERT.
-        // → KHÔNG gọi DeductStockAsync ở đây để tránh double-deduction.
-        //   (DeductStockAsync chỉ dùng nếu trigger bị tắt/xóa.)
+        // Tồn kho được trừ thủ công bằng DeductStockAsync (trigger đã bị xóa).
         // ════════════════════════════════════════════════════════
         private static List<VoucherDetail> BuildDetails(
             string voucherId, List<CreateExportItemRequest> items)
@@ -151,16 +155,14 @@ namespace AppBackend.Services.Services.ExportServices
 
         // ════════════════════════════════════════════════════════
         // CREATE
-        // [ERROR 9] Bọc transaction: validate → build → save → commit.
-        // Tồn kho được GIẢM tự động bởi trigger AFTER INSERT khi SaveChanges.
-        // Nếu bất kỳ bước nào lỗi, transaction tự rollback khi dispose.
+        // Bọc transaction: validate → build → save → trừ tồn kho → commit.
         // ════════════════════════════════════════════════════════
         public async Task<ResultModel<int>> CreateExportAsync(ExportOrder request, string userId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                var validErr = await ValidateItems(request.Items);
+                var validErr = await ValidateItems(request.Items, voucherCode: request.VoucherCode);
                 if (validErr != null) return validErr;
 
                 var export = new Voucher
@@ -182,6 +184,11 @@ namespace AppBackend.Services.Services.ExportServices
                 export.VoucherDetails = details;
 
                 await _exportRepository.AddAsync(export);
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var item in request.Items)
+                    await _exportRepository.DeductStockAsync(item.GoodsId!, item.Quantity!.Value);
+
                 var rows = await _unitOfWork.SaveChangesAsync();
                 await tx.CommitAsync();
                 return Ok(rows, "Tạo phiếu xuất kho thành công");
@@ -191,15 +198,11 @@ namespace AppBackend.Services.Services.ExportServices
 
         // ════════════════════════════════════════════════════════
         // UPDATE
-        // [ERROR 9] Bọc transaction.
-        //
         // Thứ tự quan trọng:
-        //   1. Validate TRƯỚC (dùng excludeVoucherId để bỏ qua export hiện tại
-        //      khi tính "đã xuất", tránh tự block chính mình).
+        //   1. Validate (excludeVoucherId để bỏ qua export hiện tại khi tính đã xuất).
         //   2. Zero-out details cũ: set Quantity = 0 (GIỮ LẠI để báo cáo),
-        //      đồng thời cộng lại tồn kho thủ công (trigger chỉ AFTER INSERT,
-        //      không bắt UPDATE → phải gọi AddStockAsync bằng tay).
-        //   3. INSERT details mới → trigger AFTER INSERT tự GIẢM ItemOnHand.
+        //      đồng thời cộng lại tồn kho thủ công bằng AddStockAsync.
+        //   3. INSERT details mới + trừ tồn kho thủ công bằng DeductStockAsync.
         //   4. SaveChanges + Commit.
         // ════════════════════════════════════════════════════════
         public async Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string userId)
@@ -212,7 +215,7 @@ namespace AppBackend.Services.Services.ExportServices
                     return Fail(404, "NOT_FOUND", $"Không tìm thấy phiếu xuất: {request.VoucherId}");
 
                 // ── 1. Validate với excludeVoucherId ──────────────
-                var validErr = await ValidateItems(request.Items, excludeVoucherId: request.VoucherId);
+                var validErr = await ValidateItems(request.Items, voucherCode: request.VoucherCode, excludeVoucherId: request.VoucherId);
                 if (validErr != null) return validErr;
 
                 // ── 2. Zero-out details cũ: GIỮ LẠI dòng (dùng cho báo cáo),
@@ -239,11 +242,16 @@ namespace AppBackend.Services.Services.ExportServices
                 voucher.BankName = request.BankName;
                 voucher.BankAccountNumber = request.BankAccountNumber;
 
-                // ── 4. INSERT details mới (trigger AFTER INSERT tự GIẢM stock) ─
+                // ── 4. INSERT details mới + trừ tồn kho thủ công ────────────
                 var newDetails = BuildDetails(voucher.VoucherId, request.Items);
                 foreach (var d in newDetails) voucher.VoucherDetails.Add(d);
 
                 await _exportRepository.UpdateAsync(voucher);
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var item in request.Items)
+                    await _exportRepository.DeductStockAsync(item.GoodsId!, item.Quantity!.Value);
+
                 var rows = await _unitOfWork.SaveChangesAsync();
                 await tx.CommitAsync();
                 return Ok(rows, "Cập nhật phiếu xuất kho thành công");
@@ -281,7 +289,9 @@ namespace AppBackend.Services.Services.ExportServices
                     VoucherDate = voucher.VoucherDate,
                     BankName = voucher.BankName,
                     BankAccountNumber = voucher.BankAccountNumber,
-                    Items = voucher.VoucherDetails.Select(d => new CreateExportItemRequest
+                    Items = voucher.VoucherDetails
+                        .Where(d => (d.Quantity ?? 0) > 0)
+                        .Select(d => new CreateExportItemRequest
                     {
                         GoodsId = d.GoodsId,
                         GoodsName = d.GoodsName,

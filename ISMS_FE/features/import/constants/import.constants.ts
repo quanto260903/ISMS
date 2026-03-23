@@ -23,15 +23,13 @@ export const DEFAULT_CREDIT_ACCOUNT = "111";
 export const getVoucherCodeByReason = (reason: InwardReason): string => {
   switch (reason) {
     case "SALES_RETURN": return "NK2";
-    case "OTHER":        return "NK3";
     default:             return "NK1";  // PURCHASE
   }
 };
 
 export const INWARD_REASON_LABELS: Record<InwardReason, string> = {
-  PURCHASE:     "Mua hàng",
-  SALES_RETURN: "Hàng bán bị trả lại",
-  OTHER:        "Khác",
+  PURCHASE:     "Nhập kho mua hàng",
+  SALES_RETURN: "Nhập kho hàng bán trả lại",
 };
 
 export const INWARD_TABLE_COLUMNS = [

@@ -189,11 +189,20 @@ namespace AppBackend.Services.Services.StockTakeServices
             var importVoucherId = $"NK{voucher.VoucherCode}";
             var exportVoucherId = $"XK{voucher.VoucherCode}";
 
-            var surplusItems = details.Where(d => d.DifferenceQuantity > 0).ToList();
-            var shortageItems = details.Where(d => d.DifferenceQuantity < 0).ToList();
+            // Làm tròn chênh lệch về int, bỏ qua dòng có chênh lệch = 0 sau làm tròn
+            var surplusItems = details
+                .Where(d => d.DifferenceQuantity > 0)
+                .Select(d => (detail: d, qty: (int)Math.Round(d.DifferenceQuantity)))
+                .Where(x => x.qty > 0).ToList();
+            var shortageItems = details
+                .Where(d => d.DifferenceQuantity < 0)
+                .Select(d => (detail: d, qty: (int)Math.Round(Math.Abs(d.DifferenceQuantity))))
+                .Where(x => x.qty > 0).ToList();
 
-            // ── 2. Bắt đầu transaction ───────────────────────────
-            using var transaction = await _uow.BeginTransactionAsync();
+            // Lưu ý: KHÔNG bọc outer transaction ở đây.
+            // _inwardService và _exportService mỗi hàm đã tự quản lý transaction nội bộ,
+            // và tất cả chia sẻ cùng một DbContext (scoped DI) → không thể nest transactions.
+            // Nếu NK3 thành công nhưng XK3 thất bại, ta dùng compensating transaction (xóa NK3).
             try
             {
                 // ── 3. Hàng THỪA → Nhập kho NK3 ─────────────────
@@ -206,12 +215,12 @@ namespace AppBackend.Services.Services.StockTakeServices
                         VoucherCode = "NK3",
                         VoucherDescription = $"Nhập kho từ kiểm kê {voucher.VoucherCode} — hàng thừa",
                         VoucherDate = dateOnly,
-                        Items = surplusItems.Select(d => new CreateInwardItemRequest
+                        Items = surplusItems.Select(x => new CreateInwardItemRequest
                         {
-                            GoodsId = d.GoodsId,
-                            GoodsName = d.GoodsName,
-                            Unit = d.Unit,
-                            Quantity = (int)d.DifferenceQuantity,
+                            GoodsId = x.detail.GoodsId,
+                            GoodsName = x.detail.GoodsName,
+                            Unit = x.detail.Unit,
+                            Quantity = x.qty,
                             UnitPrice = 0,
                             Amount1 = 0,
                             DebitAccount1 = "156",
@@ -223,15 +232,13 @@ namespace AppBackend.Services.Services.StockTakeServices
 
                     var inwardResult = await _inwardService.CreateInwardAsync(inwardRequest, userId);
                     if (!inwardResult.IsSuccess)
-                    {
-                        await transaction.RollbackAsync();
                         return Fail($"Lỗi tạo phiếu nhập: {inwardResult.Message}");
-                    }
 
                     createdImportId = importVoucherId;
                 }
 
                 // ── 4. Hàng THIẾU → Xuất kho XK3 ────────────────
+                // OffsetVoucher = null vì XK3 bỏ qua FIFO (phiếu điều chỉnh, không phải xuất bán)
                 string? createdExportId = null;
                 if (shortageItems.Any())
                 {
@@ -241,17 +248,17 @@ namespace AppBackend.Services.Services.StockTakeServices
                         VoucherCode = "XK3",
                         VoucherDescription = $"Xuất kho từ kiểm kê {voucher.VoucherCode} — hàng thiếu",
                         VoucherDate = dateOnly,
-                        Items = shortageItems.Select(d => new CreateExportItemRequest
+                        Items = shortageItems.Select(x => new CreateExportItemRequest
                         {
-                            GoodsId = d.GoodsId,
-                            GoodsName = d.GoodsName,
-                            Unit = d.Unit,
-                            Quantity = (int)Math.Abs(d.DifferenceQuantity),
+                            GoodsId = x.detail.GoodsId,
+                            GoodsName = x.detail.GoodsName,
+                            Unit = x.detail.Unit,
+                            Quantity = x.qty,
                             UnitPrice = 0,
                             Amount1 = 0,
                             DebitAccount1 = "1381",
                             CreditAccount1 = "156",
-                            OffsetVoucher = voucher.VoucherCode,
+                            OffsetVoucher = null,   // XK3 không đối trừ phiếu nhập cụ thể
                             UserId = userId,
                             CreatedDateTime = now,
                         }).ToList(),
@@ -260,7 +267,9 @@ namespace AppBackend.Services.Services.StockTakeServices
                     var exportResult = await _exportService.CreateExportAsync(exportRequest, userId);
                     if (!exportResult.IsSuccess)
                     {
-                        await transaction.RollbackAsync();
+                        // Bù trừ: hủy NK3 đã tạo trước đó (nếu có)
+                        if (createdImportId != null)
+                            await _inwardService.DeleteAsync(createdImportId);
                         return Fail($"Lỗi tạo phiếu xuất: {exportResult.Message}");
                     }
 
@@ -272,10 +281,7 @@ namespace AppBackend.Services.Services.StockTakeServices
                 await _uow.StockTakeVouchers.UpdateAsync(voucher);
                 await _uow.SaveChangesAsync();
 
-                // ── 6. Commit ─────────────────────────────────────
-                await transaction.CommitAsync();
-
-                // ── 7. Trả kết quả ────────────────────────────────
+                // ── 6. Trả kết quả ────────────────────────────────
                 var messages = new List<string>();
                 if (createdImportId != null)
                     messages.Add($"Đã tạo phiếu nhập kho {createdImportId} ({surplusItems.Count} mặt hàng thừa)");
@@ -294,8 +300,7 @@ namespace AppBackend.Services.Services.StockTakeServices
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return Fail($"Lỗi xử lý kiểm kê, đã rollback toàn bộ thay đổi: {ex.Message}");
+                return Fail($"Lỗi xử lý kiểm kê: {ex.Message}");
             }
         }
 

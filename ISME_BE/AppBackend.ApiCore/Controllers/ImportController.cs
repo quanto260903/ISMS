@@ -90,5 +90,16 @@ namespace AppBackend.ApiCore.Controllers
             var result = await _importService.UpdateInwardAsync(request, userId);
             return StatusCode(result.StatusCode, result);
         }
+
+        /// <summary>
+        /// Xóa phiếu nhập kho
+        /// DELETE /api/Import/{voucherId}
+        /// </summary>
+        [HttpDelete("{voucherId}")]
+        public async Task<IActionResult> DeleteInward(string voucherId)
+        {
+            var result = await _importService.DeleteAsync(voucherId);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

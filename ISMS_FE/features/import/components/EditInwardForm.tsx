@@ -139,9 +139,9 @@ export default function EditInwardForm({ voucherId }: Props) {
         <h3 style={styles.sectionTitle}>Lý do nhập kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <select value={reason} onChange={(e) => onReasonChange(e.target.value as InwardReason)} style={s.reasonSelect}>
-            {(["PURCHASE", "SALES_RETURN", "OTHER"] as InwardReason[]).map((r) => (
+            {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
               <option key={r} value={r}>
-                {r === "PURCHASE" ? "🛒 " : r === "SALES_RETURN" ? "↩️ " : "📝 "}
+                {r === "PURCHASE" ? "🛒 " : "↩️ "}
                 {INWARD_REASON_LABELS[r]}
               </option>
             ))}

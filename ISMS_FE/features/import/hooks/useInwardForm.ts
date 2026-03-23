@@ -134,8 +134,8 @@ export function useInwardForm({
       const label = item.goodsName || item.goodsId;
       if (item.quantity <= 0)
         return `Dòng "${label}": Số lượng phải lớn hơn 0`;
-      if (item.unitPrice <= 0)
-        return `Dòng "${label}": Đơn giá phải lớn hơn 0`;
+      if (item.unitPrice < 0)
+        return `Dòng "${label}": Đơn giá không được âm`;
       if (item.promotion < 0 || item.promotion > 100)
         return `Dòng "${label}": Khuyến mãi phải từ 0 đến 100%`;
     }

@@ -80,5 +80,45 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
             _context.Vouchers.Update(voucher);
         }
 
+        public async Task DeleteAsync(string voucherId)
+        {
+            var voucher = await _context.Vouchers
+                .Include(v => v.VoucherDetails)
+                .FirstOrDefaultAsync(v => v.VoucherId == voucherId);
+            if (voucher != null)
+                _context.Vouchers.Remove(voucher);
+        }
+
+        public async Task<bool> IsAlreadyReturnedAsync(string saleVoucherId)
+        {
+            return await _context.Vouchers
+                .Where(v => v.VoucherCode == "NK2")
+                .AnyAsync(v => v.VoucherDetails.Any(d => d.OffsetVoucher == saleVoucherId));
+        }
+
+        public async Task AddStockAsync(string goodsId, int quantity)
+        {
+            var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
+            if (goods == null)
+                throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
+            goods.ItemOnHand = (goods.ItemOnHand ?? 0) + quantity;
+        }
+
+        public async Task DeductStockAsync(string goodsId, int quantity)
+        {
+            var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
+            if (goods == null)
+                throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
+            goods.ItemOnHand = Math.Max(0, (goods.ItemOnHand ?? 0) - quantity);
+        }
+
+        public async Task<bool> HasDependentExportsAsync(string inboundVoucherId)
+        {
+            // Kiểm tra có dòng xuất nào đối trừ vào phiếu nhập này không
+            // (OffsetVoucher lưu VoucherId của phiếu nhập)
+            return await _context.VoucherDetails
+                .AnyAsync(d => d.OffsetVoucher == inboundVoucherId);
+        }
+
     }
 }

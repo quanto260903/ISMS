@@ -325,7 +325,7 @@ public partial class IndividualBusinessContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__VoucherD__3214EC07265E235B");
 
-            entity.ToTable("VoucherDetail", tb => tb.HasTrigger("trg_UpdateItemOnHand_OnInsert"));
+            entity.ToTable("VoucherDetail");
 
             entity.Property(e => e.Amount1).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.Amount2).HasColumnType("decimal(18, 0)");

@@ -64,12 +64,13 @@ export async function createInward(payload: Record<string, unknown>) {
   return json as { isSuccess: boolean; message: string };
 }
 
-// Danh sách kho (để chọn kho nhập)
-export async function getWarehouses(): Promise<{ warehouseId: string; warehouseName: string }[]> {
-  const res = await fetch(`${BASE}/Warehouse/list`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Lỗi tải danh sách kho");
+export async function deleteInward(voucherId: string): Promise<{ isSuccess: boolean; message: string }> {
+  const res = await fetch(
+    `${BASE}/Import/${encodeURIComponent(voucherId)}`,
+    { method: "DELETE", cache: "no-store" }
+  );
   const json = await res.json();
-  return Array.isArray(json) ? json : json.data ?? [];
+  return json as { isSuccess: boolean; message: string };
 }
 
 export async function getInwardList(params: {

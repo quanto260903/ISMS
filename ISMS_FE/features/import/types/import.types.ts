@@ -3,7 +3,7 @@
 // ============================================================
 
 // Lý do nhập kho — quyết định VoucherCode
-export type InwardReason = "PURCHASE" | "SALES_RETURN" | "OTHER";
+export type InwardReason = "PURCHASE" | "SALES_RETURN";
 
 export interface InwardItem {
   goodsId:         string;
@@ -65,7 +65,6 @@ export interface SaleVoucherLookupItem {
   unitPrice:       number;
   amount1:         number;
   promotion:       number;
-  creditWarehouseId?: string;
 }
 
 export interface SaleVoucherLookup {

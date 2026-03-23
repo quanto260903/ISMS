@@ -252,7 +252,7 @@ export default function AddExportForm() {
 
       {/* ── Lý do xuất kho — chỉ hiện 2 lý do thủ công ── */}
       <section style={s.card}>
-        <h3 style={s.cardTitle}><span style={s.titleDot} />Lý do xuất kho</h3>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Chọn loại phiếu xuất</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <select
             value={reason}

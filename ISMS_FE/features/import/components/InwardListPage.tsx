@@ -19,7 +19,7 @@ const fmtMoney = (n: number) =>
 const VOUCHER_CODE_LABELS: Record<string, string> = {
   NK1: "Mua hàng",
   NK2: "Hàng trả lại",
-  NK3: "Nhập hàng kiểm kê",
+  NK3: "Nhập kiểm kê",
 };
 
 const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {

@@ -15,5 +15,6 @@ namespace AppBackend.Services.Services.ImportServices
 
         Task<ResultModel<ImportOrder>> GetByIdAsync(string voucherId);
         Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId);
+        Task<ResultModel<int>> DeleteAsync(string voucherId);
     }
 }

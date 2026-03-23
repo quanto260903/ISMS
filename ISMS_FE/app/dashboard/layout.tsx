@@ -63,9 +63,9 @@ const navGroups = [
   {
     title: 'Quản lý đơn hàng',
     items: [
-      { href: '/dashboard/import', icon: ArrowDownToLine, label: 'Nhập hàng' },
-      { href: '/dashboard/export', icon: ArrowUpFromLine, label: 'Xuất hàng' },
-      { href: '/dashboard/stock-take', icon: ClipboardCheck, label: 'Kiểm hàng' },
+      { href: '/dashboard/import', icon: ArrowDownToLine, label: 'Nhập kho' },
+      { href: '/dashboard/export', icon: ArrowUpFromLine, label: 'Xuất kho' },
+      { href: '/dashboard/stock-take', icon: ClipboardCheck, label: 'Kiểm kê kho' },
       { href: '/dashboard/sale', icon: RotateCcw, label: 'Bán hàng' },
     ]
   },

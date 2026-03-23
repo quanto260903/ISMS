@@ -157,7 +157,7 @@ export default function AddInwardForm() {
 
       {/* ── Lý do nhập kho ── */}
       <section style={s.card}>
-        <h3 style={s.cardTitle}><span style={s.titleDot} />Lý do nhập kho</h3>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Chọn loại phiếu nhập</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <select
             value={reason}

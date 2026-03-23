@@ -17,5 +17,10 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
 
         Task<Voucher?> GetByIdAsync(string voucherId);
         Task UpdateAsync(Voucher voucher);
+        Task DeleteAsync(string voucherId);
+        Task<bool> IsAlreadyReturnedAsync(string saleVoucherId);
+        Task AddStockAsync(string goodsId, int quantity);
+        Task DeductStockAsync(string goodsId, int quantity);
+        Task<bool> HasDependentExportsAsync(string inboundVoucherId);
     }
 }

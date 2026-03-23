@@ -35,7 +35,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
                 .FirstOrDefaultAsync(v =>
                     v.VoucherId == voucherId &&
                     v.VoucherCode != null &&
-                    v.VoucherCode.StartsWith("XH"));
+                    v.VoucherCode.StartsWith("XK"));
         }
 
         public async Task<(IEnumerable<Voucher> Items, int Total)> GetListAsync(
@@ -131,7 +131,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
             {
                 if (remaining <= 0) break;
 
-                var inboundCode = detail.Voucher!.VoucherCode!;
+                var inboundCode = detail.Voucher!.VoucherId!;
                 var inboundQty  = detail.Quantity ?? 0;
 
                 exportedByVoucher.TryGetValue(inboundCode, out var alreadyExported);
