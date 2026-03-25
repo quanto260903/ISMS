@@ -53,6 +53,13 @@ export async function getInward(voucherId: string): Promise<InwardVoucher> {
   const json = await res.json();
   return (json.data ?? json) as InwardVoucher;
 }
+export async function getNextImportId(): Promise<string> {
+  const res = await fetch(`${BASE}/Import/next-id`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Lỗi lấy mã phiếu nhập");
+  const json = await res.json();
+  return json.voucherId as string;
+}
+
 export async function createInward(payload: Record<string, unknown>) {
   const res = await fetch(`${BASE}/Import/add-inward`, {
     method:  "POST",

@@ -22,5 +22,6 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
         Task AddStockAsync(string goodsId, int quantity);
         Task DeductStockAsync(string goodsId, int quantity);
         Task<bool> HasDependentExportsAsync(string inboundVoucherId);
+        Task<string> GenerateVoucherIdAsync();
     }
 }

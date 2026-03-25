@@ -40,6 +40,12 @@ export async function searchGoods(keyword: string, limit = 10): Promise<GoodsSea
   return Array.isArray(json) ? json : (json as any).data ?? [];
 }
 
+// ── Lấy mã phiếu xuất kho tiếp theo từ server ────────────────
+export async function getNextExportId(): Promise<string> {
+  const json = await apiFetch<{ voucherId: string }>(`${BASE}/Export/next-id`);
+  return json.voucherId;
+}
+
 // ── Chi tiết 1 phiếu xuất ────────────────────────────────────
 export async function getExport(voucherId: string): Promise<ExportVoucher> {
   return apiFetch<ExportVoucher>(`${BASE}/Export/${encodeURIComponent(voucherId)}`);

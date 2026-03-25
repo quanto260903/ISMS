@@ -5,10 +5,9 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { createExport, updateExport } from "../export.api";
+import { createExport, updateExport, getNextExportId } from "../export.api";
 import type { ExportReason, ExportVoucher, ExportItem } from "../types/export.types";
 import {
-  generateVoucherNumber,
   getVoucherCodeByReason,
   getDebitAccountByReason,
   detectReasonFromCode,
@@ -39,7 +38,7 @@ export function useExportForm({
 
   const [voucher, setVoucher] = useState<ExportVoucher>(
     initialData ?? {
-      voucherId:          generateVoucherNumber(),
+      voucherId:          "",
       voucherCode:        getVoucherCodeByReason("IMPORT_RETURN"),
       customerId:         "",
       customerName:       "",
@@ -50,6 +49,14 @@ export function useExportForm({
       items:              [],
     }
   );
+
+  // Lấy mã phiếu xuất kho tiếp theo từ server (chỉ khi tạo mới)
+  useEffect(() => {
+    if (initialData) return;
+    getNextExportId()
+      .then((id) => setVoucher((prev) => ({ ...prev, voucherId: id })))
+      .catch(() => {/* giữ rỗng nếu lỗi */ });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Khi initialData fetch xong (trang edit) → sync lại state
   useEffect(() => {

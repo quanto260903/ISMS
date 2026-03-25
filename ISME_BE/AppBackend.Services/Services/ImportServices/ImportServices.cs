@@ -107,10 +107,11 @@ namespace AppBackend.Services.Services.ImportServices
                     }
                 }
 
-                // ── 3. Tạo Voucher header ──
+                // ── 3. Tạo Voucher header — ID sinh tự động từ server ──
+                var generatedId = await _inwardRepository.GenerateVoucherIdAsync();
                 var inward = new Voucher
                 {
-                    VoucherId = request.VoucherId,
+                    VoucherId = generatedId,
                     VoucherCode = request.VoucherCode,
                     CustomerId = request.CustomerId,
                     CustomerName = request.CustomerName,
@@ -451,6 +452,9 @@ namespace AppBackend.Services.Services.ImportServices
                 };
             }
         }
+
+        public async Task<string> GetNextVoucherIdAsync()
+            => await _inwardRepository.GenerateVoucherIdAsync();
 
         public async Task<ResultModel<int>> DeleteAsync(string voucherId)
         {

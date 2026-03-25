@@ -165,9 +165,10 @@ namespace AppBackend.Services.Services.ExportServices
                 var validErr = await ValidateItems(request.Items, voucherCode: request.VoucherCode);
                 if (validErr != null) return validErr;
 
+                var generatedId = await _exportRepository.GenerateVoucherIdAsync();
                 var export = new Voucher
                 {
-                    VoucherId = request.VoucherId,
+                    VoucherId = generatedId,
                     VoucherCode = request.VoucherCode,
                     CustomerId = request.CustomerId,
                     CustomerName = request.CustomerName,
@@ -372,6 +373,9 @@ namespace AppBackend.Services.Services.ExportServices
                 };
             }
         }
+        public async Task<string> GetNextVoucherIdAsync()
+            => await _exportRepository.GenerateVoucherIdAsync();
+
         public async Task<IEnumerable<FifoAllocationDto>> GetFifoPreviewAsync(
     string goodsId, int quantity)
         {

@@ -317,10 +317,10 @@ export default function AddInwardForm() {
             <div style={s.rightRow}>
               <label style={s.rightLabel}>Số phiếu *</label>
               <input
-                style={{ ...styles.input, ...s.rightInput, fontWeight: 700, color: "#1d4ed8", fontFamily: "monospace" }}
+                style={{ ...styles.input, ...s.rightInput, fontWeight: 700, color: "#1d4ed8", fontFamily: "monospace", background: "#f0f4ff", cursor: "default" }}
                 value={voucher.voucherId}
-                onChange={(e) => setField("voucherId", e.target.value)}
-                placeholder="Tự sinh, có thể sửa"
+                readOnly
+                placeholder="Đang tạo số phiếu..."
               />
             </div>
             <div style={s.rightRow}>

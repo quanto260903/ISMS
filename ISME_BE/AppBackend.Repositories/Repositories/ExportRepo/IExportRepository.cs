@@ -29,6 +29,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
 
         Task AddStockAsync(string goodsId, int quantity);    // hoàn tồn kho khi hủy/sửa
         Task DeductStockAsync(string goodsId, int quantity); // trừ tồn kho khi xuất
+        Task<string> GenerateVoucherIdAsync();
     }
 
     // Kết quả phân bổ FIFO cho 1 dòng hàng

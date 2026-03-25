@@ -5,10 +5,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { createInward, updateInward } from "../import.api";
+import { createInward, updateInward, getNextImportId } from "../import.api";
 import type { InwardVoucher, InwardItem, InwardReason } from "../types/import.types";
 import {
-  generateVoucherNumber,
   getVoucherCodeByReason,
   DEFAULT_CREDIT_ACCOUNT,
   calcAmount,
@@ -34,7 +33,7 @@ export function useInwardForm({
   // ── Voucher state ─────────────────────────────────────────
   const [voucher, setVoucher] = useState<InwardVoucher>(
     initialData ?? {
-      voucherId:          generateVoucherNumber(),
+      voucherId:          "",
       voucherCode:        "NK1",
       customerId:         "",
       customerName:       "",
@@ -45,6 +44,14 @@ export function useInwardForm({
       items:              [],
     }
   );
+
+  // Lấy mã phiếu nhập kho tiếp theo từ server (chỉ khi tạo mới)
+  useEffect(() => {
+    if (initialData) return;
+    getNextImportId()
+      .then((id) => setVoucher((prev) => ({ ...prev, voucherId: id })))
+      .catch(() => {/* giữ rỗng nếu lỗi */ });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Khi initialData fetch xong (trang edit) → sync lại state
   useEffect(() => {

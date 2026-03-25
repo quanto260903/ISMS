@@ -10,12 +10,6 @@ export const calcAmount = (item: InwardItem): number => {
   return item.quantity * item.unitPrice * (1 - discount);
 };
 
-export const generateVoucherNumber = (): string => {
-  const time   = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 100).toString().padStart(2, "0");
-  return `NK${time}${random}`;
-};
-
 // Tài khoản Có mặc định — luôn là tiền mặt (111)
 export const DEFAULT_CREDIT_ACCOUNT = "111";
 

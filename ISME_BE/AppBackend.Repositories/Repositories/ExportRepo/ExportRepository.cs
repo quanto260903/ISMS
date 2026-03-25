@@ -214,5 +214,24 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
                 throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
             goods.ItemOnHand = (goods.ItemOnHand ?? 0) + quantity;
         }
+
+        public async Task<string> GenerateVoucherIdAsync()
+        {
+            var ids = await _context.Vouchers
+                .Where(v => v.VoucherId != null && v.VoucherId.StartsWith("XK"))
+                .Select(v => v.VoucherId!)
+                .ToListAsync();
+
+            int nextNumber = 1;
+            if (ids.Any())
+            {
+                var maxNumber = ids
+                    .Select(id => int.TryParse(id.Substring(2), out int n) ? n : 0)
+                    .Max();
+                nextNumber = maxNumber + 1;
+            }
+
+            return $"XK{nextNumber:D6}";
+        }
     }
 }

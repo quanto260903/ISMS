@@ -17,6 +17,17 @@ namespace AppBackend.ApiCore.Controllers
             _importService = importService;
         }
         /// <summary>
+        /// Xem trước mã phiếu nhập kho tiếp theo (không tiêu thụ số thứ tự)
+        /// GET /api/Import/next-id
+        /// </summary>
+        [HttpGet("next-id")]
+        public async Task<IActionResult> GetNextId()
+        {
+            var nextId = await _importService.GetNextVoucherIdAsync();
+            return Ok(new { voucherId = nextId });
+        }
+
+        /// <summary>
         /// Thêm mới phiếu nhập kho
         /// </summary>
         [HttpPost("add-inward")]

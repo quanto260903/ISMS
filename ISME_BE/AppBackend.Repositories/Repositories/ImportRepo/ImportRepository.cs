@@ -120,5 +120,24 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
                 .AnyAsync(d => d.OffsetVoucher == inboundVoucherId);
         }
 
+        public async Task<string> GenerateVoucherIdAsync()
+        {
+            var ids = await _context.Vouchers
+                .Where(v => v.VoucherId != null && v.VoucherId.StartsWith("NK"))
+                .Select(v => v.VoucherId!)
+                .ToListAsync();
+
+            int nextNumber = 1;
+            if (ids.Any())
+            {
+                var maxNumber = ids
+                    .Select(id => int.TryParse(id.Substring(2), out int n) ? n : 0)
+                    .Max();
+                nextNumber = maxNumber + 1;
+            }
+
+            return $"NK{nextNumber:D6}";
+        }
+
     }
 }
