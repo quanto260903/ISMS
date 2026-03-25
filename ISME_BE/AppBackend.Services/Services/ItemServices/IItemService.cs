@@ -10,8 +10,9 @@ namespace AppBackend.Services.Services.ItemServices
 {
     public interface IItemService
     {
-        Task<ResultModel<List<WarehouseTransactionDto>>>
-            GetItemWarehouseReportAsync(string goodsId);
+        Task<ResultModel<List<WarehouseTransactionDto>>> GetItemWarehouseReportAsync(
+    string goodsId,
+    DateOnly? asOfDate = null);
         Task<IEnumerable<GoodsSearchDto>> SearchGoodsAsync(
                 string keyword,
                 int limit = 10,

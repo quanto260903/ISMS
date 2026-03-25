@@ -19,6 +19,7 @@ export interface InboundSelection {
   warehouseOut:       number;   // tổng đã xuất
   unitPrice:          number;   // đơn giá nhập tại thời điểm nhập kho
   costPerUnit:        number;   // cost / warehouseIn — dùng tính Amount1 khi xuất
+  voucherDate:        string | null; // ngày nhập kho gốc
 }
 
 interface Props {
@@ -34,7 +35,13 @@ interface Props {
   canCancel: boolean; // false = không hiện nút Hủy (bắt buộc chọn)
 }
 
-const fmtQty = (n: number) => n.toLocaleString("vi-VN");
+const fmtQty  = (n: number) => n.toLocaleString("vi-VN");
+const fmtDate = (d: string | null) => {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
 
 export default function SelectInboundModal({
   goodsId, goodsName, inbounds, loading,
@@ -42,13 +49,32 @@ export default function SelectInboundModal({
 }: Props) {
   // State: số lượng user nhập cho từng phiếu nhập
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  // State: tổng số lượng gợi ý FIFO
+  const [suggestQty, setSuggestQty] = useState<number | "">("");
 
   // Reset khi inbounds thay đổi (hàng khác)
   useEffect(() => {
     setQuantities({});
+    setSuggestQty("");
   }, [goodsId]);
 
   const totalSelected = Object.values(quantities).reduce((a, b) => a + (b || 0), 0);
+
+  const totalAvailable = inbounds.reduce((s, ib) => s + ib.remainingQty, 0);
+
+  // Phân bổ FIFO tự động: cấp phát từ phiếu nhập cũ nhất trước
+  const applyFifoSuggestion = () => {
+    if (!suggestQty || suggestQty <= 0) return;
+    const newQtys: Record<string, number> = {};
+    let remaining = suggestQty;
+    for (const ib of inbounds) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, ib.remainingQty);
+      if (take > 0) newQtys[ib.inboundVoucherCode] = take;
+      remaining -= take;
+    }
+    setQuantities(newQtys);
+  };
 
   const setQty = (code: string, val: number, max: number) => {
     const clamped = Math.max(0, Math.min(val, max));
@@ -90,6 +116,53 @@ export default function SelectInboundModal({
           <strong> Bắt buộc nhập ít nhất 1 phiếu</strong> trước khi xác nhận.
         </div>
 
+        {/* ── Gợi ý FIFO ── */}
+        {!loading && inbounds.length > 0 && (
+          <div style={s.fifoBar}>
+            <span style={s.fifoLabel}>⚡ Gợi ý FIFO:</span>
+            <input
+              type="number"
+              min={1}
+              max={totalAvailable}
+              value={suggestQty}
+              placeholder="Nhập SL cần xuất…"
+              style={{
+                ...s.fifoInput,
+                borderColor: suggestQty && Number(suggestQty) > totalAvailable
+                  ? "#fca5a5"
+                  : suggestQty ? "#86efac" : "#e2e8f0",
+              }}
+              onChange={(e) => {
+                const v = e.target.value === "" ? "" : Number(e.target.value);
+                setSuggestQty(v as number | "");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && applyFifoSuggestion()}
+            />
+            <button
+              style={{
+                ...s.fifoBtn,
+                opacity: suggestQty && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable ? 1 : 0.4,
+                cursor:  suggestQty && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable ? "pointer" : "not-allowed",
+              }}
+              onClick={applyFifoSuggestion}
+              disabled={!suggestQty || Number(suggestQty) <= 0 || Number(suggestQty) > totalAvailable}
+              title="Tự động phân bổ theo FIFO (phiếu nhập cũ nhất trước)"
+            >
+              Tự động phân bổ
+            </button>
+            {suggestQty !== "" && Number(suggestQty) > totalAvailable && (
+              <span style={s.fifoWarn}>
+                ⚠️ Vượt tồn kho ({fmtQty(totalAvailable)})
+              </span>
+            )}
+            {suggestQty !== "" && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable && (
+              <span style={s.fifoHint}>
+                Phân bổ từ phiếu nhập cũ nhất
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Body */}
         <div style={s.body}>
           {loading ? (
@@ -114,6 +187,7 @@ export default function SelectInboundModal({
               <thead>
                 <tr>
                   <th style={s.th}>Phiếu nhập</th>
+                  <th style={{ ...s.th, color: "#7c3aed" }}>Ngày nhập</th>
                   <th style={{ ...s.th, textAlign: "right", color: "#15803d" }}>Đã nhập</th>
                   <th style={{ ...s.th, textAlign: "right", color: "#dc2626" }}>Đã xuất</th>
                   <th style={{ ...s.th, textAlign: "right" }}>Còn tồn</th>
@@ -136,6 +210,9 @@ export default function SelectInboundModal({
                       }}>
                       <td style={s.td}>
                         <span style={s.voucherCode}>{ib.inboundVoucherCode}</span>
+                      </td>
+                      <td style={{ ...s.td, color: "#7c3aed", fontSize: 12, whiteSpace: "nowrap" }}>
+                        {fmtDate(ib.voucherDate)}
                       </td>
                       <td style={{ ...s.td, textAlign: "right", fontFamily: "monospace", color: "#15803d", fontWeight: 600 }}>
                         {fmtQty(ib.warehouseIn)}
@@ -181,7 +258,7 @@ export default function SelectInboundModal({
               {/* Tổng cộng */}
               <tfoot>
                 <tr style={{ background: "#f0f4ff", borderTop: "2px solid #e2e8f0" }}>
-                  <td colSpan={3} style={{ ...s.td, fontWeight: 700, color: "#475569", fontSize: 12 }}>
+                  <td colSpan={5} style={{ ...s.td, fontWeight: 700, color: "#475569", fontSize: 12 }}>
                     Tổng số lượng xuất:
                   </td>
                   <td style={{ ...s.td, textAlign: "right", fontWeight: 700,
@@ -244,4 +321,10 @@ const s: Record<string, React.CSSProperties> = {
   footer:     { display: "flex", alignItems: "center", padding: "14px 22px", borderTop: "1px solid #e2e8f0", gap: 8 },
   btnPrimary: { height: 36, padding: "0 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#0f766e,#0891b2)", color: "#fff", fontWeight: 700, fontSize: 13 },
   btnSecondary:{ height: 36, padding: "0 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  fifoBar:    { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "#f0f9ff", borderBottom: "1px solid #bae6fd" },
+  fifoLabel:  { fontSize: 12, fontWeight: 700, color: "#0369a1", whiteSpace: "nowrap" as const },
+  fifoInput:  { height: 30, width: 140, padding: "0 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 13, outline: "none", boxSizing: "border-box" as const, textAlign: "right" as const },
+  fifoBtn:    { height: 30, padding: "0 12px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#0284c7,#0891b2)", color: "#fff", fontWeight: 700, fontSize: 12, whiteSpace: "nowrap" as const },
+  fifoWarn:   { fontSize: 11, color: "#dc2626", fontWeight: 600 },
+  fifoHint:   { fontSize: 11, color: "#0369a1" },
 };

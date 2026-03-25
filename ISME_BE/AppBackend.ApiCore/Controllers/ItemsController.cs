@@ -17,12 +17,13 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         [HttpGet("warehouse-report/{goodsId}")]
-        public async Task<IActionResult> GetWarehouseReport(string goodsId)
+        public async Task<IActionResult> GetWarehouseReport(
+     string goodsId,
+     [FromQuery] DateOnly? asOfDate = null)
         {
             var result = await _itemService
-                .GetItemWarehouseReportAsync(goodsId);
-
-            return StatusCode(result.StatusCode, result);
+                .GetItemWarehouseReportAsync(goodsId, asOfDate);
+            return result.IsSuccess ? Ok(result.Data) : StatusCode(result.StatusCode, result);
         }
         [HttpGet("search")]
         public async Task<IActionResult> Search(

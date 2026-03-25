@@ -11,7 +11,9 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
     public interface IItemRepository
     {
         Task<Good> GetByIdAsync(string itemId);
-        Task<List<WarehouseTransactionDto>> GetWarehouseTransactionsAsync(string goodsId);
+        Task<List<WarehouseTransactionDto>> GetWarehouseTransactionsAsync(
+    string goodsId,
+    DateOnly? asOfDate = null);
 
         /// <summary>
         /// Tìm kiếm sản phẩm theo GoodsId có chứa chuỗi keyword.

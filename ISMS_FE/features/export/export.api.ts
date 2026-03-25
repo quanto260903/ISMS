@@ -164,9 +164,13 @@ export interface WarehouseTransactionItem {
   unitPrice:     number;          // đơn giá nhập tại thời điểm nhập kho
 }
 
-export async function getWarehouseReport(goodsId: string): Promise<WarehouseTransactionItem[]> {
+export async function getWarehouseReport(
+  goodsId: string,
+  asOfDate?: string        // yyyy-MM-dd — chỉ tính xuất kho có ngày <= asOfDate
+): Promise<WarehouseTransactionItem[]> {
+  const q = asOfDate ? `?asOfDate=${encodeURIComponent(asOfDate)}` : "";
   const res = await fetch(
-    `${BASE}/Items/warehouse-report/${encodeURIComponent(goodsId)}`,
+    `${BASE}/Items/warehouse-report/${encodeURIComponent(goodsId)}${q}`,
     { headers: { ...authHeader() }, cache: "no-store" }
   );
   const json = await res.json().catch(() => null);

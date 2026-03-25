@@ -62,6 +62,10 @@ export default function AddExportForm() {
   const reasonRef = useRef(reason);
   reasonRef.current = reason;
 
+  // Ref để tránh stale closure trong useCallback — luôn phản ánh ngày hiện tại của phiếu
+  const voucherDateRef = useRef(voucher.voucherDate);
+  voucherDateRef.current = voucher.voucherDate;
+
   const createEmptyExportItemShim = (): ExportItem => ({
     goodsId:         "",
     goodsName:       "",
@@ -132,7 +136,7 @@ export default function AddExportForm() {
   ) => {
     setPendingGoods({ itemIndex: index, goods, totalItems, inbounds: [], loading: true });
     try {
-      const rows = await getWarehouseReport(goods.goodsId);
+      const rows = await getWarehouseReport(goods.goodsId, voucherDateRef.current || undefined);
       const inbounds: InboundSelection[] = rows
         .filter((r) => r.offsetVoucher && r.customInHand > 0)
         .map((r) => ({
@@ -144,6 +148,7 @@ export default function AddExportForm() {
           warehouseOut:       r.warehouseOut,
           unitPrice:          r.unitPrice,
           costPerUnit:        r.warehouseIn > 0 ? r.cost / r.warehouseIn : 0,
+          voucherDate:        r.voucherDate ?? null,
         }));
       setPendingGoods((prev) => prev ? { ...prev, inbounds, loading: false } : null);
     } catch {
@@ -450,7 +455,8 @@ export default function AddExportForm() {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
-            onViewWarehouse={fetchReport}
+            onViewWarehouse={(idx, id, name) =>
+              fetchReport(idx, id, name, voucherDateRef.current || undefined)}
           />
         )}
 

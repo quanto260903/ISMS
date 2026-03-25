@@ -4,7 +4,7 @@
 
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import { EXPORT_REASON_LABELS, getVoucherCodeByReason, getDebitAccountByReason } from "../constants/export.constants";
@@ -102,6 +102,10 @@ export default function EditExportForm({ voucherId }: Props) {
     replaceAllItems([...newItems, emptyShim]);
   }, [inwardLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ref để tránh stale closure trong useCallback — luôn phản ánh ngày hiện tại của phiếu
+  const voucherDateRef = useRef(voucher.voucherDate);
+  voucherDateRef.current = voucher.voucherDate;
+
   // ── Modal bắt buộc chọn chứng từ nhập ────────────────────
   const [pendingGoods, setPendingGoods] = useState<PendingGoodsState | null>(null);
 
@@ -112,7 +116,7 @@ export default function EditExportForm({ voucherId }: Props) {
   ) => {
     setPendingGoods({ itemIndex: index, goods, totalItems, inbounds: [], loading: true });
     try {
-      const rows = await getWarehouseReport(goods.goodsId);
+      const rows = await getWarehouseReport(goods.goodsId, voucherDateRef.current || undefined);
       const inbounds: InboundSelection[] = rows
         .filter((r) => r.offsetVoucher && r.customInHand > 0)
         .map((r) => ({
@@ -124,6 +128,7 @@ export default function EditExportForm({ voucherId }: Props) {
           warehouseOut:       r.warehouseOut,
           unitPrice:          r.unitPrice,
           costPerUnit:        r.warehouseIn > 0 ? r.cost / r.warehouseIn : 0,
+          voucherDate:        r.voucherDate ?? null,
         }));
       setPendingGoods((prev) => prev ? { ...prev, inbounds, loading: false } : null);
     } catch {
@@ -187,7 +192,7 @@ export default function EditExportForm({ voucherId }: Props) {
     onGoodsSelected: handleGoodsSelected,
   });
 
-  const prevLengthRef = React.useRef(voucher.items.length);
+  const prevLengthRef = useRef(voucher.items.length);
   useEffect(() => {
     const cur = voucher.items.length, prev = prevLengthRef.current;
     if (cur > prev) for (let i = 0; i < cur - prev; i++) goodsSearch.addDropdown();
@@ -352,7 +357,8 @@ export default function EditExportForm({ voucherId }: Props) {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
-            onViewWarehouse={fetchReport}
+            onViewWarehouse={(idx, id, name) =>
+              fetchReport(idx, id, name, voucherDateRef.current || undefined)}
           />
         )}
 
