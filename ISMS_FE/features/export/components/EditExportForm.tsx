@@ -13,15 +13,12 @@ import { useExportDetail }           from "../hooks/useExportDetail";
 import { useGoodsSearch }            from "../hooks/useGoodsSearch";
 import { useInwardVoucherLookup }    from "../hooks/useInwardVoucherLookup";
 
-import { useWarehouseReport }   from "@/features/sale/hooks/useWarehouseReport";
 import { getWarehouseReport }   from "../export.api";
 import ExportItemTable, { type ExportItemWithLot } from "./ExportItemTable";
 import SelectInboundModal       from "./SelectInboundModal";
 import type { InboundSelection } from "./SelectInboundModal";
-import WarehouseReportModal     from "@/shared/components/warehouse/WarehouseReportModal";
 import { useAuthStore }         from "@/store/authStore";
 import type { ExportReason, ExportItem, GoodsSearchResult } from "../types/export.types";
-import type { WarehouseTransactionDto } from "@/features/sale/types/sale.types";
 
 interface PendingGoodsState {
   itemIndex:  number;
@@ -54,8 +51,6 @@ export default function EditExportForm({ voucherId }: Props) {
     initialData:  initialData ?? undefined,
     onSuccess:    () => setTimeout(() => router.push("/dashboard/export"), 1200),
   });
-
-  const { report, fetchReport, closeReport }  = useWarehouseReport();
 
   // ── Lookup phiếu nhập kho (chỉ khi IMPORT_RETURN) ────────
   const inwardLookup   = useInwardVoucherLookup();
@@ -173,11 +168,6 @@ export default function EditExportForm({ voucherId }: Props) {
     if (itemIndex === totalItems - 1) addItem();
     setPendingGoods(null);
   }, [pendingGoods, updateItem, addItem]);
-
-  // ── Khi chọn lô từ modal Kho → điền offsetVoucher ──
-  const handleSelectWarehouse = (itemIndex: number, row: WarehouseTransactionDto) => {
-    if (row.offsetVoucher) updateItem(itemIndex, "offsetVoucher", row.offsetVoucher);
-  };
 
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
@@ -357,8 +347,6 @@ export default function EditExportForm({ voucherId }: Props) {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
-            onViewWarehouse={(idx, id, name) =>
-              fetchReport(idx, id, name, voucherDateRef.current || undefined)}
           />
         )}
 
@@ -390,12 +378,6 @@ export default function EditExportForm({ voucherId }: Props) {
           </div>
         )}
       </div>
-
-      <WarehouseReportModal
-        report={report}
-        onClose={closeReport}
-        onSelectWarehouse={handleSelectWarehouse}
-      />
 
       {/* ── Modal bắt buộc chọn chứng từ nhập kho ── */}
       {pendingGoods && (

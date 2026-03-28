@@ -14,19 +14,16 @@ import {
 import { useExportForm }           from "../hooks/useExportForm";
 import { useInwardVoucherLookup }  from "../hooks/useInwardVoucherLookup";
 import { useGoodsSearch }          from "../hooks/useGoodsSearch";
-import { useWarehouseReport }      from "@/features/sale/hooks/useWarehouseReport";
 import { getWarehouseReport }      from "../export.api";
 import ExportItemTable             from "./ExportItemTable";
 import SelectInboundModal          from "./SelectInboundModal";
 import type { InboundSelection }   from "./SelectInboundModal";
-import WarehouseReportModal        from "@/shared/components/warehouse/WarehouseReportModal";
 import SupplierSearchInput         from "@/shared/components/supplier/SupplierSearchInput";
 import SupplierDropdown            from "@/shared/components/supplier/SupplierDropdown";
 import CreateSupplierModal         from "@/shared/components/supplier/CreateSupplierModal";
 import { useSupplierSearch }       from "@/shared/hooks/supplier/useSupplierSearch";
 import { useAuthStore }            from "@/store/authStore";
 import type { ExportReason, ExportItem, GoodsSearchResult } from "../types/export.types";
-import type { WarehouseTransactionDto } from "@/features/sale/types/sale.types";
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 
 // Chỉ 2 lý do cho phép tạo thủ công
@@ -53,8 +50,6 @@ export default function AddExportForm() {
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
   } = useExportForm({ userId: currentUserId, userFullName: currentUserName });
-
-  const { report, fetchReport, closeReport } = useWarehouseReport();
 
   const inwardLookup   = useInwardVoucherLookup();
   const isImportReturn = reason === "IMPORT_RETURN";
@@ -212,10 +207,6 @@ export default function AddExportForm() {
   };
 
   const supplierSearch = useSupplierSearch({ onSelect: handleSelectSupplier });
-
-  const handleSelectWarehouse = (itemIndex: number, row: WarehouseTransactionDto) => {
-    if (row.offsetVoucher) updateItem(itemIndex, "offsetVoucher", row.offsetVoucher);
-  };
 
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
@@ -435,7 +426,7 @@ export default function AddExportForm() {
 
         <div style={s.infoNote}>
           💡 Sau khi chọn mã hàng, hệ thống sẽ yêu cầu chọn <strong>phiếu nhập đối trừ</strong> và
-          số lượng xuất từ mỗi phiếu. Nút <strong>📦 Kho</strong> cho phép điều chỉnh sau.
+          số lượng xuất từ mỗi phiếu theo nguyên tắc FIFO.
         </div>
 
         {voucher.items.length > 0 && (
@@ -455,8 +446,6 @@ export default function AddExportForm() {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
-            onViewWarehouse={(idx, id, name) =>
-              fetchReport(idx, id, name, voucherDateRef.current || undefined)}
           />
         )}
 
@@ -506,12 +495,6 @@ export default function AddExportForm() {
           onCreated={(sup) => { handleSelectSupplier(sup); setShowSupplierModal(false); }}
         />
       )}
-
-      <WarehouseReportModal
-        report={report}
-        onClose={closeReport}
-        onSelectWarehouse={handleSelectWarehouse}
-      />
 
       {pendingGoods && (
         <SelectInboundModal

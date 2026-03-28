@@ -1,6 +1,6 @@
 // ============================================================
 //  features/export/components/ExportItemTable.tsx
-//  Bảng chi tiết hàng xuất kho — có nút 📦 Kho mở WarehouseReportModal
+//  Bảng chi tiết hàng xuất kho
 // ============================================================
 
 "use client";
@@ -25,15 +25,12 @@ interface Props {
   onInputFocus:     (index: number, e: React.FocusEvent<HTMLInputElement>) => void;
   onSelectGoods:    (index: number, goods: GoodsSearchResult, totalItems: number) => void;
   onSetDropdownPos: (pos: DropdownPos | null) => void;
-  // Mở WarehouseReportModal — giống SaleItemTable
-  onViewWarehouse:  (itemIndex: number, goodsId: string, goodsName: string) => void;
 }
 
 export default function ExportItemTable({
   items, dropdowns, dropdownPos, dropdownRefs, inputRefs,
   onUpdateItem, onRemoveItem, onGoodsIdChange, onInputFocus,
   onSelectGoods, onSetDropdownPos,
-  onViewWarehouse,
 }: Props) {
   return (
     <>
@@ -132,22 +129,11 @@ export default function ExportItemTable({
                     />
                   </td>
 
-                  {/* Actions: nút Kho + Xóa */}
+                  {/* Actions: Xóa */}
                   <td style={{ ...styles.itemTd, width: 80, textAlign: "center" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      {item.goodsId.trim() && (
-                        <button
-                          style={styles.btnDetail}
-                          onClick={() => onViewWarehouse(index, item.goodsId, item.goodsName)}
-                          title="Xem lô hàng tồn kho"
-                        >
-                          📦 Kho
-                        </button>
-                      )}
-                      <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
-                        Xóa
-                      </button>
-                    </div>
+                    <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
+                      Xóa
+                    </button>
                   </td>
                 </tr>
               );
