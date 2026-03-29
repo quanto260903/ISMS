@@ -7,7 +7,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
-import { EXPORT_REASON_LABELS, getVoucherCodeByReason, getDebitAccountByReason } from "../constants/export.constants";
+import { EXPORT_REASON_LABELS, EXPORT_VOUCHER_CODE_LABELS, getVoucherCodeByReason, getDebitAccountByReason } from "../constants/export.constants";
 import { useExportForm }             from "../hooks/useExportForm";
 import { useExportDetail }           from "../hooks/useExportDetail";
 import { useGoodsSearch }            from "../hooks/useGoodsSearch";
@@ -53,8 +53,10 @@ export default function EditExportForm({ voucherId }: Props) {
   });
 
   // ── Lookup phiếu nhập kho (chỉ khi IMPORT_RETURN) ────────
-  const inwardLookup   = useInwardVoucherLookup();
-  const isImportReturn = reason === "IMPORT_RETURN";
+  const inwardLookup    = useInwardVoucherLookup();
+  const isImportReturn  = reason === "IMPORT_RETURN";
+  const isAutoVoucher   = initialData?.voucherCode === "XK3";
+  const autoVoucherLabel = EXPORT_VOUCHER_CODE_LABELS[initialData?.voucherCode as keyof typeof EXPORT_VOUCHER_CODE_LABELS] ?? initialData?.voucherCode;
 
   // Khi tìm thấy phiếu nhập → auto-fill thông tin và bảng hàng hóa
   useEffect(() => {
@@ -210,20 +212,26 @@ export default function EditExportForm({ voucherId }: Props) {
       <section style={s.card}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Lý do xuất kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <select value={reason}
-            onChange={(e) => {
-              handleReasonChange(e.target.value as ExportReason);
-              inwardLookup.clearLookup();
-            }}
-            style={s.reasonSelect}>
-            {(["IMPORT_RETURN", "OTHER"] as ExportReason[]).map((r) => (
-              <option key={r} value={r}>
-                {r === "IMPORT_RETURN" ? "↩️ " : "📝 "}{EXPORT_REASON_LABELS[r]}
-              </option>
-            ))}
-          </select>
+          {isAutoVoucher ? (
+            <span style={{ background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "6px 14px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
+              🔄 {autoVoucherLabel}
+            </span>
+          ) : (
+            <select value={reason}
+              onChange={(e) => {
+                handleReasonChange(e.target.value as ExportReason);
+                inwardLookup.clearLookup();
+              }}
+              style={s.reasonSelect}>
+              {(["IMPORT_RETURN", "DESTROY"] as ExportReason[]).map((r) => (
+                <option key={r} value={r}>
+                  {r === "IMPORT_RETURN" ? "↩️ " : "🗑️ "}{EXPORT_REASON_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          )}
           <span style={s.codeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>{getVoucherCodeByReason(reason)}</strong>
+            Mã CT: <strong style={{ color: "#2255cc" }}>{isAutoVoucher ? initialData?.voucherCode : getVoucherCodeByReason(reason)}</strong>
           </span>
         </div>
       </section>

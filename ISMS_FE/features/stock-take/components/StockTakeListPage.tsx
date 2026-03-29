@@ -30,7 +30,7 @@ function DeleteConfirmModal({
         <div style={{ padding: "16px 20px 20px" }}>
           <p style={{ fontSize: 13, color: "#475569", marginBottom: 20, lineHeight: 1.7 }}>
             Bạn có chắc muốn xóa phiếu{" "}
-            <strong style={{ color: "#6d28d9", fontFamily: "monospace" }}>{row.voucherCode}</strong>?
+            <strong style={{ color: "#6d28d9", fontFamily: "monospace" }}>{row.stockTakeVoucherId}</strong>?
             <br />Hành động này <strong>không thể hoàn tác</strong>.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -81,7 +81,7 @@ export default function StockTakeListPage() {
     if (keyword) {
       const kw = keyword.toLowerCase();
       items = items.filter(
-        (i) => i.voucherCode.toLowerCase().includes(kw) || (i.purpose ?? "").toLowerCase().includes(kw)
+        (i) => i.stockTakeVoucherId.toLowerCase().includes(kw) || (i.purpose ?? "").toLowerCase().includes(kw)
       );
     }
     if (filterDone !== "") items = items.filter((i) => i.isCompleted === filterDone);
@@ -271,7 +271,7 @@ function StockTakeRow({ row, i, onView, onDelete }: {
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       onClick={onView}
     >
-      <td style={{ ...s.td, fontWeight: 700, color: "#6d28d9", fontFamily: "monospace" }}>{row.voucherCode}</td>
+      <td style={{ ...s.td, fontWeight: 700, color: "#6d28d9", fontFamily: "monospace" }}>{row.stockTakeVoucherId}</td>
       <td style={{ ...s.td, color: "#64748b" }}>{new Date(row.voucherDate).toLocaleDateString("vi-VN")}</td>
       <td style={{ ...s.td, color: "#64748b" }}>{new Date(row.stockTakeDate).toLocaleDateString("vi-VN")}</td>
       <td style={{ ...s.td, maxWidth: 260 }}>

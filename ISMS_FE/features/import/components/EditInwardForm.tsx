@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   INWARD_REASON_LABELS,
+  INWARD_VOUCHER_CODE_LABELS,
   getVoucherCodeByReason,
   DEFAULT_CREDIT_ACCOUNT,
 } from "../constants/import.constants";
@@ -24,8 +25,7 @@ interface Props { voucherId: string }
 
 function detectReason(code?: string): InwardReason {
   if (code === "NK2") return "SALES_RETURN";
-  if (code === "NK3") return "OTHER";
-  return "PURCHASE";
+  return "PURCHASE"; // NK1 + NK3 đều fallback về PURCHASE (NK3 hiển thị read-only, không dùng reason)
 }
 
 export default function EditInwardForm({ voucherId }: Props) {
@@ -112,7 +112,9 @@ export default function EditInwardForm({ voucherId }: Props) {
     prevLengthRef.current = cur;
   }, [voucher.items.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isSalesReturn = reason === "SALES_RETURN";
+  const isSalesReturn     = reason === "SALES_RETURN";
+  const isAutoVoucher     = initialData?.voucherCode === "NK3";
+  const autoVoucherLabel  = INWARD_VOUCHER_CODE_LABELS[initialData?.voucherCode ?? ""] ?? initialData?.voucherCode;
 
   if (fetchLoading) return <div style={{ padding: 40, textAlign: "center", color: "#555" }}>⏳ Đang tải phiếu nhập kho...</div>;
   if (fetchError)   return (
@@ -138,16 +140,22 @@ export default function EditInwardForm({ voucherId }: Props) {
       <section style={{ ...styles.section, maxWidth: 860 }}>
         <h3 style={styles.sectionTitle}>Lý do nhập kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <select value={reason} onChange={(e) => onReasonChange(e.target.value as InwardReason)} style={s.reasonSelect}>
-            {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
-              <option key={r} value={r}>
-                {r === "PURCHASE" ? "🛒 " : "↩️ "}
-                {INWARD_REASON_LABELS[r]}
-              </option>
-            ))}
-          </select>
+          {isAutoVoucher ? (
+            <span style={{ ...s.voucherCodeBadge, background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "6px 14px", borderRadius: 8, fontWeight: 600 }}>
+              🔄 {autoVoucherLabel}
+            </span>
+          ) : (
+            <select value={reason} onChange={(e) => onReasonChange(e.target.value as InwardReason)} style={s.reasonSelect}>
+              {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
+                <option key={r} value={r}>
+                  {r === "PURCHASE" ? "🛒 " : "↩️ "}
+                  {INWARD_REASON_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          )}
           <span style={s.voucherCodeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>{getVoucherCodeByReason(reason)}</strong>
+            Mã CT: <strong style={{ color: "#2255cc" }}>{isAutoVoucher ? initialData?.voucherCode : getVoucherCodeByReason(reason)}</strong>
           </span>
         </div>
       </section>

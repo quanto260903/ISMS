@@ -19,6 +19,24 @@ namespace AppBackend.ApiCore.Controllers
             _service = service;
         }
 
+        // GET /api/stock-take-vouchers/preview-code
+        // Xem trước mã phiếu KK sẽ được sinh khi tạo mới (không tạo phiếu)
+        [HttpGet("preview-code")]
+        public async Task<IActionResult> PreviewCode()
+        {
+            var id = await _service.PreviewNextVoucherCodeAsync();
+            return Ok(new { voucherId = id });
+        }
+
+        // GET /api/stock-take-vouchers/goods-stock?asOfDate=YYYY-MM-DD
+        // Lấy danh sách hàng hóa với tồn kho tính đến ngày asOfDate
+        [HttpGet("goods-stock")]
+        public async Task<IActionResult> GetGoodsStock([FromQuery] DateOnly asOfDate)
+        {
+            var result = await _service.GetGoodsStockAsOfDateAsync(asOfDate);
+            return Ok(result);
+        }
+
         // GET /api/stock-take-vouchers
         // Lấy danh sách tất cả phiếu kiểm kê
         [HttpGet]

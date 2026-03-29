@@ -17,5 +17,12 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
         Task AddAsync(Good entity);
         Task<int> SaveChangesAsync();
         Task<int> DeleteAsync(string id);
+
+        // Tính tồn kho của tất cả hàng hóa đến ngày asOfDate
+        // Công thức: OpenInventory + Σnhập(Debit 156) - Σxuất(Credit 156)
+        Task<IEnumerable<GoodsStockDto>> GetAllGoodsStockAsOfDateAsync(DateOnly asOfDate);
+
+        // Tính tồn kho của 1 mặt hàng đến ngày asOfDate
+        Task<decimal> GetStockAsOfDateAsync(string goodsId, DateOnly asOfDate);
     }
 }

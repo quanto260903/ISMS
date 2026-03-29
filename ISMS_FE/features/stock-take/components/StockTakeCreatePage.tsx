@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { getAllGoods, createStockTake } from "../stockTake.api";
+import { getGoodsAsOfDate, createStockTake, previewNextVoucherCode } from "../stockTake.api";
 import type { GoodsDto, CreateStockTakeDetailRequest } from "../types/stockTake.types";
 import { MemberPanel } from "./MemberPanel";
 
@@ -106,6 +106,7 @@ export default function StockTakeCreatePage() {
   const today  = new Date().toISOString().slice(0, 10);
 
   // Lỗi 1: xóa voucherCode state — backend tự sinh
+  const [previewCode,   setPreviewCode]   = useState("");
   const [createdBy,     setCreatedBy]     = useState("");
   const [voucherDate,   setVoucherDate]   = useState(today);
   const [stockTakeDate, setStockTakeDate] = useState(today);
@@ -116,7 +117,7 @@ export default function StockTakeCreatePage() {
 
   const [lines,        setLines]        = useState<LineRow[]>([]);
   const [allGoods,     setAllGoods]     = useState<GoodsDto[]>([]);
-  const [goodsLoading, setGoodsLoading] = useState(true);
+  const [goodsLoading, setGoodsLoading] = useState(false);
   const [idCounter,    setIdCounter]    = useState(1);
   const [activeTab,    setActiveTab]    = useState<"goods" | "unchecked">("goods");
   const [keyword,      setKeyword]      = useState("");
@@ -128,11 +129,32 @@ export default function StockTakeCreatePage() {
 
   useEffect(() => {
     setCreatedBy(getNameFromToken());
-    getAllGoods()
-      .then((goods) => setAllGoods(goods))
+    previewNextVoucherCode().then(setPreviewCode).catch(() => {});
+  }, []);
+
+  // Khi ngày kiểm kê thay đổi → tải lại hàng hóa với tồn kho theo ngày đó
+  useEffect(() => {
+    if (!stockTakeDate) {
+      setAllGoods([]);
+      return;
+    }
+    setGoodsLoading(true);
+    getGoodsAsOfDate(stockTakeDate)
+      .then((goods) => {
+        setAllGoods(goods);
+        // Cập nhật bookQuantity của các dòng đã chọn theo tồn kho mới
+        const stockMap = new Map(goods.map((g) => [g.goodsId, g.stockQuantity]));
+        setLines((prev) =>
+          prev.map((l) =>
+            l._locked && stockMap.has(l.goodsId)
+              ? { ...l, bookQuantity: stockMap.get(l.goodsId)! }
+              : l
+          )
+        );
+      })
       .catch(() => {})
       .finally(() => setGoodsLoading(false));
-  }, []);
+  }, [stockTakeDate]);
 
   const dropdownGoods = useMemo(() => {
     if (!addKeyword.trim()) return allGoods.slice(0, 20);
@@ -255,8 +277,12 @@ export default function StockTakeCreatePage() {
         {/* ── Thông tin phiếu ── */}
         <section style={s.card}>
           <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin phiếu kiểm kê</h3>
-          {/* Lỗi 1: xóa ô nhập Số phiếu KK — backend tự sinh */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 150px 150px", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 150px 150px", gap: 14, marginBottom: 14 }}>
+            <div>
+              <label style={s.lbl}>Số phiếu KK</label>
+              <input style={{ ...s.inp, background: "#f8fafc", color: previewCode ? "#6d28d9" : "#94a3b8", fontWeight: previewCode ? 700 : 400, fontStyle: previewCode ? "normal" : "italic" }}
+                value={previewCode} readOnly placeholder="Đang tải..." />
+            </div>
             <div>
               <label style={s.lbl}>Người lập phiếu</label>
               <input style={{ ...s.inp, background: "#f8fafc", color: "#475569" }}
@@ -320,7 +346,7 @@ export default function StockTakeCreatePage() {
           </div>
 
           {/* Toolbar */}
-          <div style={{ display: "flex", alignItems: "center", padding: "12px 0 8px", gap: 8 }}>
+          <div style={{ display: !goodsLoading ? "flex" : "none", alignItems: "center", padding: "12px 0 8px", gap: 8 }}>
             {activeTab === "goods" && (
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ position: "relative" }}>
@@ -357,8 +383,15 @@ export default function StockTakeCreatePage() {
             </div>
           </div>
 
+          {/* Loading khi đang tải hàng hóa */}
+          {goodsLoading && (
+            <div style={{ padding: "36px 0", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+              ⏳ Đang tải danh sách hàng hóa...
+            </div>
+          )}
+
           {/* ══ Bảng Tab HÀNG HÓA ══ */}
-          {activeTab === "goods" && (
+          {activeTab === "goods" && !goodsLoading && (
             <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
@@ -483,7 +516,7 @@ export default function StockTakeCreatePage() {
           )}
 
           {/* ══ Bảng Tab CHƯA KIỂM ══ */}
-          {activeTab === "unchecked" && (
+          {activeTab === "unchecked" && !goodsLoading && (
             <div style={{ border: "1px solid #fde68a", borderRadius: 10, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>

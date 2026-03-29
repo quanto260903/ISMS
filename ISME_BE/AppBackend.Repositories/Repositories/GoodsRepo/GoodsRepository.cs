@@ -91,5 +91,81 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
             _context.Goods.Remove(entity);
             return await _context.SaveChangesAsync();
         }
+
+        public async Task<IEnumerable<GoodsStockDto>> GetAllGoodsStockAsOfDateAsync(DateOnly asOfDate)
+        {
+            var goods = await _context.Goods
+                .Where(g => g.IsInactive == false)
+                .OrderBy(g => g.GoodsName)
+                .ToListAsync();
+
+            // Tồn đầu kỳ từ OpenInventory
+            var openInventories = await _context.OpenInventories
+                .ToDictionaryAsync(oi => oi.GoodsId!, oi => (decimal)(oi.Quantity ?? 0));
+
+            // Tổng nhập kho (Debit 156) đến ngày asOfDate
+            var inbounds = await _context.VoucherDetails
+                .Join(_context.Vouchers,
+                    vd => vd.VoucherId,
+                    v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.DebitAccount1, vd.DebitAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId != null
+                         && (x.DebitAccount1 == "156" || x.DebitAccount2 == "156")
+                         && x.VoucherDate != null && x.VoucherDate <= asOfDate)
+                .GroupBy(x => x.GoodsId!)
+                .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
+                .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
+
+            // Tổng xuất kho (Credit 156) đến ngày asOfDate
+            var outbounds = await _context.VoucherDetails
+                .Join(_context.Vouchers,
+                    vd => vd.VoucherId,
+                    v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.CreditAccount1, vd.CreditAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId != null
+                         && (x.CreditAccount1 == "156" || x.CreditAccount2 == "156")
+                         && x.VoucherDate != null && x.VoucherDate <= asOfDate)
+                .GroupBy(x => x.GoodsId!)
+                .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
+                .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
+
+            return goods.Select(g => new GoodsStockDto
+            {
+                GoodsId = g.GoodsId,
+                GoodsName = g.GoodsName,
+                Unit = g.Unit,
+                StockQuantity = (openInventories.TryGetValue(g.GoodsId, out var oi) ? oi : 0)
+                               + (inbounds.TryGetValue(g.GoodsId, out var inQty) ? inQty : 0)
+                               - (outbounds.TryGetValue(g.GoodsId, out var outQty) ? outQty : 0),
+            });
+        }
+
+        public async Task<decimal> GetStockAsOfDateAsync(string goodsId, DateOnly asOfDate)
+        {
+            var openQty = (decimal?)((await _context.OpenInventories
+                .FirstOrDefaultAsync(oi => oi.GoodsId == goodsId))?.Quantity ?? 0) ?? 0;
+
+            var inQty = await _context.VoucherDetails
+                .Join(_context.Vouchers,
+                    vd => vd.VoucherId,
+                    v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.DebitAccount1, vd.DebitAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId == goodsId
+                         && (x.DebitAccount1 == "156" || x.DebitAccount2 == "156")
+                         && x.VoucherDate != null && x.VoucherDate <= asOfDate)
+                .SumAsync(x => (decimal)(x.Quantity ?? 0));
+
+            var outQty = await _context.VoucherDetails
+                .Join(_context.Vouchers,
+                    vd => vd.VoucherId,
+                    v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.CreditAccount1, vd.CreditAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId == goodsId
+                         && (x.CreditAccount1 == "156" || x.CreditAccount2 == "156")
+                         && x.VoucherDate != null && x.VoucherDate <= asOfDate)
+                .SumAsync(x => (decimal)(x.Quantity ?? 0));
+
+            return openQty + inQty - outQty;
+        }
     }
 }

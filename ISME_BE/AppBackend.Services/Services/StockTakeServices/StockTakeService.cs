@@ -55,11 +55,12 @@ namespace AppBackend.Services.Services.StockTakeServices
         // → tránh trường hợp client gửi sai BookQuantity làm DifferenceQuantity tính sai
         public async Task<StockTakeVoucherDetailDto> CreateAsync(CreateStockTakeVoucherDto dto, string createdBy)
         {
-            var voucherCode = await _uow.StockTakeVouchers.GenerateVoucherCodeAsync();
+            var voucherId = await _uow.StockTakeVouchers.GenerateVoucherIdAsync();
 
             var voucher = new StockTakeVoucher
             {
-                VoucherCode = voucherCode,
+                StockTakeVoucherId = voucherId,
+                VoucherCode = "KK1",
                 VoucherDate = dto.VoucherDate,
                 StockTakeDate = dto.StockTakeDate,
                 Purpose = dto.Purpose,
@@ -80,9 +81,8 @@ namespace AppBackend.Services.Services.StockTakeServices
             var details = new List<StockTakeDetail>();
             foreach (var d in dto.StockTakeDetails)
             {
-                // Lấy tồn kho thực tế từ DB — không tin tưởng client
-                var goods = await _uow.Goods.GetByIdAsync(d.GoodsId);
-                var bookQty = (decimal)(goods?.ItemOnHand ?? 0);
+                // Tính tồn kho theo ngày kiểm kê (StockTakeDate) thay vì ItemOnHand hiện tại
+                var bookQty = await _uow.Goods.GetStockAsOfDateAsync(d.GoodsId, dto.StockTakeDate);
 
                 details.Add(new StockTakeDetail
                 {
@@ -90,9 +90,9 @@ namespace AppBackend.Services.Services.StockTakeServices
                     GoodsId = d.GoodsId,
                     GoodsName = d.GoodsName,
                     Unit = d.Unit,
-                    BookQuantity = bookQty,                    // ← từ DB
+                    BookQuantity = bookQty,
                     ActualQuantity = d.ActualQuantity,
-                    DifferenceQuantity = d.ActualQuantity - bookQty, // ← tính đúng
+                    DifferenceQuantity = d.ActualQuantity - bookQty,
                 });
             }
 
@@ -131,8 +131,7 @@ namespace AppBackend.Services.Services.StockTakeServices
             var details = new List<StockTakeDetail>();
             foreach (var d in dto.StockTakeDetails)
             {
-                var goods = await _uow.Goods.GetByIdAsync(d.GoodsId);
-                var bookQty = (decimal)(goods?.ItemOnHand ?? 0);
+                var bookQty = await _uow.Goods.GetStockAsOfDateAsync(d.GoodsId, dto.StockTakeDate);
 
                 details.Add(new StockTakeDetail
                 {
@@ -185,9 +184,9 @@ namespace AppBackend.Services.Services.StockTakeServices
             var now = DateTime.Now;
             var dateOnly = DateOnly.FromDateTime(now);
 
-            // Mã phiếu nhập/xuất dựa vào VoucherCode — unique, không trùng
-            var importVoucherId = $"NK{voucher.VoucherCode}";
-            var exportVoucherId = $"XK{voucher.VoucherCode}";
+            // Mã phiếu nhập/xuất dựa vào StockTakeVoucherId — unique, không trùng
+            var importVoucherId = $"NK{voucher.StockTakeVoucherId}";
+            var exportVoucherId = $"XK{voucher.StockTakeVoucherId}";
 
             // Làm tròn chênh lệch về int, bỏ qua dòng có chênh lệch = 0 sau làm tròn
             var surplusItems = details
@@ -303,6 +302,14 @@ namespace AppBackend.Services.Services.StockTakeServices
                 return Fail($"Lỗi xử lý kiểm kê: {ex.Message}");
             }
         }
+
+        // ===================== PREVIEW VOUCHER ID =====================
+        public Task<string> PreviewNextVoucherCodeAsync()
+            => _uow.StockTakeVouchers.GenerateVoucherIdAsync();
+
+        // ===================== GOODS STOCK AS OF DATE =====================
+        public async Task<IEnumerable<GoodsStockDto>> GetGoodsStockAsOfDateAsync(DateOnly asOfDate)
+            => await _uow.Goods.GetAllGoodsStockAsOfDateAsync(asOfDate);
 
         // ── Helpers ───────────────────────────────────────────────
         private static ProcessStockTakeResultDto Fail(string msg) =>

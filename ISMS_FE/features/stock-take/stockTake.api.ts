@@ -82,6 +82,26 @@ export async function getAllGoods(): Promise<GoodsDto[]> {
   }));
 }
 
+// Xem trước mã phiếu KK sẽ được sinh (không tạo phiếu)
+export async function previewNextVoucherCode(): Promise<string> {
+  const res = await apiFetch<{ voucherId: string }>(`${ENDPOINT}/preview-code`);
+  return res.voucherId;
+}
+
+// Lấy danh sách hàng hóa với tồn kho tính đến ngày asOfDate
+// Công thức backend: OpenInventory + Σ nhập (Debit 156) - Σ xuất (Credit 156) đến ngày đó
+export async function getGoodsAsOfDate(asOfDate: string): Promise<GoodsDto[]> {
+  const raw = await apiFetch<{ goodsId: string; goodsName: string; unit: string | null; stockQuantity: number }[]>(
+    `${ENDPOINT}/goods-stock?asOfDate=${asOfDate}`
+  );
+  return (raw ?? []).map(g => ({
+    goodsId:       g.goodsId,
+    goodsName:     g.goodsName,
+    unit:          g.unit ?? null,
+    stockQuantity: g.stockQuantity,
+  }));
+}
+
 export async function getStockTakeList(): Promise<StockTakeListDto[]> {
   const res  = await fetch(ENDPOINT, {
     headers: { "Content-Type": "application/json", ...authHeader() },
