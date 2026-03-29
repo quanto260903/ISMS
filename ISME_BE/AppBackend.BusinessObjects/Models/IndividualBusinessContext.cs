@@ -340,7 +340,7 @@ public partial class IndividualBusinessContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__VoucherD__3214EC07265E235B");
 
-            entity.ToTable("VoucherDetail", tb => tb.HasTrigger("trg_UpdateItemOnHand_OnInsert"));
+            entity.ToTable("VoucherDetail");
 
             entity.Property(e => e.Amount1).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.Amount2).HasColumnType("decimal(18, 0)");
@@ -349,46 +349,24 @@ public partial class IndividualBusinessContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.CreditAccount1).HasMaxLength(50);
             entity.Property(e => e.CreditAccount2).HasMaxLength(50);
-            entity.Property(e => e.CreditWarehouseId).HasMaxLength(50);
             entity.Property(e => e.DebitAccount1).HasMaxLength(50);
             entity.Property(e => e.DebitAccount2).HasMaxLength(50);
-            entity.Property(e => e.DebitWarehouseId).HasMaxLength(50);
             entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.GoodsName).HasMaxLength(255);
             entity.Property(e => e.OffsetVoucher).HasMaxLength(50);
-            entity.Property(e => e.Promotion).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.Promotion).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.UserId)
                 .HasMaxLength(16)
                 .HasColumnName("UserID");
-            entity.Property(e => e.Vat)
-                .HasColumnType("decimal(5, 2)")
-                .HasColumnName("VAT");
             entity.Property(e => e.VoucherId)
                 .HasMaxLength(50)
                 .HasColumnName("VoucherID");
 
-            entity.HasOne(d => d.CreditWarehouse).WithMany(p => p.VoucherDetailCreditWarehouses)
-                .HasForeignKey(d => d.CreditWarehouseId)
-                .HasConstraintName("FK_VoucherDetail_CreditWarehouse");
-
-            entity.HasOne(d => d.DebitWarehouse).WithMany(p => p.VoucherDetailDebitWarehouses)
-                .HasForeignKey(d => d.DebitWarehouseId)
-                .HasConstraintName("FK_VoucherDetail_DebitWarehouse");
-
             entity.HasOne(d => d.Voucher).WithMany(p => p.VoucherDetails)
                 .HasForeignKey(d => d.VoucherId)
                 .HasConstraintName("FK_Detail_Header");
-        });
-
-        modelBuilder.Entity<Warehouse>(entity =>
-        {
-            entity.HasKey(e => e.WarehouseId).HasName("PK__Warehous__2608AFF97C8285D2");
-
-            entity.Property(e => e.WarehouseId).HasMaxLength(50);
-            entity.Property(e => e.Address).HasMaxLength(500);
-            entity.Property(e => e.WarehouseName).HasMaxLength(255);
         });
 
         OnModelCreatingPartial(modelBuilder);

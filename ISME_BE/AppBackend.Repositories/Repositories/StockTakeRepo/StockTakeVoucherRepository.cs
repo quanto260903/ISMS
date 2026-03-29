@@ -1,10 +1,5 @@
 ﻿using AppBackend.BusinessObjects.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AppBackend.Repositories.Repositories.StockTakeRepo
 {
@@ -52,19 +47,27 @@ namespace AppBackend.Repositories.Repositories.StockTakeRepo
                 _context.StockTakeVouchers.Remove(voucher);
         }
 
+        // ── Sửa lỗi 5: sort theo số thay vì sort theo string ──────────
+        // Lỗi cũ: OrderByDescending(v => v.VoucherCode) sort string
+        // → "KK9" > "KK10" > "KK2" vì so sánh ký tự, sequence sẽ sai
+        // Sửa: lấy hết code về memory rồi parse số để tìm max
         public async Task<string> GenerateVoucherCodeAsync()
         {
-            // Lấy số thứ tự lớn nhất hiện có, format: KK000001
-            var lastCode = await _context.StockTakeVouchers
-                .OrderByDescending(v => v.VoucherCode)
+            var codes = await _context.StockTakeVouchers
+                .Where(v => v.VoucherCode.StartsWith("KK"))
                 .Select(v => v.VoucherCode)
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
             int nextNumber = 1;
-            if (!string.IsNullOrEmpty(lastCode) && lastCode.StartsWith("KK"))
+
+            if (codes.Any())
             {
-                if (int.TryParse(lastCode.Substring(2), out int current))
-                    nextNumber = current + 1;
+                var maxNumber = codes
+                    .Select(code =>
+                        int.TryParse(code.Substring(2), out int n) ? n : 0)
+                    .Max();
+
+                nextNumber = maxNumber + 1;
             }
 
             return $"KK{nextNumber:D6}";

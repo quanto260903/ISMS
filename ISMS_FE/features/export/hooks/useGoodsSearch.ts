@@ -20,9 +20,9 @@ interface Props {
   updateItem:      (index: number, field: keyof ExportItem, value: unknown) => void;
   onSelectGoods:   (index: number, goods: GoodsSearchResult) => void;
   onAddItem:       () => void;
-  // Callback mới: thay vì điền ngay, báo cho parent biết
-  // user vừa chọn hàng nào ở dòng nào để mở modal
-  onGoodsSelected: (index: number, goods: GoodsSearchResult, totalItems: number) => void;
+  // Optional: nếu có → mở modal bắt buộc chọn chứng từ nhập trước khi điền
+  // Nếu không có → điền hàng trực tiếp vào table (dùng cho EditExportForm khi không có modal)
+  onGoodsSelected?: (index: number, goods: GoodsSearchResult, totalItems: number) => void;
 }
 
 export function useGoodsSearch({
@@ -31,6 +31,7 @@ export function useGoodsSearch({
   onAddItem,
   onGoodsSelected,
 }: Props) {
+
   const [dropdowns,   setDropdowns]   = useState<DropdownState[]>([]);
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null);
   const dropdownRefs   = useRef<(HTMLDivElement | null)[]>([]);
@@ -101,23 +102,24 @@ export function useGoodsSearch({
     [openPortalDropdown, updateItem]
   );
 
-  // ── Điểm thay đổi chính ──────────────────────────────────
-  // Thay vì gọi onSelectGoods ngay (điền hàng vào table),
-  // gọi onGoodsSelected để parent mở modal chọn chứng từ nhập.
-  // onSelectGoods chỉ được gọi SAU KHI user xác nhận trong modal.
+  // Khi user chọn hàng từ dropdown:
+  // - Nếu onGoodsSelected được truyền → báo cho parent mở modal bắt buộc chọn chứng từ nhập
+  // - Nếu không → điền hàng trực tiếp vào table (hành vi cũ, dùng khi không có modal)
   const handleSelectGoods = useCallback(
     (index: number, goods: GoodsSearchResult, totalItems: number) => {
-      // Đóng dropdown trước
       setDropdowns((prev) =>
         prev.map((d, i) =>
           i === index ? { suggestions: [], loading: false, open: false } : d));
       setDropdownPos(null);
 
-      // Báo cho parent mở modal bắt buộc chọn chứng từ nhập
-      // Parent sẽ gọi onSelectGoods và addItem sau khi user xác nhận
-      onGoodsSelected(index, goods, totalItems);
+      if (onGoodsSelected) {
+        onGoodsSelected(index, goods, totalItems);
+      } else {
+        onSelectGoods(index, goods);
+        if (index === totalItems - 1) onAddItem();
+      }
     },
-    [onGoodsSelected]
+    [onGoodsSelected, onSelectGoods, onAddItem]
   );
 
   const handleInputFocus = useCallback(

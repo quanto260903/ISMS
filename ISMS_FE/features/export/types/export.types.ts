@@ -2,7 +2,17 @@
 //  features/export/types/export.types.ts
 // ============================================================
 
-export type ExportReason = "IMPORT_RETURN" | "OTHER";
+// ── Lý do xuất kho thủ công (dùng trong form tạo/sửa) ────────
+// Chỉ 2 trường hợp user tạo tay:
+//   IMPORT_RETURN → XK1 = Xuất trả hàng nhập
+//   DESTROY       → XK2 = Xuất hủy hàng
+export type ExportReason = "IMPORT_RETURN" | "DESTROY";
+
+// ── Mã chứng từ đầy đủ (dùng để hiển thị ở danh sách) ───────
+// XK1/XK2 = user tạo thủ công
+// XK3     = hệ thống tự sinh khi kiểm kê
+// XK4     = hệ thống tự sinh khi bán hàng
+export type ExportVoucherCode = "XK1" | "XK2" | "XK3" | "XK4";
 
 export interface GoodsSearchResult {
   goodsId:    string;
@@ -14,22 +24,20 @@ export interface GoodsSearchResult {
 }
 
 export interface ExportItem {
-  goodsId:           string;
-  goodsName:         string;
-  unit:              string;
-  quantity:          number;
-  unitPrice:         number;
-  amount1:           number;
-  vat:               number;
-  promotion:         number;
-  debitAccount1:     string;
-  creditAccount1:    string;
-  creditWarehouseId: string;
-  debitAccount2:     string;
-  creditAccount2:    string;
-  userId:            string;
-  createdDateTime:   string;
-  offsetVoucher?:    string;
+  goodsId:         string;
+  goodsName:       string;
+  unit:            string;
+  quantity:        number;
+  unitPrice:       number;
+  amount1:         number;
+  debitAccount1:   string;
+  creditAccount1:  string;
+  debitAccount2:   string;   // Dùng cho XK4 bán hàng: Nợ 632
+  creditAccount2:  string;   // Dùng cho XK4 bán hàng: Có 156
+  costPerUnit:     number;   // cost/warehouseIn từ phiếu nhập — tính Amount1 khi xuất
+  userId:          string;
+  createdDateTime: string;
+  offsetVoucher?:  string;
 }
 
 export interface ExportVoucher {
@@ -41,14 +49,16 @@ export interface ExportVoucher {
   address:            string;
   voucherDescription: string;
   voucherDate:        string;
+  // Giữ lại cho XK4 bán hàng (tạo tự động từ luồng sale)
   bankName?:          string;
   bankAccountNumber?: string;
   items:              ExportItem[];
 }
 
+// ── List item dùng ExportVoucherCode — không dùng ExportReason ─
 export interface ExportListItem {
   voucherId:     string;
-  voucherCode:   string | null;
+  voucherCode:   ExportVoucherCode | null;  // đầy đủ 4 loại XK1-XK4
   invoiceNumber: string | null;
   voucherDate:   string | null;
   customerName:  string | null;
@@ -77,10 +87,8 @@ export interface DropdownPos {
   index: number;
 }
 
-// ── FIFO Preview types ────────────────────────────────────────
-// Backend trả về danh sách phân bổ FIFO cho 1 goodsId
 export interface FifoPreviewItem {
-  inboundVoucherCode: string;   // mã phiếu nhập đối trừ, VD: NK000001
-  allocatedQty:       number;   // số lượng lấy từ phiếu nhập này
+  inboundVoucherCode: string;
+  allocatedQty:       number;
   warehouseId:        string | null;
 }

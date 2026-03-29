@@ -40,6 +40,12 @@ export async function searchGoods(keyword: string, limit = 10): Promise<GoodsSea
   return Array.isArray(json) ? json : (json as any).data ?? [];
 }
 
+// ── Lấy mã phiếu xuất kho tiếp theo từ server ────────────────
+export async function getNextExportId(): Promise<string> {
+  const json = await apiFetch<{ voucherId: string }>(`${BASE}/Export/next-id`);
+  return json.voucherId;
+}
+
 // ── Chi tiết 1 phiếu xuất ────────────────────────────────────
 export async function getExport(voucherId: string): Promise<ExportVoucher> {
   return apiFetch<ExportVoucher>(`${BASE}/Export/${encodeURIComponent(voucherId)}`);
@@ -160,12 +166,17 @@ export interface WarehouseTransactionItem {
   warehouseIn:   number;
   warehouseOut:  number;
   customInHand:  number;          // tồn còn lại = dùng làm remainingQty
-  cost:          number;
+  cost:          number;          // tổng Amount1 phiếu nhập (bao gồm VAT)
+  unitPrice:     number;          // đơn giá nhập tại thời điểm nhập kho
 }
 
-export async function getWarehouseReport(goodsId: string): Promise<WarehouseTransactionItem[]> {
+export async function getWarehouseReport(
+  goodsId: string,
+  asOfDate?: string        // yyyy-MM-dd — chỉ tính xuất kho có ngày <= asOfDate
+): Promise<WarehouseTransactionItem[]> {
+  const q = asOfDate ? `?asOfDate=${encodeURIComponent(asOfDate)}` : "";
   const res = await fetch(
-    `${BASE}/Items/warehouse-report/${encodeURIComponent(goodsId)}`,
+    `${BASE}/Items/warehouse-report/${encodeURIComponent(goodsId)}${q}`,
     { headers: { ...authHeader() }, cache: "no-store" }
   );
   const json = await res.json().catch(() => null);

@@ -9,9 +9,9 @@ public partial class StockTakeVoucher
 
     public string VoucherCode { get; set; } = null!;
 
-    public DateTime VoucherDate { get; set; }
+    public DateOnly VoucherDate { get; set; }
 
-    public DateTime StockTakeDate { get; set; }
+    public DateOnly StockTakeDate { get; set; }
 
     public string? Purpose { get; set; }
 

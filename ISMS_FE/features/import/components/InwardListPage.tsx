@@ -17,19 +17,16 @@ const fmtMoney = (n: number) =>
   n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
 const VOUCHER_CODE_LABELS: Record<string, string> = {
-  NK1: "Mua hàng - TM",
-  NK2: "Mua hàng - NH",
-  NK3: "Mua hàng - Nợ",
-  NK4: "Hàng trả lại",
-  NK5: "Nhập hàng kiểm kê",
+  NK1: "Mua hàng",
+  NK2: "Hàng trả lại",
+  NK3: "Nhập kiểm kê",
 };
 
 const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
   NK1: { bg: "#f0fdf4", color: "#15803d", border: "#86efac" },
-  NK2: { bg: "#eff6ff", color: "#1d4ed8", border: "#93c5fd" },
+  NK2: { bg: "#fff1f2", color: "#b91c1c", border: "#fca5a5" },
   NK3: { bg: "#fefce8", color: "#854d0e", border: "#fde68a" },
-  NK4: { bg: "#fff1f2", color: "#b91c1c", border: "#fca5a5" },
-  NK5: { bg: "#f8fafc", color: "#475569", border: "#cbd5e1" },
+  DEFAULT: { bg: "#f8fafc", color: "#475569", border: "#cbd5e1" },
 };
 
 export default function InwardListPage() {
@@ -186,7 +183,7 @@ function InwardRow({
   row, i, onEdit
 }: { row: InwardListItem; i: number; onEdit: () => void }) {
   const [hover, setHover] = React.useState(false);
-  const codeStyle = VOUCHER_CODE_COLORS[row.voucherCode ?? "NK5"] ?? VOUCHER_CODE_COLORS.NK5;
+  const codeStyle = VOUCHER_CODE_COLORS[row.voucherCode ?? "DEFAULT"] ?? VOUCHER_CODE_COLORS.DEFAULT;
 
   return (
     <tr

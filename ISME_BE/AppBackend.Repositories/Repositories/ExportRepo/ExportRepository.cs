@@ -35,7 +35,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
                 .FirstOrDefaultAsync(v =>
                     v.VoucherId == voucherId &&
                     v.VoucherCode != null &&
-                    v.VoucherCode.StartsWith("XH"));
+                    v.VoucherCode.StartsWith("XK"));
         }
 
         public async Task<(IEnumerable<Voucher> Items, int Total)> GetListAsync(
@@ -43,7 +43,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
         {
             var query = _context.Vouchers
                 .Include(v => v.VoucherDetails)
-                .Where(v => v.VoucherCode != null && v.VoucherCode.StartsWith("XH"))
+                .Where(v => v.VoucherCode != null && v.VoucherCode.StartsWith("XK"))
                 .AsQueryable();
 
             if (request.FromDate.HasValue)
@@ -131,7 +131,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
             {
                 if (remaining <= 0) break;
 
-                var inboundCode = detail.Voucher!.VoucherCode!;
+                var inboundCode = detail.Voucher!.VoucherId!;
                 var inboundQty  = detail.Quantity ?? 0;
 
                 exportedByVoucher.TryGetValue(inboundCode, out var alreadyExported);
@@ -145,7 +145,6 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
                 {
                     InboundVoucherCode = inboundCode,
                     AllocatedQty       = take,
-                    WarehouseId        = detail.DebitWarehouseId, // kho nhập → kho xuất
                 });
 
                 remaining -= take;
@@ -155,19 +154,84 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
             return remaining > 0 ? new List<FifoAllocation>() : allocations;
         }
 
+        // ── Tồn còn lại theo từng phiếu nhập ────────────────────────────
+        // OffsetVoucher lưu VoucherId của phiếu nhập nguồn (không phải VoucherCode).
+        //
+        // Ví dụ:
+        //   Phiếu nhập ID="1", hàng BANH, qty=5
+        //     → VoucherDetail: VoucherId="1", GoodsId="BANH", Qty=5
+        //   Phiếu xuất tham chiếu lại:
+        //     → VoucherDetail: GoodsId="BANH", Qty=2, OffsetVoucher="1"
+        //
+        // inboundVoucherId = VoucherId của phiếu nhập (= giá trị lưu trong OffsetVoucher)
+        // excludeVoucherId = VoucherId của phiếu xuất đang sửa (bỏ qua khi tính đã xuất)
+        public async Task<int> GetRemainingQtyForInboundAsync(
+            string goodsId, string inboundVoucherId, string? excludeVoucherId = null)
+        {
+            // Tổng số lượng nhập: tất cả dòng của goodsId trong phiếu nhập đó
+            var inboundQty = await _context.VoucherDetails
+                .Where(d => d.VoucherId == inboundVoucherId &&
+                            d.GoodsId   == goodsId)
+                .AsNoTracking()
+                .SumAsync(d => d.Quantity ?? 0);
+
+            // Tổng số lượng đã xuất từ phiếu nhập đó:
+            // các dòng xuất có OffsetVoucher = VoucherId của phiếu nhập
+            // (không cần filter VoucherCode.StartsWith("XH") vì chỉ xuất kho mới set OffsetVoucher)
+            var exportedQty = await _context.VoucherDetails
+                .Where(d => d.GoodsId       == goodsId &&
+                            d.OffsetVoucher == inboundVoucherId &&
+                            (excludeVoucherId == null || d.VoucherId != excludeVoucherId))
+                .AsNoTracking()
+                .SumAsync(d => d.Quantity ?? 0);
+
+            return Math.Max(0, inboundQty - exportedQty);
+        }
+
         // ── Cộng / trừ tồn kho ───────────────────────────────────────────
         public async Task DeductStockAsync(string goodsId, int quantity)
         {
+            // Dùng EF tracking (không AsNoTracking) để thấy các thay đổi trong cùng request.
+            // Điều này đảm bảo: nếu cùng một GoodsId bị trừ nhiều lần trong một request,
+            // lần sau sẽ thấy giá trị đã được cập nhật từ lần trước → phát hiện âm kho.
             var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
-            if (goods == null) throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
-            goods.ItemOnHand = (goods.ItemOnHand ?? 0) - quantity;
+            if (goods == null)
+                throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
+
+            var newQty = (goods.ItemOnHand ?? 0) - quantity;
+            if (newQty < 0)
+                throw new InvalidOperationException(
+                    $"Tồn kho '{goodsId}' không đủ " +
+                    $"(hiện tại: {goods.ItemOnHand ?? 0}, yêu cầu xuất: {quantity})");
+
+            goods.ItemOnHand = newQty;
         }
 
         public async Task AddStockAsync(string goodsId, int quantity)
         {
             var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
-            if (goods == null) throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
+            if (goods == null)
+                throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
             goods.ItemOnHand = (goods.ItemOnHand ?? 0) + quantity;
+        }
+
+        public async Task<string> GenerateVoucherIdAsync()
+        {
+            var ids = await _context.Vouchers
+                .Where(v => v.VoucherId != null && v.VoucherId.StartsWith("XK"))
+                .Select(v => v.VoucherId!)
+                .ToListAsync();
+
+            int nextNumber = 1;
+            if (ids.Any())
+            {
+                var maxNumber = ids
+                    .Select(id => int.TryParse(id.Substring(2), out int n) ? n : 0)
+                    .Max();
+                nextNumber = maxNumber + 1;
+            }
+
+            return $"XK{nextNumber:D6}";
         }
     }
 }

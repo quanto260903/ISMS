@@ -1,31 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace AppBackend.BusinessObjects.Dtos
+﻿namespace AppBackend.BusinessObjects.Dtos
 {
-    // ── Dòng chi tiết ────────────────────────────────────────
+    // ── Danh sách phiếu kiểm kê ──────────────────────────────
     public class StockTakeVoucherListDto
     {
-        public string StockTakeVoucherId { get; set; }
-        public string VoucherCode { get; set; }
-        public DateTime VoucherDate { get; set; }
-        public DateTime StockTakeDate { get; set; }
+        public string StockTakeVoucherId { get; set; } = null!;
+        public string VoucherCode { get; set; } = null!;
+        // Lỗi 7: đổi DateTime → DateOnly cho nhất quán với toàn hệ thống
+        // DateTime serialize thành "2026-03-21T00:00:00" → frontend parse sai ngày
+        // DateOnly serialize thành "2026-03-21" → đúng
+        public DateOnly VoucherDate { get; set; }
+        public DateOnly StockTakeDate { get; set; }
         public string? Purpose { get; set; }
         public bool? IsCompleted { get; set; }
         public string? CreatedBy { get; set; }
-        public DateTime? CreatedDate { get; set; }
+        public DateTime? CreatedDate { get; set; }  // giữ DateTime vì có giờ phút giây
     }
 
-    // DTO chi tiết phiếu kiểm kê
+    // ── Chi tiết 1 phiếu kiểm kê ─────────────────────────────
     public class StockTakeVoucherDetailDto
     {
-        public string StockTakeVoucherId { get; set; }
-        public string VoucherCode { get; set; }
-        public DateTime VoucherDate { get; set; }
-        public DateTime StockTakeDate { get; set; }
+        public string StockTakeVoucherId { get; set; } = null!;
+        public string VoucherCode { get; set; } = null!;
+        public DateOnly VoucherDate { get; set; }
+        public DateOnly StockTakeDate { get; set; }
         public string? Purpose { get; set; }
         public string? Member1 { get; set; }
         public string? Position1 { get; set; }
@@ -39,11 +36,11 @@ namespace AppBackend.BusinessObjects.Dtos
         public List<StockTakeDetailDto> StockTakeDetails { get; set; } = new();
     }
 
-    // DTO tạo mới phiếu kiểm kê
+    // ── Tạo mới phiếu kiểm kê ────────────────────────────────
     public class CreateStockTakeVoucherDto
     {
-        public DateTime VoucherDate { get; set; }
-        public DateTime StockTakeDate { get; set; }
+        public DateOnly VoucherDate { get; set; }
+        public DateOnly StockTakeDate { get; set; }
         public string? Purpose { get; set; }
         public string? Member1 { get; set; }
         public string? Position1 { get; set; }
@@ -52,14 +49,16 @@ namespace AppBackend.BusinessObjects.Dtos
         public string? Member3 { get; set; }
         public string? Position3 { get; set; }
         public string? CreatedBy { get; set; }
+        // BookQuantity không cần trong DTO tạo mới
+        // vì service sẽ tự lấy từ DB (Goods.ItemOnHand)
         public List<CreateStockTakeDetailDto> StockTakeDetails { get; set; } = new();
     }
 
-    // DTO cập nhật phiếu kiểm kê
+    // ── Cập nhật phiếu kiểm kê ───────────────────────────────
     public class UpdateStockTakeVoucherDto
     {
-        public DateTime VoucherDate { get; set; }
-        public DateTime StockTakeDate { get; set; }
+        public DateOnly VoucherDate { get; set; }
+        public DateOnly StockTakeDate { get; set; }
         public string? Purpose { get; set; }
         public string? Member1 { get; set; }
         public string? Position1 { get; set; }
@@ -70,34 +69,35 @@ namespace AppBackend.BusinessObjects.Dtos
         public List<CreateStockTakeDetailDto> StockTakeDetails { get; set; } = new();
     }
 
-    // DTO chi tiết hàng hóa trong phiếu
+    // ── Chi tiết dòng hàng hóa (read) ────────────────────────
     public class StockTakeDetailDto
     {
         public int StockTakeDetailId { get; set; }
-        public string GoodsId { get; set; }
-        public string GoodsName { get; set; }
+        public string GoodsId { get; set; } = null!;
+        public string GoodsName { get; set; } = null!;
         public string? Unit { get; set; }
         public decimal BookQuantity { get; set; }
         public decimal ActualQuantity { get; set; }
         public decimal DifferenceQuantity { get; set; }
     }
 
-    // DTO tạo mới dòng hàng hóa
+    // ── Tạo mới dòng hàng hóa (write) ───────────────────────
+    // BookQuantity không nhận từ client — service tự lấy từ DB
     public class CreateStockTakeDetailDto
     {
-        public string GoodsId { get; set; }
-        public string GoodsName { get; set; }
+        public string GoodsId { get; set; } = null!;
+        public string GoodsName { get; set; } = null!;
         public string? Unit { get; set; }
-        public decimal BookQuantity { get; set; }
         public decimal ActualQuantity { get; set; }
+        // BookQuantity đã xóa — tránh client gửi sai làm DifferenceQuantity tính lệch
     }
 
-    // Response sau khi xử lý phiếu kiểm kê
+    // ── Kết quả xử lý phiếu kiểm kê ─────────────────────────
     public class ProcessStockTakeResultDto
     {
         public bool Success { get; set; }
-        public string Message { get; set; }
-        public string? ImportVoucherId { get; set; }   // Phiếu nhập nếu thừa
-        public string? ExportVoucherId { get; set; }   // Phiếu xuất nếu thiếu
+        public string Message { get; set; } = null!;
+        public string? ImportVoucherId { get; set; }  // phiếu nhập NK3 nếu có hàng thừa
+        public string? ExportVoucherId { get; set; }  // phiếu xuất XK3 nếu có hàng thiếu
     }
 }

@@ -1,120 +1,110 @@
 // ============================================================
 //  features/inward/hooks/useInwardForm.ts
-//  Dùng cho cả CREATE và EDIT — phân biệt bằng initialData
 // ============================================================
 
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { createInward, updateInward } from "../import.api";
-import type { PaymentOption, InwardVoucher, InwardItem } from "../types/import.types";
+import { useState, useMemo, useEffect } from "react";
+import { createInward, updateInward, getNextImportId } from "../import.api";
+import type { InwardVoucher, InwardItem, InwardReason } from "../types/import.types";
 import {
-  generateVoucherNumber,
-  getVoucherCodeByPayment,
-  getCreditAccountByPayment,
+  getVoucherCodeByReason,
+  DEFAULT_CREDIT_ACCOUNT,
   calcAmount,
 } from "../constants/import.constants";
 
 interface UseInwardFormOptions {
-  userId?:       string;
-  userFullName?: string;
-  initialData?:  InwardVoucher;   // truyền vào khi EDIT, bỏ trống khi CREATE
-  onSuccess?:    () => void;       // callback sau khi lưu thành công
+  userId?:      string;
+  initialData?: InwardVoucher;
+  onSuccess?:   () => void;
 }
 
 export function useInwardForm({
-  userId       = "",
-  userFullName = "",
+  userId      = "",
   initialData,
   onSuccess,
 }: UseInwardFormOptions = {}) {
 
   const isEditMode = !!initialData;
 
-  // ── Detect paymentOption từ voucherCode khi EDIT ──────────
-  const detectPayment = (code?: string): PaymentOption => {
-    if (!code) return "UNPAID";
-    if (code === "NK2") return "CASH";
-    if (code === "NK3") return "BANK";
-    return "UNPAID";
-  };
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [paymentOption, setPaymentOption] = useState<PaymentOption>(
-    isEditMode ? detectPayment(initialData?.voucherCode) : "UNPAID"
-  );
-  const [message, setMessage]   = useState("");
-  const [loading, setLoading]   = useState(false);
-
-  // ── Voucher state — khởi tạo từ initialData nếu EDIT ─────
+  // ── Voucher state ─────────────────────────────────────────
   const [voucher, setVoucher] = useState<InwardVoucher>(
     initialData ?? {
-      voucherId:          generateVoucherNumber(),
-      voucherCode:        getVoucherCodeByPayment("UNPAID"),
+      voucherId:          "",
+      voucherCode:        "NK1",
       customerId:         "",
       customerName:       "",
       taxCode:            "",
       address:            "",
-      voucherDescription: userFullName ? `Người lập phiếu: ${userFullName}` : "",
+      voucherDescription: "",
       voucherDate:        new Date().toISOString().split("T")[0],
-      bankName:           "",
-      bankAccountNumber:  "",
       items:              [],
     }
   );
 
-  // Khi initialData thay đổi (fetch xong) → sync lại state
+  // Lấy mã phiếu nhập kho tiếp theo từ server (chỉ khi tạo mới)
+  useEffect(() => {
+    if (initialData) return;
+    getNextImportId()
+      .then((id) => setVoucher((prev) => ({ ...prev, voucherId: id })))
+      .catch(() => {/* giữ rỗng nếu lỗi */ });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Khi initialData fetch xong (trang edit) → sync lại state
   useEffect(() => {
     if (!initialData) return;
     setVoucher(initialData);
-    setPaymentOption(detectPayment(initialData.voucherCode));
-  }, [initialData?.voucherId]); // chỉ re-sync khi load phiếu khác
+  }, [initialData?.voucherId]);
 
   // ── Field helpers ─────────────────────────────────────────
   const setField = <K extends keyof InwardVoucher>(field: K, value: InwardVoucher[K]) =>
     setVoucher((prev) => ({ ...prev, [field]: value }));
 
-  const handlePaymentChange = (opt: PaymentOption) => {
-    setPaymentOption(opt);
+  // ── Reason change — chỉ cập nhật voucherCode ─────────────
+  const handleReasonChange = (reason: InwardReason) => {
     setVoucher((prev) => ({
       ...prev,
-      voucherCode: getVoucherCodeByPayment(opt),
-      ...(opt !== "BANK" && { bankName: "", bankAccountNumber: "" }),
+      voucherCode: getVoucherCodeByReason(reason),
     }));
   };
 
   // ── Items ─────────────────────────────────────────────────
-  const createEmptyItem = (payment: PaymentOption): InwardItem => ({
-    goodsId:          "",
-    goodsName:        "",
-    unit:             "",
-    quantity:         1,
-    unitPrice:        0,
-    amount1:          0,
-    vat:              10,
-    promotion:        0,
-    debitAccount1:    "156",
-    creditAccount1:   getCreditAccountByPayment(payment),
-    debitWarehouseId: "",
-    debitAccount2:    "1331",
-    creditAccount2:   getCreditAccountByPayment(payment),
-    userId:           userId,
-    createdDateTime:  new Date().toISOString(),
+  const createEmptyItem = (): InwardItem => ({
+    goodsId:         "",
+    goodsName:       "",
+    unit:            "",
+    quantity:        1,
+    unitPrice:       0,
+    amount1:         0,
+    promotion:       0,
+    debitAccount1:   "156",
+    creditAccount1:  DEFAULT_CREDIT_ACCOUNT,   // 111 - tiền mặt
+    debitAccount2:   "1331",
+    creditAccount2:  DEFAULT_CREDIT_ACCOUNT,
+    userId:          userId,
+    createdDateTime: new Date().toISOString(),
   });
-
-  const paymentOptionRef = useRef(paymentOption);
-  paymentOptionRef.current = paymentOption;
 
   const addItem = () =>
     setVoucher((prev) => ({
       ...prev,
-      items: [...prev.items, createEmptyItem(paymentOptionRef.current)],
+      items: [...prev.items, createEmptyItem()],
     }));
 
   const removeItem = (index: number) =>
-    setVoucher((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
+    setVoucher((prev) => {
+      const next = prev.items.filter((_, i) => i !== index);
+      const lastIsEmpty = next.length > 0 && next[next.length - 1].goodsId.trim() === "";
+      return {
+        ...prev,
+        items: next.length === 0 || !lastIsEmpty
+          ? [...next, createEmptyItem()]
+          : next,
+      };
+    });
 
   const updateItem = (index: number, field: keyof InwardItem, value: unknown) => {
     setVoucher((prev) => {
@@ -128,36 +118,39 @@ export function useInwardForm({
   const replaceAllItems = (newItems: InwardItem[]) =>
     setVoucher((prev) => ({ ...prev, items: newItems }));
 
-  // ── Totals ────────────────────────────────────────────────
+  // ── filledItems: bỏ qua dòng placeholder khi submit ──────
   const filledItems = useMemo(
-    () => voucher.items.slice(0, -1),
+    () => voucher.items.filter((i) => i.goodsId.trim() !== ""),
     [voucher.items]
   );
 
+  // ── Totals ────────────────────────────────────────────────
   const totalAmount = useMemo(
     () => filledItems.reduce((s, i) => s + i.amount1, 0),
-    [filledItems]
-  );
-
-  const totalVat = useMemo(
-    () => filledItems.reduce((s, i) => s + i.amount1 * (i.vat / 100), 0),
     [filledItems]
   );
 
   // ── Validate ──────────────────────────────────────────────
   const validate = (): string | null => {
     if (!voucher.voucherId.trim())    return "Chưa có số phiếu";
-    if (!voucher.customerName.trim()) return "Chưa nhập tên nhà cung cấp";
-    if (!voucher.voucherDate)         return "Chưa chọn ngày";
-    if (paymentOption === "BANK") {
-      if (!voucher.bankAccountNumber?.trim()) return "Chưa nhập số tài khoản ngân hàng";
-      if (!voucher.bankName?.trim())          return "Chưa nhập tên tài khoản ngân hàng";
+    if (!voucher.customerName.trim()) return "Chưa nhập tên nhà cung cấp / khách hàng";
+    if (!voucher.voucherDate)         return "Chưa chọn ngày nhập kho";
+    if (filledItems.length === 0)     return "Chưa có hàng hóa nào";
+
+    for (const item of filledItems) {
+      const label = item.goodsName || item.goodsId;
+      if (item.quantity <= 0)
+        return `Dòng "${label}": Số lượng phải lớn hơn 0`;
+      if (item.unitPrice < 0)
+        return `Dòng "${label}": Đơn giá không được âm`;
+      if (item.promotion < 0 || item.promotion > 100)
+        return `Dòng "${label}": Khuyến mãi phải từ 0 đến 100%`;
     }
-    if (filledItems.length === 0) return "Chưa có hàng hóa nào";
+
     return null;
   };
 
-  // ── Build payload (dùng chung cho create và update) ───────
+  // ── Build payload ─────────────────────────────────────────
   const buildPayload = () => ({
     voucherId:          voucher.voucherId,
     voucherCode:        voucher.voucherCode,
@@ -167,28 +160,25 @@ export function useInwardForm({
     address:            voucher.address,
     voucherDescription: voucher.voucherDescription,
     voucherDate:        voucher.voucherDate,
-    bankName:           voucher.bankName,
-    bankAccountNumber:  voucher.bankAccountNumber,
     items: filledItems.map((item) => ({
-      goodsId:          item.goodsId,
-      goodsName:        item.goodsName,
-      unit:             item.unit,
-      quantity:         item.quantity,
-      unitPrice:        item.unitPrice,
-      amount1:          item.amount1,
-      vat:              item.vat,
-      promotion:        item.promotion,
-      debitAccount1:    item.debitAccount1,
-      creditAccount1:   item.creditAccount1,
-      debitWarehouseId: item.debitWarehouseId,
-      debitAccount2:    item.debitAccount2,
-      creditAccount2:   item.creditAccount2,
-      userId:           item.userId || userId,
-      createdDateTime:  item.createdDateTime || new Date().toISOString(),
+      goodsId:         item.goodsId,
+      goodsName:       item.goodsName,
+      unit:            item.unit,
+      quantity:        item.quantity,
+      unitPrice:       item.unitPrice,
+      amount1:         item.amount1,
+      promotion:       item.promotion,
+      debitAccount1:   item.debitAccount1,
+      creditAccount1:  item.creditAccount1,
+      debitAccount2:   item.debitAccount2,
+      creditAccount2:  item.creditAccount2,
+      offsetVoucher:   item.offsetVoucher ?? null,
+      userId:          item.userId || userId,
+      createdDateTime: item.createdDateTime || new Date().toISOString(),
     })),
   });
 
-  // ── Submit — tự chọn create hoặc update ──────────────────
+  // ── Submit ────────────────────────────────────────────────
   const handleSubmit = async () => {
     const error = validate();
     if (error) { setMessage(error); return; }
@@ -202,7 +192,10 @@ export function useInwardForm({
         : await createInward(payload);
 
       if (result.isSuccess) {
-        setMessage(isEditMode ? "Cập nhật phiếu nhập kho thành công" : "Tạo phiếu nhập kho thành công");
+        setMessage(isEditMode
+          ? "Cập nhật phiếu nhập kho thành công"
+          : "Tạo phiếu nhập kho thành công"
+        );
         onSuccess?.();
       } else {
         setMessage(result.message || "Có lỗi xảy ra");
@@ -215,9 +208,9 @@ export function useInwardForm({
   };
 
   return {
-    voucher, paymentOption, message, loading, isEditMode,
-    totalAmount, totalVat,
-    setField, handlePaymentChange,
+    voucher, message, loading, isEditMode,
+    totalAmount,
+    setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
   };

@@ -19,8 +19,17 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
         // thay vì chỉ 1 phiếu nhập đơn lẻ
         Task<List<FifoAllocation>> GetFifoAllocationsAsync(string goodsId, int requiredQty);
 
+        /// <summary>
+        /// Trả về số lượng còn tồn của một mặt hàng trong phiếu nhập cụ thể.
+        /// inboundVoucherId: VoucherId của phiếu nhập (= giá trị lưu trong OffsetVoucher của phiếu xuất).
+        /// excludeVoucherId: bỏ qua phiếu xuất này khi tính "đã xuất" (dùng khi Update).
+        /// </summary>
+        Task<int> GetRemainingQtyForInboundAsync(
+            string goodsId, string inboundVoucherId, string? excludeVoucherId = null);
+
         Task AddStockAsync(string goodsId, int quantity);    // hoàn tồn kho khi hủy/sửa
         Task DeductStockAsync(string goodsId, int quantity); // trừ tồn kho khi xuất
+        Task<string> GenerateVoucherIdAsync();
     }
 
     // Kết quả phân bổ FIFO cho 1 dòng hàng

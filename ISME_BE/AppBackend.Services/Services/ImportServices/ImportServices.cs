@@ -30,6 +30,7 @@ namespace AppBackend.Services.Services.ImportServices
 
         public async Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string userId)
         {
+            await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 // ── 1. Validate từng dòng hàng hóa trước khi insert ──
@@ -86,10 +87,31 @@ namespace AppBackend.Services.Services.ImportServices
                     }
                 }
 
-                // ── 2. Tạo Voucher header ──
+                // ── 2. Kiểm tra trùng phiếu trả hàng (NK2) ──
+                if (request.VoucherCode == "NK2")
+                {
+                    var saleVoucherId = request.Items
+                        .FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.OffsetVoucher))?.OffsetVoucher;
+                    if (!string.IsNullOrWhiteSpace(saleVoucherId))
+                    {
+                        var alreadyReturned = await _inwardRepository.IsAlreadyReturnedAsync(saleVoucherId);
+                        if (alreadyReturned)
+                            return new ResultModel<int>
+                            {
+                                IsSuccess = false,
+                                ResponseCode = "DUPLICATE_RETURN",
+                                StatusCode = 400,
+                                Data = 0,
+                                Message = $"Phiếu bán {saleVoucherId} đã được tạo phiếu trả hàng trước đó"
+                            };
+                    }
+                }
+
+                // ── 3. Tạo Voucher header — ID sinh tự động từ server ──
+                var generatedId = await _inwardRepository.GenerateVoucherIdAsync();
                 var inward = new Voucher
                 {
-                    VoucherId = request.VoucherId,
+                    VoucherId = generatedId,
                     VoucherCode = request.VoucherCode,
                     CustomerId = request.CustomerId,
                     CustomerName = request.CustomerName,
@@ -97,16 +119,18 @@ namespace AppBackend.Services.Services.ImportServices
                     Address = request.Address,
                     VoucherDescription = request.VoucherDescription,
                     VoucherDate = request.VoucherDate,
+                    InvoiceNumber = request.InvoiceNumber,
+                    InvoiceType = request.InvoiceType,
+                    InvoiceId = request.InvoiceId,
+                    InvoiceDate = request.InvoiceDate,
                     BankName = request.BankName,
                     BankAccountNumber = request.BankAccountNumber,
                     VoucherDetails = new List<VoucherDetail>()
                 };
 
-                // ── 3. Tạo từng dòng VoucherDetail ──
+                // ── 4. Tạo từng dòng VoucherDetail ──
                 foreach (var itemRequest in request.Items)
                 {
-                    var goods = await _itemRepository.GetByIdAsync(itemRequest.GoodsId!);
-
                     inward.VoucherDetails.Add(new VoucherDetail
                     {
                         GoodsId = itemRequest.GoodsId,
@@ -120,15 +144,21 @@ namespace AppBackend.Services.Services.ImportServices
                         DebitAccount2 = itemRequest.DebitAccount2,
                         CreditAccount2 = itemRequest.CreditAccount2,
                         Promotion = itemRequest.Promotion,
-                        Vat = itemRequest.Vat,
-                        UserId = itemRequest.UserId, 
+                        OffsetVoucher = itemRequest.OffsetVoucher,
+                        UserId = itemRequest.UserId,
                         CreatedDateTime = itemRequest.CreatedDateTime,
                     });
                 }
 
-                // ── 4. Lưu vào DB ──
+                // ── 5. Lưu voucher + details, rồi cộng tồn kho ──
                 await _inwardRepository.AddAsync(inward);
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var itemRequest in request.Items)
+                    await _inwardRepository.AddStockAsync(itemRequest.GoodsId!, itemRequest.Quantity!.Value);
+
                 var affectedRows = await _unitOfWork.SaveChangesAsync();
+                await tx.CommitAsync();
 
                 return new ResultModel<int>
                 {
@@ -235,6 +265,10 @@ namespace AppBackend.Services.Services.ImportServices
                     Address = voucher.Address,
                     VoucherDescription = voucher.VoucherDescription,
                     VoucherDate = voucher.VoucherDate,
+                    InvoiceNumber = voucher.InvoiceNumber,
+                    InvoiceType = voucher.InvoiceType,
+                    InvoiceId = voucher.InvoiceId,
+                    InvoiceDate = voucher.InvoiceDate,
                     BankName = voucher.BankName,
                     BankAccountNumber = voucher.BankAccountNumber,
                     Items = voucher.VoucherDetails.Select(d => new CreateInwardItemRequest
@@ -245,11 +279,10 @@ namespace AppBackend.Services.Services.ImportServices
                         Quantity = d.Quantity,
                         UnitPrice = d.UnitPrice,
                         Amount1 = d.Amount1,
-                        Vat = d.Vat,
                         Promotion = d.Promotion,
+                        OffsetVoucher = d.OffsetVoucher,
                         DebitAccount1 = d.DebitAccount1,
                         CreditAccount1 = d.CreditAccount1,
-                        DebitWarehouseId = d.DebitWarehouseId,
                         DebitAccount2 = d.DebitAccount2,
                         CreditAccount2 = d.CreditAccount2,
                         UserId = d.UserId,
@@ -281,6 +314,7 @@ namespace AppBackend.Services.Services.ImportServices
 
         public async Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId)
         {
+            await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 // ── 1. Validate từng dòng hàng hóa (giữ đúng pattern CreateInwardAsync) ──
@@ -327,16 +361,6 @@ namespace AppBackend.Services.Services.ImportServices
                             Data = 0,
                             Message = $"Đơn giá không hợp lệ cho {goods.GoodsName}"
                         };
-
-                    if (string.IsNullOrWhiteSpace(itemRequest.DebitWarehouseId))
-                        return new ResultModel<int>
-                        {
-                            IsSuccess = false,
-                            ResponseCode = "MISSING_WAREHOUSE",
-                            StatusCode = 400,
-                            Data = 0,
-                            Message = $"Chưa chọn kho nhập cho {goods.GoodsName}"
-                        };
                 }
 
                 // ── 2. Lấy voucher gốc từ DB ──
@@ -360,10 +384,20 @@ namespace AppBackend.Services.Services.ImportServices
                 voucher.Address = request.Address;
                 voucher.VoucherDescription = request.VoucherDescription;
                 voucher.VoucherDate = request.VoucherDate;
-                voucher.BankName = request.BankName;
-                voucher.BankAccountNumber = request.BankAccountNumber;
+                voucher.InvoiceNumber = request.InvoiceNumber;
+                voucher.InvoiceType = request.InvoiceType;
+                voucher.InvoiceId = request.InvoiceId;
+                voucher.InvoiceDate = request.InvoiceDate;
+                // BankName / BankAccountNumber: không ghi đè — giữ nguyên giá trị cũ
 
-                // ── 4. Xóa items cũ → thêm lại items mới ──
+                // ── 4. Hoàn tồn kho cũ trước khi xóa details ──
+                foreach (var old in voucher.VoucherDetails)
+                {
+                    if (!string.IsNullOrWhiteSpace(old.GoodsId) && (old.Quantity ?? 0) > 0)
+                        await _inwardRepository.DeductStockAsync(old.GoodsId, old.Quantity!.Value);
+                }
+
+                // ── 5. Xóa items cũ → thêm lại items mới ──
                 voucher.VoucherDetails.Clear();
 
                 foreach (var itemRequest in request.Items)
@@ -376,11 +410,10 @@ namespace AppBackend.Services.Services.ImportServices
                         Quantity = itemRequest.Quantity,
                         UnitPrice = itemRequest.UnitPrice,
                         Amount1 = itemRequest.Amount1,
-                        Vat = itemRequest.Vat,
                         Promotion = itemRequest.Promotion,
+                        OffsetVoucher = itemRequest.OffsetVoucher,
                         DebitAccount1 = itemRequest.DebitAccount1,
                         CreditAccount1 = itemRequest.CreditAccount1,
-                        DebitWarehouseId = itemRequest.DebitWarehouseId,
                         DebitAccount2 = itemRequest.DebitAccount2,
                         CreditAccount2 = itemRequest.CreditAccount2,
                         UserId = itemRequest.UserId,
@@ -388,9 +421,15 @@ namespace AppBackend.Services.Services.ImportServices
                     });
                 }
 
-                // ── 5. Lưu ──
+                // ── 6. Lưu + cộng tồn kho mới ──
                 await _inwardRepository.UpdateAsync(voucher);
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var itemRequest in request.Items)
+                    await _inwardRepository.AddStockAsync(itemRequest.GoodsId!, itemRequest.Quantity!.Value);
+
                 var affectedRows = await _unitOfWork.SaveChangesAsync();
+                await tx.CommitAsync();
 
                 return new ResultModel<int>
                 {
@@ -399,6 +438,71 @@ namespace AppBackend.Services.Services.ImportServices
                     StatusCode = 200,
                     Data = affectedRows,
                     Message = "Cập nhật phiếu nhập kho thành công"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = 0,
+                    Message = ex.Message
+                };
+            }
+        }
+
+        public async Task<string> GetNextVoucherIdAsync()
+            => await _inwardRepository.GenerateVoucherIdAsync();
+
+        public async Task<ResultModel<int>> DeleteAsync(string voucherId)
+        {
+            await using var tx = await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                var voucher = await _inwardRepository.GetByIdAsync(voucherId);
+                if (voucher == null)
+                    return new ResultModel<int>
+                    {
+                        IsSuccess = false,
+                        ResponseCode = "NOT_FOUND",
+                        StatusCode = 404,
+                        Data = 0,
+                        Message = $"Không tìm thấy phiếu nhập: {voucherId}"
+                    };
+
+                // Không cho xóa nếu đã có phiếu xuất đối trừ vào phiếu nhập này
+                var hasExports = await _inwardRepository.HasDependentExportsAsync(voucherId);
+                if (hasExports)
+                    return new ResultModel<int>
+                    {
+                        IsSuccess = false,
+                        ResponseCode = "HAS_DEPENDENT_EXPORTS",
+                        StatusCode = 400,
+                        Data = 0,
+                        Message = "Phiếu nhập đã có phiếu xuất kho đối trừ, không thể xóa"
+                    };
+
+                // Hoàn tồn kho trước khi xóa
+                foreach (var detail in voucher.VoucherDetails)
+                {
+                    if (!string.IsNullOrWhiteSpace(detail.GoodsId) && (detail.Quantity ?? 0) > 0)
+                        await _inwardRepository.DeductStockAsync(detail.GoodsId, detail.Quantity!.Value);
+                }
+                await _unitOfWork.SaveChangesAsync();
+
+                await _inwardRepository.DeleteAsync(voucherId);
+                var affected = await _unitOfWork.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return new ResultModel<int>
+                {
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = affected,
+                    Message = "Xóa phiếu nhập kho thành công"
                 };
             }
             catch (Exception ex)

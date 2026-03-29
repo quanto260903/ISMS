@@ -72,7 +72,6 @@ function mapListItem(raw: BackendListRaw): StockTakeListDto {
 // API CALLS
 // ═══════════════════════════════════════════════════════════════
 
-// ── Lấy toàn bộ hàng hóa ─────────────────────────────────────
 export async function getAllGoods(): Promise<GoodsDto[]> {
   const result: GoodsListResult = await getGoodsList({ page: 1, pageSize: 9999, isInactive: false });
   return (result.items ?? []).map((g: GoodsListDto) => ({
@@ -83,10 +82,6 @@ export async function getAllGoods(): Promise<GoodsDto[]> {
   }));
 }
 
-// ── Danh sách phiếu kiểm kê (toàn bộ) ───────────────────────
-// NOTE: Filter + pagination được thực hiện hoàn toàn ở client (component).
-// TODO: Khi backend hỗ trợ server-side filter/pagination, truyền params vào
-//       query string và xóa logic lọc trong StockTakeListPage.
 export async function getStockTakeList(): Promise<StockTakeListDto[]> {
   const res  = await fetch(ENDPOINT, {
     headers: { "Content-Type": "application/json", ...authHeader() },
@@ -106,13 +101,11 @@ export async function getStockTakeList(): Promise<StockTakeListDto[]> {
   return rawList.map(mapListItem);
 }
 
-// ── Chi tiết 1 phiếu ─────────────────────────────────────────
 export async function getStockTakeById(id: string): Promise<StockTakeFullDto> {
   const raw = await apiFetch<BackendVoucherDetailRaw>(`${ENDPOINT}/${id}`);
   return mapDetail(raw);
 }
 
-// ── Tạo mới phiếu ────────────────────────────────────────────
 export async function createStockTake(req: CreateStockTakeRequest): Promise<StockTakeFullDto> {
   const raw = await apiFetch<BackendVoucherDetailRaw>(ENDPOINT, {
     method: "POST", body: JSON.stringify(req),
@@ -120,7 +113,6 @@ export async function createStockTake(req: CreateStockTakeRequest): Promise<Stoc
   return mapDetail(raw);
 }
 
-// ── Cập nhật phiếu (header + toàn bộ lines) ──────────────────
 export async function updateStockTake(id: string, req: UpdateStockTakeHeaderRequest): Promise<StockTakeFullDto> {
   const raw = await apiFetch<BackendVoucherDetailRaw>(`${ENDPOINT}/${id}`, {
     method: "PUT", body: JSON.stringify(req),
@@ -128,8 +120,10 @@ export async function updateStockTake(id: string, req: UpdateStockTakeHeaderRequ
   return mapDetail(raw);
 }
 
-// ── Xử lý phiếu → tạo phiếu nhập/xuất ───────────────────────
-export async function processStockTake(id: string): Promise<{ result: ProcessStockTakeResultDto; voucher: StockTakeFullDto }> {
+// Lỗi 6 đã sửa: chỉ trả về ProcessStockTakeResultDto từ API process
+// Không gọi thêm getStockTakeById — component sẽ tự gọi fetchVoucher() sau khi process xong
+// Tránh 1 request thừa và tách rõ trách nhiệm: API layer chỉ gọi đúng 1 endpoint
+export async function processStockTake(id: string): Promise<ProcessStockTakeResultDto> {
   const res = await fetch(`${ENDPOINT}/${id}/process`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
@@ -145,7 +139,7 @@ export async function processStockTake(id: string): Promise<{ result: ProcessSto
     throw new Error(body.message ?? "Xử lý thất bại");
   }
 
-  const result: ProcessStockTakeResultDto = {
+  return {
     success:           body?.success          ?? true,
     message:           body?.message          ?? "Xử lý thành công",
     importVoucherId:   body?.importVoucherId   ?? null,
@@ -153,12 +147,8 @@ export async function processStockTake(id: string): Promise<{ result: ProcessSto
     exportVoucherId:   body?.exportVoucherId   ?? null,
     exportVoucherCode: body?.exportVoucherCode ?? null,
   };
-
-  const voucher = await getStockTakeById(id);
-  return { result, voucher };
 }
 
-// ── Xóa phiếu ────────────────────────────────────────────────
 export async function deleteStockTake(id: string): Promise<void> {
   await apiFetch<void>(`${ENDPOINT}/${id}`, { method: "DELETE" });
 }

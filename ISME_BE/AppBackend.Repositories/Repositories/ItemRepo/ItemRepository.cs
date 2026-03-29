@@ -31,62 +31,109 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
 
             return item;
         }
-        public async Task<List<WarehouseTransactionDto>> GetWarehouseTransactionsAsync(string goodsId)
+        /// <summary>
+        /// Lấy tồn kho theo từng phiếu nhập của 1 mặt hàng.
+        /// 
+        /// Logic FIFO có lùi ngày:
+        /// - Chỉ tính các phiếu NHẬP có VoucherDate <= asOfDate (ngày xuất kho đang tạo)
+        /// - Tồn của mỗi phiếu nhập = WarehouseIn - tổng WarehouseOut đã xuất từ phiếu đó
+        /// - Chỉ trả về các phiếu còn tồn > 0
+        /// 
+        /// Ví dụ: asOfDate = ngày 11
+        /// → phiếu nhập ngày 12 bị loại → không có hàng để xuất ✅
+        /// 
+        /// Ví dụ: asOfDate = ngày 13
+        /// → phiếu nhập ngày 10 và ngày 12 đều hợp lệ
+        /// → tính tồn thực tế của từng phiếu ✅
+        /// </summary>
+        public async Task<List<WarehouseTransactionDto>> GetWarehouseTransactionsAsync(
+            string goodsId,
+            DateOnly? asOfDate = null)   // null = không giới hạn ngày (dùng khi xem báo cáo)
         {
+            // ── 1. Lấy tất cả VoucherDetail liên quan đến TK 156 của mặt hàng ──
             var data = await _context.VoucherDetails
                 .Where(vd =>
-                    (
+                    vd.GoodsId == goodsId
+                    && (
                         vd.DebitAccount1 == "156"
                         || vd.DebitAccount2 == "156"
                         || vd.CreditAccount1 == "156"
                         || vd.CreditAccount2 == "156"
-                    )
-                    && vd.GoodsId == goodsId)
+                    ))
                 .Include(vd => vd.Voucher)
-                .Include(vd => vd.DebitWarehouse)   // 🔥 thêm dòng này
                 .ToListAsync();
 
-            var result = data
-                .GroupBy(vd =>
-                    (vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156")
-                        ? vd.VoucherId
-                        : vd.OffsetVoucher)
+            // ── 2. Tách riêng dòng NHẬP và dòng XUẤT ──────────────────────────
+            // Nhập kho: Debit 156 (tồn tăng)
+            // Xuất kho: Credit 156 (tồn giảm)
+            var inboundRows = data
+                .Where(vd => vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156")
+                .ToList();
+
+            var outboundRows = data
+                .Where(vd => vd.CreditAccount1 == "156" || vd.CreditAccount2 == "156")
+                .ToList();
+
+            // ── 3. Filter phiếu NHẬP theo asOfDate ────────────────────────────
+            // Nếu asOfDate = ngày 11 → bỏ phiếu nhập ngày 12 trở đi
+            // Nếu asOfDate = null    → giữ tất cả (dùng cho màn hình báo cáo)
+            var eligibleInbounds = asOfDate.HasValue
+                ? inboundRows.Where(vd =>
+                    vd.Voucher?.VoucherDate != null
+                    && vd.Voucher.VoucherDate.Value <= asOfDate.Value)
+                  .ToList()
+                : inboundRows;
+
+            // ── 4. Group theo VoucherId của phiếu NHẬP ────────────────────────
+            // Tính WarehouseIn, Cost, UnitPrice cho từng phiếu nhập đủ điều kiện
+            var inboundGroups = eligibleInbounds
+                .GroupBy(vd => vd.VoucherId)
                 .Select(g =>
                 {
-                    var importRow = g.FirstOrDefault(vd =>
-                        vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156");
+                    var firstRow = g.First();
+                    return new
+                    {
+                        InboundVoucherId = g.Key,
+                        VoucherDate = firstRow.Voucher?.VoucherDate,
+                        WarehouseIn = g.Sum(vd => (decimal?)vd.Quantity ?? 0),
+                        Cost = g.Sum(vd => (decimal?)vd.Amount1 ?? 0),
+                        UnitPrice = firstRow.UnitPrice ?? 0,
+                    };
+                })
+                .ToList();
 
-                    var import = g.Sum(vd =>
-                        (vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156")
-                            ? (decimal?)vd.Quantity ?? 0
-                            : 0);
+            // ── 5. Tính WarehouseOut cho từng phiếu nhập ──────────────────────
+            // OffsetVoucher trên dòng xuất trỏ đến VoucherId của phiếu nhập
+            // → group theo OffsetVoucher để biết đã xuất bao nhiêu từ mỗi phiếu nhập
+            var outboundByInbound = outboundRows
+                .Where(vd => vd.OffsetVoucher != null)
+                .GroupBy(vd => vd.OffsetVoucher!)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(vd => (decimal?)vd.Quantity ?? 0)
+                );
 
-                    var export = g.Sum(vd =>
-                        (vd.CreditAccount1 == "156" || vd.CreditAccount2 == "156")
-                            ? (decimal?)vd.Quantity ?? 0
-                            : 0);
+            // ── 6. Build kết quả ──────────────────────────────────────────────
+            var result = inboundGroups
+                .Select(ib =>
+                {
+                    var warehouseOut = outboundByInbound.TryGetValue(
+                        ib.InboundVoucherId!, out var o) ? o : 0;
 
                     return new WarehouseTransactionDto
                     {
-                        OffsetVoucher = g.Key,
+                        OffsetVoucher = ib.InboundVoucherId,
                         GoodsId = goodsId,
-
-                        WarehouseId = importRow?.DebitWarehouseId, 
-                        WarehouseName = importRow?.DebitWarehouse?.WarehouseName,
-
-                        VoucherDate = importRow?.Voucher?.VoucherDate,
-                        WarehouseIn = import,
-                        WarehouseOut = export,
-                        CustomInHand = import - export,
-
-                        Cost = g
-                            .Where(vd => vd.DebitAccount1 == "156"
-                                      || vd.DebitAccount2 == "156")
-                            .Sum(vd => (decimal?)vd.Amount1 ?? 0)
+                        VoucherDate = ib.VoucherDate,
+                        WarehouseIn = ib.WarehouseIn,
+                        WarehouseOut = warehouseOut,
+                        CustomInHand = ib.WarehouseIn - warehouseOut,
+                        Cost = ib.Cost,
+                        UnitPrice = ib.UnitPrice,
                     };
                 })
-                .Where(x => x.CustomInHand > 0)
-                .OrderBy(x => x.VoucherDate)
+                .Where(x => x.CustomInHand > 0)     // chỉ phiếu còn tồn
+                .OrderBy(x => x.VoucherDate)         // FIFO: cũ nhất lên đầu
                 .ToList();
 
             return result;

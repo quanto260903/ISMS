@@ -18,6 +18,17 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         /// <summary>
+        /// Xem trước mã phiếu xuất kho tiếp theo (không tiêu thụ số thứ tự)
+        /// GET /api/Export/next-id
+        /// </summary>
+        [HttpGet("next-id")]
+        public async Task<IActionResult> GetNextId()
+        {
+            var nextId = await _exportService.GetNextVoucherIdAsync();
+            return Ok(new { voucherId = nextId });
+        }
+
+        /// <summary>
         /// Danh sách phiếu xuất kho — có lọc và phân trang
         /// GET /api/Export/list?fromDate=2026-03-01&toDate=2026-03-31&keyword=XH&page=1&pageSize=50
         /// </summary>

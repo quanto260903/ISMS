@@ -10,9 +10,6 @@ export interface StockTakeDetailDto {
   differenceQuantity: number;
 }
 
-// totalGoods / totalSurplus / totalShortage đã xóa:
-// Backend list endpoint không trả aggregation — các field này luôn là 0 (fake).
-// Xem chi tiết phiếu (StockTakeFullDto.lines) để tính nếu cần.
 export interface StockTakeListDto {
   stockTakeVoucherId: string;
   voucherCode:        string;
@@ -42,7 +39,6 @@ export interface StockTakeFullDto {
   lines:              StockTakeDetailDto[];
 }
 
-// Hàng hóa từ danh mục — dùng để auto-load khi tạo phiếu
 export interface GoodsDto {
   goodsId:       string;
   goodsName:     string;
@@ -51,9 +47,8 @@ export interface GoodsDto {
 }
 
 export interface CreateStockTakeRequest {
-  // voucherCode do FE tự sinh và gửi lên (backend chưa có auto-generate)
-  // TODO: Khi backend tự sinh mã, có thể xóa field này
-  voucherCode?:     string;
+  // Lỗi 1: xóa voucherCode — backend tự sinh, không để frontend gửi lên
+  // tránh race condition khi 2 user tạo cùng lúc
   voucherDate:      string;
   stockTakeDate:    string;
   purpose?:         string;
@@ -68,7 +63,8 @@ export interface CreateStockTakeDetailRequest {
   goodsId:        string;
   goodsName:      string;
   unit?:          string | null;
-  bookQuantity:   number;
+  // Lỗi 2: xóa bookQuantity — backend tự lấy từ Goods.ItemOnHand
+  // tránh client gửi sai làm DifferenceQuantity tính lệch
   actualQuantity: number;
 }
 

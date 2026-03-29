@@ -7,20 +7,21 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useExportList } from "../hooks/useExportList";
-import type { ExportListItem } from "../types/export.types";
+import {
+  EXPORT_VOUCHER_CODE_LABELS,
+  EXPORT_VOUCHER_CODE_COLORS,
+} from "../constants/export.constants";
+import type { ExportListItem, ExportVoucherCode } from "../types/export.types";
 
-const fmtDate  = (d: string | null) => d ? new Date(d).toLocaleDateString("vi-VN") : "--";
-const fmtMoney = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
+// Sửa lỗi timezone: DateOnly từ C# → thêm T00:00:00 tránh lệch ngày
+const fmtDate  = (d: string | null) =>
+  d ? new Date(d + "T00:00:00").toLocaleDateString("vi-VN") : "--";
 
-const VOUCHER_CODE_LABELS: Record<string, string> = {
-  XH1: "Hàng nhập trả lại",
-  XH2: "Xuất hàng kiểm kê",
-};
+const fmtMoney = (n: number) =>
+  n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
-const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  XH1: { bg: "#fff1f2", color: "#b91c1c", border: "#fca5a5" },
-  XH2: { bg: "#f8fafc", color: "#475569", border: "#cbd5e1" },
-};
+// XK3/XK4 do hệ thống tự sinh — không cho sửa thủ công
+const AUTO_GENERATED: ExportVoucherCode[] = ["XK3", "XK4"];
 
 export default function ExportListPage() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function ExportListPage() {
 
   return (
     <div style={s.page}>
+
       {/* ── Hero header ── */}
       <div style={s.heroBanner}>
         <div style={s.heroDecorOrb} />
@@ -124,14 +126,18 @@ export default function ExportListPage() {
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>📤</div>
                     <p style={{ fontWeight: 600, color: "#374151" }}>Chưa có phiếu nào</p>
-                    <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>Nhấn "Tạo phiếu xuất mới" để bắt đầu</p>
+                    <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
+                      Nhấn "Tạo phiếu xuất mới" để bắt đầu
+                    </p>
                   </div>
                 </td>
               </tr>
             )}
             {!loading && result?.items.map((row, i) => (
               <ExportRow
-                key={row.voucherId} row={row} i={i}
+                key={row.voucherId}
+                row={row}
+                i={i}
                 onEdit={() => router.push(`/dashboard/export/${row.voucherId}`)}
               />
             ))}
@@ -139,7 +145,7 @@ export default function ExportListPage() {
         </table>
       </div>
 
-      {/* ── Footer ── */}
+      {/* ── Footer: tổng + phân trang ── */}
       {result && (
         <div style={s.footer}>
           <div style={s.grandTotal}>
@@ -163,32 +169,48 @@ export default function ExportListPage() {
   );
 }
 
-function ExportRow({ row, i, onEdit }: { row: ExportListItem; i: number; onEdit: () => void }) {
+// ── Row component ────────────────────────────────────────────
+function ExportRow({
+  row, i, onEdit,
+}: { row: ExportListItem; i: number; onEdit: () => void }) {
   const [hover, setHover] = React.useState(false);
-  const codeStyle = VOUCHER_CODE_COLORS[row.voucherCode ?? "XH2"] ?? VOUCHER_CODE_COLORS.XH2;
+
+  const code       = row.voucherCode;
+  const codeStyle  = code
+    ? (EXPORT_VOUCHER_CODE_COLORS[code] ?? EXPORT_VOUCHER_CODE_COLORS.DEFAULT)
+    : EXPORT_VOUCHER_CODE_COLORS.DEFAULT;
+  const codeLabel  = code ? (EXPORT_VOUCHER_CODE_LABELS[code] ?? code) : "--";
+  const isAutoGen  = code ? (AUTO_GENERATED as (ExportVoucherCode | null)[]).includes(code) : false;
 
   return (
     <tr
       style={{
         background: hover ? "#f0fdfa" : i % 2 === 0 ? "#fff" : "#fafafa",
-        transition: "background 0.12s", cursor: "pointer",
+        transition: "background 0.12s",
+        cursor: "pointer",
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onEdit}
     >
-      <td style={s.td} onClick={(e) => e.stopPropagation()}><input type="checkbox" /></td>
-      <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>{row.invoiceNumber ?? "--"}</td>
-      <td style={{ ...s.td, fontWeight: 700, color: "#0f766e" }}>{row.voucherId}</td>
+      <td style={s.td} onClick={(e) => e.stopPropagation()}>
+        <input type="checkbox" />
+      </td>
+      <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>
+        {row.invoiceNumber ?? "--"}
+      </td>
+      <td style={{ ...s.td, fontWeight: 700, color: "#0f766e" }}>
+        {row.voucherId}
+      </td>
       <td style={s.td}>
-        {row.voucherCode && (
+        {code && (
           <span style={{
             padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
             background: codeStyle.bg, color: codeStyle.color,
             border: `1.5px solid ${codeStyle.border}`,
             whiteSpace: "nowrap", letterSpacing: "0.02em",
           }}>
-            {VOUCHER_CODE_LABELS[row.voucherCode] ?? row.voucherCode}
+            {codeLabel}
           </span>
         )}
       </td>
@@ -198,22 +220,27 @@ function ExportRow({ row, i, onEdit }: { row: ExportListItem; i: number; onEdit:
         {fmtMoney(row.totalAmount)} ₫
       </td>
       <td style={{ ...s.td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-        <button style={s.btnEdit} onClick={onEdit}>✏️ Sửa</button>
+        {isAutoGen ? (
+          // XK3/XK4: chỉ xem, không sửa thủ công
+          <button style={s.btnView} onClick={onEdit} title="Phiếu tự động — chỉ xem">
+            👁 Xem
+          </button>
+        ) : (
+          <button style={s.btnEdit} onClick={onEdit}>
+            ✏️ Sửa
+          </button>
+        )}
       </td>
     </tr>
   );
 }
 
+// ── Styles ───────────────────────────────────────────────────
 const FONT = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
+
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: 0, minHeight: "100vh", background: "#f8faff", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 0 },
-  heroBanner: {
-    position: "relative", overflow: "hidden",
-    background: "linear-gradient(135deg, #0f766e 0%, #0891b2 60%, #1d4ed8 100%)",
-    borderRadius: 14, padding: "24px 28px", marginBottom: 20,
-    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-    boxShadow: "0 8px 24px rgba(15,118,110,0.3)",
-  },
+  page:        { padding: 0, minHeight: "100vh", background: "#f8faff", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 0 },
+  heroBanner:  { position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #0f766e 0%, #0891b2 60%, #1d4ed8 100%)", borderRadius: 14, padding: "24px 28px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, boxShadow: "0 8px 24px rgba(15,118,110,0.3)" },
   heroDecorOrb:  { position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.08)" },
   heroDecorOrb2: { position: "absolute", bottom: -30, left: 100, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.05)" },
   heroEyebrow: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 },
@@ -221,21 +248,21 @@ const s: Record<string, React.CSSProperties> = {
   heroSub:     { fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 4, marginBottom: 0 },
   filterCard:  { background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
   filterBar:   { display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" },
-  filterGroup: { display: "flex", flexDirection: "column", gap: 5 },
+  filterGroup: { display: "flex", flexDirection: "column" as const, gap: 5 },
   filterLabel: { fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" },
   filterInput: { height: 38, padding: "0 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, background: "#fff", minWidth: 140, color: "#1e293b", outline: "none" },
   searchIcon:  { position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, pointerEvents: "none" },
   btnRefresh:  { height: 38, width: 38, border: "1.5px solid #e2e8f0", borderRadius: 8, background: "#f0fdfa", cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", color: "#0f766e", marginTop: 22 },
-  tableCard:   { overflowX: "auto", background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 16 },
-  table:       { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  tableCard:   { overflowX: "auto" as const, background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 16 },
+  table:       { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
   theadRow:    { background: "linear-gradient(135deg, #0f766e, #0891b2)" },
-  th:          { padding: "12px 16px", textAlign: "left", fontWeight: 700, color: "#fff", borderBottom: "none", whiteSpace: "nowrap", fontSize: 12, letterSpacing: "0.04em" },
-  td:          { padding: "11px 16px", borderBottom: "1px solid #f1f5f9", color: "#334155", whiteSpace: "nowrap", fontSize: 13 },
-  statusCell:  { padding: "40px 32px", textAlign: "center", color: "#94a3b8", fontSize: 14 },
-  loadingSpinner: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "#0f766e", fontWeight: 500 },
+  th:          { padding: "12px 16px", textAlign: "left" as const, fontWeight: 700, color: "#fff", borderBottom: "none", whiteSpace: "nowrap" as const, fontSize: 12, letterSpacing: "0.04em" },
+  td:          { padding: "11px 16px", borderBottom: "1px solid #f1f5f9", color: "#334155", whiteSpace: "nowrap" as const, fontSize: 13 },
+  statusCell:  { padding: "40px 32px", textAlign: "center" as const, color: "#94a3b8", fontSize: 14 },
+  loadingSpinner: { display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 12, color: "#0f766e", fontWeight: 500 },
   spinnerRing: { width: 36, height: 36, borderRadius: "50%", border: "3px solid #ccfbf1", borderTopColor: "#0f766e" },
   errorBox:    { display: "inline-flex", alignItems: "center", gap: 8, background: "#fff1f2", color: "#b91c1c", border: "1.5px solid #fca5a5", borderRadius: 8, padding: "10px 18px", fontWeight: 600, fontSize: 13 },
-  emptyState:  { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+  emptyState:  { display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4 },
   emptyIcon:   { fontSize: 36, marginBottom: 4, filter: "grayscale(0.5)" },
   footer:      { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" },
   grandTotal:  { display: "flex", alignItems: "center", gap: 20 },
@@ -245,4 +272,5 @@ const s: Record<string, React.CSSProperties> = {
   pageBtn:     { width: 32, height: 32, border: "1.5px solid #e2e8f0", borderRadius: 7, background: "#f0fdfa", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#0f766e", fontWeight: 700 },
   btnPrimary:  { display: "flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.4)", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer", flexShrink: 0, letterSpacing: "0.02em" },
   btnEdit:     { padding: "5px 14px", border: "1.5px solid #99f6e4", borderRadius: 7, background: "#f0fdfa", color: "#0f766e", fontWeight: 700, fontSize: 12, cursor: "pointer" },
+  btnView:     { padding: "5px 14px", border: "1.5px solid #cbd5e1", borderRadius: 7, background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 12, cursor: "pointer" },
 };

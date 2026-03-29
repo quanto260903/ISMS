@@ -4,8 +4,10 @@ using AppBackend.Repositories.Repositories.ImportRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
 using AppBackend.Repositories.Repositories.StockTakeRepo;
 using AppBackend.Repositories.Repositories.UserRepo;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using AppBackend.Repositories.UnitOfWork;
+using AppBackend.Repositories.Repositories.GoodsRepo;
 
 namespace SWS.Repositories.UnitOfWork
 {
@@ -18,6 +20,7 @@ namespace SWS.Repositories.UnitOfWork
         private IImportRepository? _importRepository;
         private IStockTakeVoucherRepository? _stockTakeVouchers;
         private IStockTakeDetailRepository? _stockTakeDetails;
+        private IGoodsRepository? _goodsRepository;
         public UnitOfWork(IndividualBusinessContext context)
         {
             _context = context;
@@ -34,7 +37,11 @@ namespace SWS.Repositories.UnitOfWork
 
         public IStockTakeDetailRepository StockTakeDetails
             => _stockTakeDetails ??= new StockTakeDetailRepository(_context);
+        public IGoodsRepository Goods => _goodsRepository ??= new GoodsRepository(_context);
         public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+            => await _context.Database.BeginTransactionAsync();
 
         public void Dispose() => _context?.Dispose();
     }

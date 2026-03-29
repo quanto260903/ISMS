@@ -1,18 +1,16 @@
 // ============================================================
 //  features/export/hooks/useExportForm.ts
-//  Thêm: FIFO preview trước khi submit
 // ============================================================
 
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { createExport, updateExport, getFifoPreview } from "../export.api";
-import type { FifoPreviewResult } from "../export.api";
+import { createExport, updateExport, getNextExportId } from "../export.api";
 import type { ExportReason, ExportVoucher, ExportItem } from "../types/export.types";
 import {
-  generateVoucherNumber,
   getVoucherCodeByReason,
   getDebitAccountByReason,
+  detectReasonFromCode,
   calcAmount,
 } from "../constants/export.constants";
 
@@ -32,45 +30,42 @@ export function useExportForm({
 
   const isEditMode = !!initialData;
 
-  const detectReason = (code?: string): ExportReason => {
-    if (code === "XH1") return "IMPORT_RETURN";
-    return "OTHER";
-  };
-
   const [reason,  setReason]  = useState<ExportReason>(
-    isEditMode ? detectReason(initialData?.voucherCode) : "OTHER"
+    isEditMode ? detectReasonFromCode(initialData?.voucherCode) : "IMPORT_RETURN"
   );
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ── FIFO preview state ────────────────────────────────────
-  // showFifoPreview = true khi user nhấn Lưu và có items không có offsetVoucher
-  const [fifoPreview,     setFifoPreview]     = useState<FifoPreviewResult[]>([]);
-  const [showFifoPreview, setShowFifoPreview] = useState(false);
-  const [fifoLoading,     setFifoLoading]     = useState(false);
-
   const [voucher, setVoucher] = useState<ExportVoucher>(
     initialData ?? {
-      voucherId:          generateVoucherNumber(),
-      voucherCode:        getVoucherCodeByReason("OTHER"),
+      voucherId:          "",
+      voucherCode:        getVoucherCodeByReason("IMPORT_RETURN"),
       customerId:         "",
       customerName:       "",
       taxCode:            "",
       address:            "",
-      voucherDescription: userFullName ? `Người lập phiếu: ${userFullName}` : "",
+      voucherDescription: "",
       voucherDate:        new Date().toISOString().split("T")[0],
-      bankName:           "",
-      bankAccountNumber:  "",
       items:              [],
     }
   );
 
+  // Lấy mã phiếu xuất kho tiếp theo từ server (chỉ khi tạo mới)
+  useEffect(() => {
+    if (initialData) return;
+    getNextExportId()
+      .then((id) => setVoucher((prev) => ({ ...prev, voucherId: id })))
+      .catch(() => {/* giữ rỗng nếu lỗi */ });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Khi initialData fetch xong (trang edit) → sync lại state
   useEffect(() => {
     if (!initialData) return;
     setVoucher(initialData);
-    setReason(detectReason(initialData.voucherCode));
+    setReason(detectReasonFromCode(initialData.voucherCode));
   }, [initialData?.voucherId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Field helpers ─────────────────────────────────────────
   const setField = <K extends keyof ExportVoucher>(field: K, value: ExportVoucher[K]) =>
     setVoucher((prev) => ({ ...prev, [field]: value }));
 
@@ -81,16 +76,20 @@ export function useExportForm({
 
   // ── Items ─────────────────────────────────────────────────
   const createEmptyItem = (r: ExportReason): ExportItem => ({
-    goodsId: "", goodsName: "", unit: "",
-    quantity: 1, unitPrice: 0, amount1: 0, vat: 10, promotion: 0,
-    debitAccount1:     getDebitAccountByReason(r),
-    creditAccount1:    "156",
-    creditWarehouseId: "",
-    debitAccount2:     "3331",
-    creditAccount2:    "156",
-    userId:            userId,
-    createdDateTime:   new Date().toISOString(),
-    offsetVoucher:     "",
+    goodsId:         "",
+    goodsName:       "",
+    unit:            "",
+    quantity:        1,
+    unitPrice:       0,
+    amount1:         0,
+    debitAccount1:   getDebitAccountByReason(r),
+    creditAccount1:  "156",
+    debitAccount2:   "",
+    creditAccount2:  "",
+    costPerUnit:     0,
+    userId:          userId,
+    createdDateTime: new Date().toISOString(),
+    offsetVoucher:   "",
   });
 
   const reasonRef = useRef(reason);
@@ -98,11 +97,22 @@ export function useExportForm({
 
   const addItem = () =>
     setVoucher((prev) => ({
-      ...prev, items: [...prev.items, createEmptyItem(reasonRef.current)],
+      ...prev,
+      items: [...prev.items, createEmptyItem(reasonRef.current)],
     }));
 
+  // ── removeItem: luôn giữ placeholder cuối — giống useInwardForm ──
   const removeItem = (index: number) =>
-    setVoucher((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
+    setVoucher((prev) => {
+      const next = prev.items.filter((_, i) => i !== index);
+      const lastIsEmpty = next.length > 0 && next[next.length - 1].goodsId.trim() === "";
+      return {
+        ...prev,
+        items: next.length === 0 || !lastIsEmpty
+          ? [...next, createEmptyItem(reasonRef.current)]
+          : next,
+      };
+    });
 
   const updateItem = (index: number, field: keyof ExportItem, value: unknown) => {
     setVoucher((prev) => {
@@ -116,19 +126,15 @@ export function useExportForm({
   const replaceAllItems = (newItems: ExportItem[]) =>
     setVoucher((prev) => ({ ...prev, items: newItems }));
 
-  // ── Totals ────────────────────────────────────────────────
+  // ── filledItems: filter thay vì slice — giống useInwardForm ──
   const filledItems = useMemo(
-    () => voucher.items.slice(0, -1),
+    () => voucher.items.filter((i) => i.goodsId.trim() !== ""),
     [voucher.items]
   );
 
+  // ── Totals ────────────────────────────────────────────────
   const totalAmount = useMemo(
     () => filledItems.reduce((s, i) => s + i.amount1, 0),
-    [filledItems]
-  );
-
-  const totalVat = useMemo(
-    () => filledItems.reduce((s, i) => s + i.amount1 * (i.vat / 100), 0),
     [filledItems]
   );
 
@@ -136,11 +142,24 @@ export function useExportForm({
   const validate = (): string | null => {
     if (!voucher.voucherId.trim())    return "Chưa có số phiếu";
     if (!voucher.customerName.trim()) return "Chưa nhập tên đối tượng";
-    if (!voucher.voucherDate)         return "Chưa chọn ngày";
+    if (!voucher.voucherDate)         return "Chưa chọn ngày xuất kho";
     if (filledItems.length === 0)     return "Chưa có hàng hóa nào";
+
+    for (const item of filledItems) {
+      const label = item.goodsName || item.goodsId;
+      if (item.quantity <= 0)
+        return `Dòng "${label}": Số lượng phải lớn hơn 0`;
+      if (item.unitPrice < 0)
+        return `Dòng "${label}": Đơn giá không hợp lệ`;
+      // Bắt buộc có offsetVoucher — XK1/XK2 đều cần chứng từ đối trừ
+      if (!item.offsetVoucher?.trim())
+        return `Dòng "${label}": chưa chọn chứng từ nhập kho đối trừ`;
+    }
+
     return null;
   };
 
+  // ── Build payload ─────────────────────────────────────────
   const buildPayload = () => ({
     voucherId:          voucher.voucherId,
     voucherCode:        voucher.voucherCode,
@@ -150,89 +169,29 @@ export function useExportForm({
     address:            voucher.address,
     voucherDescription: voucher.voucherDescription,
     voucherDate:        voucher.voucherDate,
-    bankName:           voucher.bankName,
-    bankAccountNumber:  voucher.bankAccountNumber,
     items: filledItems.map((item) => ({
-      goodsId:           item.goodsId,
-      goodsName:         item.goodsName,
-      unit:              item.unit,
-      quantity:          item.quantity,
-      unitPrice:         item.unitPrice,
-      amount1:           item.amount1,
-      vat:               item.vat,
-      promotion:         item.promotion,
-      debitAccount1:     item.debitAccount1,
-      creditAccount1:    item.creditAccount1,
-      creditWarehouseId: item.creditWarehouseId,
-      debitAccount2:     item.debitAccount2,
-      creditAccount2:    item.creditAccount2,
-      userId:            item.userId || userId,
-      createdDateTime:   item.createdDateTime || new Date().toISOString(),
-      offsetVoucher:     item.offsetVoucher || "",
+      goodsId:         item.goodsId,
+      goodsName:       item.goodsName,
+      unit:            item.unit,
+      quantity:        item.quantity,
+      unitPrice:       item.unitPrice,
+      amount1:         item.amount1,
+      debitAccount1:   item.debitAccount1,
+      creditAccount1:  item.creditAccount1,
+      debitAccount2:   item.debitAccount2,
+      creditAccount2:  item.creditAccount2,
+      costPerUnit:     item.costPerUnit,
+      offsetVoucher:   item.offsetVoucher ?? null,
+      userId:          item.userId || userId,
+      createdDateTime: item.createdDateTime || new Date().toISOString(),
     })),
   });
 
-  // ══════════════════════════════════════════════════════════
-  // SUBMIT FLOW:
-  //
-  // Bước 1 — handleSubmit (user nhấn "Lưu"):
-  //   - Validate cơ bản
-  //   - Kiểm tra items nào chưa có offsetVoucher
-  //   - Nếu có → gọi getFifoPreview → hiện modal preview
-  //   - Nếu không → gọi doSave() trực tiếp
-  //
-  // Bước 2 — confirmSave (user xác nhận trong modal preview):
-  //   - Đóng modal
-  //   - Gọi doSave()
-  // ══════════════════════════════════════════════════════════
+  // ── Submit ────────────────────────────────────────────────
   const handleSubmit = async () => {
     const error = validate();
     if (error) { setMessage(error); return; }
 
-    // Items hợp lệ (không tính dòng trống cuối)
-    const itemsWithoutOffset = filledItems.filter(
-      (i) => i.goodsId.trim() && !i.offsetVoucher?.trim()
-    );
-
-    if (itemsWithoutOffset.length > 0) {
-      // Có items chưa chọn offsetVoucher → show FIFO preview
-      setFifoLoading(true);
-      setMessage("");
-      try {
-        const preview = await getFifoPreview(
-          itemsWithoutOffset.map((i) => ({
-            goodsId:   i.goodsId,
-            goodsName: i.goodsName,
-            quantity:  i.quantity,
-          }))
-        );
-        setFifoPreview(preview);
-        setShowFifoPreview(true);
-      } catch {
-        setMessage("Không thể tải preview FIFO, vui lòng thử lại");
-      } finally {
-        setFifoLoading(false);
-      }
-    } else {
-      // Tất cả đã có offsetVoucher → lưu thẳng
-      await doSave();
-    }
-  };
-
-  // Xác nhận sau khi xem preview FIFO
-  const confirmSave = async () => {
-    setShowFifoPreview(false);
-    setFifoPreview([]);
-    await doSave();
-  };
-
-  // Hủy preview
-  const cancelFifoPreview = () => {
-    setShowFifoPreview(false);
-    setFifoPreview([]);
-  };
-
-  const doSave = async () => {
     setLoading(true);
     setMessage("");
     try {
@@ -242,10 +201,9 @@ export function useExportForm({
         : await createExport(payload);
 
       if (result.isSuccess) {
-        setMessage(
-          isEditMode
-            ? "Cập nhật phiếu xuất kho thành công"
-            : "Tạo phiếu xuất kho thành công"
+        setMessage(isEditMode
+          ? "Cập nhật phiếu xuất kho thành công"
+          : "Tạo phiếu xuất kho thành công"
         );
         onSuccess?.();
       } else {
@@ -259,16 +217,10 @@ export function useExportForm({
   };
 
   return {
-    // State
     voucher, reason, message, loading, isEditMode,
-    totalAmount, totalVat,
-    // FIFO preview
-    fifoPreview, showFifoPreview, fifoLoading,
-    // Actions
+    totalAmount,
     setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
-    handleSubmit,   // Bước 1: validate + preview
-    confirmSave,    // Bước 2: xác nhận lưu sau preview
-    cancelFifoPreview,
+    handleSubmit,
   };
 }

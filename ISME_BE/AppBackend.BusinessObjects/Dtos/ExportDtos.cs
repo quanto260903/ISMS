@@ -43,8 +43,6 @@ namespace AppBackend.BusinessObjects.Dtos
 
         public string? CreditAccount1 { get; set; }
 
-        public string? CreditWarehouseId { get; set; }
-
         public string? DebitAccount2 { get; set; }
 
         public string? CreditAccount2 { get; set; }

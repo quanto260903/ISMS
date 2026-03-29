@@ -23,7 +23,8 @@ namespace AppBackend.BusinessObjects.Dtos
         public decimal WarehouseOut { get; set; }
         public decimal CustomInHand { get; set; }
 
-        public decimal Cost { get; set; }
+        public decimal Cost { get; set; }       // Tổng Amount1 của phiếu nhập (bao gồm VAT)
+        public decimal UnitPrice { get; set; }  // Đơn giá nhập tại thời điểm nhập kho
         public string? OffsetVoucher { get; set; }
     }
 
