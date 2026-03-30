@@ -381,7 +381,7 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         <button style={s.backBtn} onClick={() => router.push("/dashboard/stock-take")}>← Quay lại</button>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h1 style={s.pageTitle}>{voucher.voucherCode}</h1>
+            <h1 style={s.pageTitle}>{voucher.stockTakeVoucherId}</h1>
             <span style={{
               display: "inline-block", padding: "2px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
               background: isCompleted ? "#f0fdf4" : "#fffbeb",

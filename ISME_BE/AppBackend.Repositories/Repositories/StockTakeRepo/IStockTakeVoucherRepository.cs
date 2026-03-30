@@ -14,6 +14,6 @@ namespace AppBackend.Repositories.Repositories.StockTakeRepo
         Task<StockTakeVoucher> AddAsync(StockTakeVoucher voucher);
         Task UpdateAsync(StockTakeVoucher voucher);
         Task DeleteAsync(string id);
-        Task<string> GenerateVoucherCodeAsync();
+        Task<string> GenerateVoucherIdAsync();
     }
 }

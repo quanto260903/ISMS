@@ -28,12 +28,6 @@ export const getDebitAccountByReason = (reason: ExportReason): string => {
   }
 };
 
-// ── Sinh số phiếu xuất kho ────────────────────────────────────
-export const generateVoucherNumber = (): string => {
-  const time   = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 100).toString().padStart(2, "0");
-  return `XK${time}${random}`;
-};
 
 // ── Tính thành tiền xuất kho ──────────────────────────────────
 // Ưu tiên costPerUnit (giá vốn FIFO từ phiếu nhập)
@@ -79,5 +73,5 @@ export const EXPORT_TABLE_COLUMNS = [
   { label: "Đơn giá",    w: 100 },
   { label: "Thành tiền", w: 105 },
   { label: "CT đối trừ", w: 120 },
-  { label: "",           w: 80  },  // Actions: 📦 Kho + Xóa
+  { label: "",           w: 80  },  // Actions: Xóa
 ] as const;

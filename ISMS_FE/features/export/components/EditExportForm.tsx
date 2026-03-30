@@ -7,21 +7,18 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
-import { EXPORT_REASON_LABELS, getVoucherCodeByReason, getDebitAccountByReason } from "../constants/export.constants";
+import { EXPORT_REASON_LABELS, EXPORT_VOUCHER_CODE_LABELS, getVoucherCodeByReason, getDebitAccountByReason } from "../constants/export.constants";
 import { useExportForm }             from "../hooks/useExportForm";
 import { useExportDetail }           from "../hooks/useExportDetail";
 import { useGoodsSearch }            from "../hooks/useGoodsSearch";
 import { useInwardVoucherLookup }    from "../hooks/useInwardVoucherLookup";
 
-import { useWarehouseReport }   from "@/features/sale/hooks/useWarehouseReport";
 import { getWarehouseReport }   from "../export.api";
 import ExportItemTable, { type ExportItemWithLot } from "./ExportItemTable";
 import SelectInboundModal       from "./SelectInboundModal";
 import type { InboundSelection } from "./SelectInboundModal";
-import WarehouseReportModal     from "@/shared/components/warehouse/WarehouseReportModal";
 import { useAuthStore }         from "@/store/authStore";
 import type { ExportReason, ExportItem, GoodsSearchResult } from "../types/export.types";
-import type { WarehouseTransactionDto } from "@/features/sale/types/sale.types";
 
 interface PendingGoodsState {
   itemIndex:  number;
@@ -55,11 +52,11 @@ export default function EditExportForm({ voucherId }: Props) {
     onSuccess:    () => setTimeout(() => router.push("/dashboard/export"), 1200),
   });
 
-  const { report, fetchReport, closeReport }  = useWarehouseReport();
-
   // ── Lookup phiếu nhập kho (chỉ khi IMPORT_RETURN) ────────
-  const inwardLookup   = useInwardVoucherLookup();
-  const isImportReturn = reason === "IMPORT_RETURN";
+  const inwardLookup    = useInwardVoucherLookup();
+  const isImportReturn  = reason === "IMPORT_RETURN";
+  const isAutoVoucher   = initialData?.voucherCode === "XK3";
+  const autoVoucherLabel = EXPORT_VOUCHER_CODE_LABELS[initialData?.voucherCode as keyof typeof EXPORT_VOUCHER_CODE_LABELS] ?? initialData?.voucherCode;
 
   // Khi tìm thấy phiếu nhập → auto-fill thông tin và bảng hàng hóa
   useEffect(() => {
@@ -174,11 +171,6 @@ export default function EditExportForm({ voucherId }: Props) {
     setPendingGoods(null);
   }, [pendingGoods, updateItem, addItem]);
 
-  // ── Khi chọn lô từ modal Kho → điền offsetVoucher ──
-  const handleSelectWarehouse = (itemIndex: number, row: WarehouseTransactionDto) => {
-    if (row.offsetVoucher) updateItem(itemIndex, "offsetVoucher", row.offsetVoucher);
-  };
-
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
     updateItem(index, "goodsName", goods.goodsName);
@@ -220,20 +212,26 @@ export default function EditExportForm({ voucherId }: Props) {
       <section style={s.card}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Lý do xuất kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <select value={reason}
-            onChange={(e) => {
-              handleReasonChange(e.target.value as ExportReason);
-              inwardLookup.clearLookup();
-            }}
-            style={s.reasonSelect}>
-            {(["IMPORT_RETURN", "OTHER"] as ExportReason[]).map((r) => (
-              <option key={r} value={r}>
-                {r === "IMPORT_RETURN" ? "↩️ " : "📝 "}{EXPORT_REASON_LABELS[r]}
-              </option>
-            ))}
-          </select>
+          {isAutoVoucher ? (
+            <span style={{ background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "6px 14px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
+              🔄 {autoVoucherLabel}
+            </span>
+          ) : (
+            <select value={reason}
+              onChange={(e) => {
+                handleReasonChange(e.target.value as ExportReason);
+                inwardLookup.clearLookup();
+              }}
+              style={s.reasonSelect}>
+              {(["IMPORT_RETURN", "DESTROY"] as ExportReason[]).map((r) => (
+                <option key={r} value={r}>
+                  {r === "IMPORT_RETURN" ? "↩️ " : "🗑️ "}{EXPORT_REASON_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          )}
           <span style={s.codeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>{getVoucherCodeByReason(reason)}</strong>
+            Mã CT: <strong style={{ color: "#2255cc" }}>{isAutoVoucher ? initialData?.voucherCode : getVoucherCodeByReason(reason)}</strong>
           </span>
         </div>
       </section>
@@ -357,8 +355,6 @@ export default function EditExportForm({ voucherId }: Props) {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
-            onViewWarehouse={(idx, id, name) =>
-              fetchReport(idx, id, name, voucherDateRef.current || undefined)}
           />
         )}
 
@@ -390,12 +386,6 @@ export default function EditExportForm({ voucherId }: Props) {
           </div>
         )}
       </div>
-
-      <WarehouseReportModal
-        report={report}
-        onClose={closeReport}
-        onSelectWarehouse={handleSelectWarehouse}
-      />
 
       {/* ── Modal bắt buộc chọn chứng từ nhập kho ── */}
       {pendingGoods && (

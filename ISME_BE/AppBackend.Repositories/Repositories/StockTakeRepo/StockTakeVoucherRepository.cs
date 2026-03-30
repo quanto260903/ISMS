@@ -28,7 +28,7 @@ namespace AppBackend.Repositories.Repositories.StockTakeRepo
 
         public async Task<StockTakeVoucher> AddAsync(StockTakeVoucher voucher)
         {
-            voucher.StockTakeVoucherId = Guid.NewGuid().ToString();
+            // StockTakeVoucherId đã được service set từ GenerateVoucherIdAsync()
             voucher.CreatedDate = DateTime.UtcNow;
             await _context.StockTakeVouchers.AddAsync(voucher);
             return voucher;
@@ -51,11 +51,11 @@ namespace AppBackend.Repositories.Repositories.StockTakeRepo
         // Lỗi cũ: OrderByDescending(v => v.VoucherCode) sort string
         // → "KK9" > "KK10" > "KK2" vì so sánh ký tự, sequence sẽ sai
         // Sửa: lấy hết code về memory rồi parse số để tìm max
-        public async Task<string> GenerateVoucherCodeAsync()
+        public async Task<string> GenerateVoucherIdAsync()
         {
             var codes = await _context.StockTakeVouchers
-                .Where(v => v.VoucherCode.StartsWith("KK"))
-                .Select(v => v.VoucherCode)
+                .Where(v => v.StockTakeVoucherId.StartsWith("KK"))
+                .Select(v => v.StockTakeVoucherId)
                 .ToListAsync();
 
             int nextNumber = 1;

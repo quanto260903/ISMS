@@ -86,9 +86,3 @@ export interface DropdownPos {
   width: number;
   index: number;
 }
-
-export interface FifoPreviewItem {
-  inboundVoucherCode: string;
-  allocatedQty:       number;
-  warehouseId:        string | null;
-}

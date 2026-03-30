@@ -6,7 +6,6 @@ import type {
   GoodsSearchResult,
   ExportListResult,
   ExportVoucher,
-  FifoPreviewItem,
 } from "./types/export.types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -83,58 +82,6 @@ export async function updateExport(
   return json as { isSuccess: boolean; message: string };
 }
 
-// ── Preview FIFO trước khi lưu ───────────────────────────────
-// Gọi endpoint GET /Export/fifo-preview?goodsId=X&quantity=Y
-// Backend trả về danh sách phân bổ: [{inboundVoucherCode, allocatedQty, warehouseId}]
-export async function getFifoPreview(
-  items: { goodsId: string; goodsName: string; quantity: number }[]
-): Promise<FifoPreviewResult[]> {
-  const results: FifoPreviewResult[] = [];
-
-  // Gọi song song cho tất cả items có goodsId hợp lệ
-  await Promise.all(
-    items
-      .filter((i) => i.goodsId.trim() && i.quantity > 0)
-      .map(async (item) => {
-        const q = new URLSearchParams({
-          goodsId:  item.goodsId,
-          quantity: String(item.quantity),
-        });
-        try {
-          const allocations = await apiFetch<FifoPreviewItem[]>(
-            `${BASE}/Export/fifo-preview?${q}`
-          );
-          results.push({
-            goodsId:     item.goodsId,
-            goodsName:   item.goodsName,
-            totalQty:    item.quantity,
-            allocations: allocations ?? [],
-            // Nếu allocations rỗng = không tìm được phiếu nhập cụ thể (FIFO fallback)
-            isFallback:  !allocations || allocations.length === 0,
-          });
-        } catch {
-          results.push({
-            goodsId:    item.goodsId,
-            goodsName:  item.goodsName,
-            totalQty:   item.quantity,
-            allocations: [],
-            isFallback:  true,
-          });
-        }
-      })
-  );
-
-  return results;
-}
-
-export interface FifoPreviewResult {
-  goodsId:     string;
-  goodsName:   string;
-  totalQty:    number;
-  allocations: FifoPreviewItem[];
-  isFallback:  boolean; // true = không tìm được phiếu nhập, sẽ lưu offsetVoucher=null
-}
-
 // ── Danh sách phiếu xuất ─────────────────────────────────────
 export async function getExportList(params: {
   fromDate?:    string;
@@ -182,6 +129,16 @@ export async function getWarehouseReport(
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message ?? `HTTP ${res.status}`);
   return Array.isArray(json) ? json : json?.data ?? [];
+}
+
+// ── FIFO preview — gọi backend tính phân bổ FIFO ─────────────
+export async function getFifoPreview(
+  goodsId:  string,
+  quantity: number
+): Promise<{ inboundVoucherCode: string; allocatedQty: number; warehouseId: string | null }[]> {
+  const q = new URLSearchParams({ goodsId, quantity: String(quantity) });
+  const json = await apiFetch<any>(`${BASE}/Export/fifo-preview?${q}`);
+  return Array.isArray(json) ? json : json.data ?? [];
 }
 
 // ── Danh sách kho ────────────────────────────────────────────

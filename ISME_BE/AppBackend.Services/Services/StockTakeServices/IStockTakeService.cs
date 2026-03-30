@@ -18,5 +18,11 @@ namespace AppBackend.Services.Services.StockTakeServices
 
         // userId cần để ghi vào phiếu nhập/xuất được tạo tự động
         Task<ProcessStockTakeResultDto> ProcessAsync(string id, string userId);
+
+        // Lấy tất cả hàng hóa với tồn kho tính đến ngày asOfDate
+        Task<IEnumerable<GoodsStockDto>> GetGoodsStockAsOfDateAsync(DateOnly asOfDate);
+
+        // Xem trước mã phiếu sẽ được sinh (không tạo phiếu)
+        Task<string> PreviewNextVoucherCodeAsync();
     }
 }

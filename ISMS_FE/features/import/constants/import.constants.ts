@@ -26,6 +26,13 @@ export const INWARD_REASON_LABELS: Record<InwardReason, string> = {
   SALES_RETURN: "Nhập kho hàng bán trả lại",
 };
 
+// Nhãn cho tất cả loại phiếu nhập (kể cả tự động)
+export const INWARD_VOUCHER_CODE_LABELS: Record<string, string> = {
+  NK1: "Nhập kho mua hàng",
+  NK2: "Nhập kho hàng bán trả lại",
+  NK3: "Nhập kho kiểm kê",
+};
+
 export const INWARD_TABLE_COLUMNS = [
   { label: "#",          w: 32  },
   { label: "Mã hàng",    w: 110 },

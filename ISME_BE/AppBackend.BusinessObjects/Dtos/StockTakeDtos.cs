@@ -92,6 +92,15 @@
         // BookQuantity đã xóa — tránh client gửi sai làm DifferenceQuantity tính lệch
     }
 
+    // ── Hàng hóa kèm tồn kho theo ngày ──────────────────────
+    public class GoodsStockDto
+    {
+        public string GoodsId { get; set; } = null!;
+        public string GoodsName { get; set; } = null!;
+        public string? Unit { get; set; }
+        public decimal StockQuantity { get; set; }
+    }
+
     // ── Kết quả xử lý phiếu kiểm kê ─────────────────────────
     public class ProcessStockTakeResultDto
     {

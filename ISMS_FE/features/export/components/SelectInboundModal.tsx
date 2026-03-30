@@ -7,8 +7,8 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
-import type { FifoPreviewItem } from "../types/export.types";
+import React, { useEffect, useState, useCallback } from "react";
+import { getFifoPreview } from "../export.api";
 
 export interface InboundSelection {
   inboundVoucherCode: string;
@@ -51,6 +51,8 @@ export default function SelectInboundModal({
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   // State: tổng số lượng gợi ý FIFO
   const [suggestQty, setSuggestQty] = useState<number | "">("");
+  // State: đang gọi backend FIFO
+  const [fifoLoading, setFifoLoading] = useState(false);
 
   // Reset khi inbounds thay đổi (hàng khác)
   useEffect(() => {
@@ -62,19 +64,23 @@ export default function SelectInboundModal({
 
   const totalAvailable = inbounds.reduce((s, ib) => s + ib.remainingQty, 0);
 
-  // Phân bổ FIFO tự động: cấp phát từ phiếu nhập cũ nhất trước
-  const applyFifoSuggestion = () => {
+  // Phân bổ FIFO tự động: gọi backend tính phân bổ
+  const applyFifoSuggestion = useCallback(async () => {
     if (!suggestQty || suggestQty <= 0) return;
-    const newQtys: Record<string, number> = {};
-    let remaining = suggestQty;
-    for (const ib of inbounds) {
-      if (remaining <= 0) break;
-      const take = Math.min(remaining, ib.remainingQty);
-      if (take > 0) newQtys[ib.inboundVoucherCode] = take;
-      remaining -= take;
+    setFifoLoading(true);
+    try {
+      const allocations = await getFifoPreview(goodsId, Number(suggestQty));
+      const newQtys: Record<string, number> = {};
+      for (const a of allocations) {
+        if (a.allocatedQty > 0) newQtys[a.inboundVoucherCode] = a.allocatedQty;
+      }
+      setQuantities(newQtys);
+    } catch {
+      // giữ nguyên quantities nếu lỗi
+    } finally {
+      setFifoLoading(false);
     }
-    setQuantities(newQtys);
-  };
+  }, [goodsId, suggestQty]);
 
   const setQty = (code: string, val: number, max: number) => {
     const clamped = Math.max(0, Math.min(val, max));
@@ -136,19 +142,19 @@ export default function SelectInboundModal({
                 const v = e.target.value === "" ? "" : Number(e.target.value);
                 setSuggestQty(v as number | "");
               }}
-              onKeyDown={(e) => e.key === "Enter" && applyFifoSuggestion()}
+              onKeyDown={(e) => { if (e.key === "Enter") applyFifoSuggestion(); }}
             />
             <button
               style={{
                 ...s.fifoBtn,
-                opacity: suggestQty && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable ? 1 : 0.4,
-                cursor:  suggestQty && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable ? "pointer" : "not-allowed",
+                opacity: !fifoLoading && suggestQty && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable ? 1 : 0.4,
+                cursor:  !fifoLoading && suggestQty && Number(suggestQty) > 0 && Number(suggestQty) <= totalAvailable ? "pointer" : "not-allowed",
               }}
               onClick={applyFifoSuggestion}
-              disabled={!suggestQty || Number(suggestQty) <= 0 || Number(suggestQty) > totalAvailable}
+              disabled={fifoLoading || !suggestQty || Number(suggestQty) <= 0 || Number(suggestQty) > totalAvailable}
               title="Tự động phân bổ theo FIFO (phiếu nhập cũ nhất trước)"
             >
-              Tự động phân bổ
+              {fifoLoading ? "Đang phân bổ…" : "Tự động phân bổ"}
             </button>
             {suggestQty !== "" && Number(suggestQty) > totalAvailable && (
               <span style={s.fifoWarn}>

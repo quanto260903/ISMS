@@ -116,7 +116,7 @@ namespace AppBackend.Repositories.Repositories.ExportRepo
                     d.GoodsId == goodsId &&
                     d.Voucher != null &&
                     d.Voucher.VoucherCode != null &&
-                    d.Voucher.VoucherCode.StartsWith("XH") &&
+                    d.Voucher.VoucherCode.StartsWith("XK") &&
                     d.OffsetVoucher != null)
                 .GroupBy(d => d.OffsetVoucher!)
                 .Select(g => new { InboundCode = g.Key, ExportedQty = g.Sum(x => x.Quantity ?? 0) })
