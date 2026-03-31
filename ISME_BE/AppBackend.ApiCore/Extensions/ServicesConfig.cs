@@ -1,5 +1,6 @@
 using AppBackend.Repositories.Generic;
 using AppBackend.Repositories.Repositories.CustomerRepo;
+using AppBackend.Repositories.Repositories.DashboardRepo;
 using AppBackend.Repositories.Repositories.ExportRepo;
 using AppBackend.Repositories.Repositories.GoodsCategoryRepo;
 using AppBackend.Repositories.Repositories.GoodsRepo;
@@ -14,6 +15,7 @@ using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
 using AppBackend.Services.Services.AuthServices;
 using AppBackend.Services.Services.CustomerServices;
+using AppBackend.Services.Services.DashboardServices;
 using AppBackend.Services.Services.Email;
 using AppBackend.Services.Services.ExportServices;
 using AppBackend.Services.Services.GoodsCategoryServices;
@@ -46,6 +48,7 @@ public static class ServicesConfig
         services.AddScoped<IGoodsCategoryRepository, GoodsCategoryRepository>();
         services.AddScoped<IGoodsRepository, GoodsRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IOpenInventoryRepository, OpenInventoryRepository>();
         services.AddScoped<IStockTakeVoucherRepository, StockTakeVoucherRepository>();
         services.AddScoped<IStockTakeDetailRepository, StockTakeDetailRepository>();
@@ -65,6 +68,7 @@ public static class ServicesConfig
         services.AddScoped<IGoodsCategoryService, GoodsCategoryService>();
         services.AddScoped<IGoodsService, GoodsService>();
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IOpenInventoryService, OpenInventoryService>();
         services.AddScoped<IStockTakeService, StockTakeService>();
         #endregion
