@@ -35,7 +35,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRateLimiter();   
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseCors("AllowAllOrigins");
 app.UseSession();
 app.UseAuthentication();
