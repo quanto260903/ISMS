@@ -121,6 +121,10 @@ export default function LoginPage() {
     }
   }
 
+  const handleForgotpassword =() => {
+      router.push('/forgot-password');
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Gradient Background with Features */}
@@ -263,6 +267,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className="text-sm font-medium text-purple-600 hover:text-purple-700"
+                  onClick={handleForgotpassword}
                 >
                   Quên mật khẩu?
                 </button>
