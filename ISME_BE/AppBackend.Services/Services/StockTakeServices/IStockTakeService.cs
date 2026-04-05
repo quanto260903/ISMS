@@ -16,8 +16,14 @@ namespace AppBackend.Services.Services.StockTakeServices
         Task<StockTakeVoucherDetailDto?> UpdateAsync(string id, UpdateStockTakeVoucherDto dto);
         Task<bool> DeleteAsync(string id);
 
-        // userId cần để ghi vào phiếu nhập/xuất được tạo tự động
+        // Khoá phiếu kiểm kê (IsCompleted = true); không tự sinh phiếu nhập/xuất
         Task<ProcessStockTakeResultDto> ProcessAsync(string id, string userId);
+
+        // Lấy danh sách hàng THỪA (diff > 0) để pre-fill phiếu nhập NK3
+        Task<IEnumerable<SurplusItemDto>> GetSurplusItemsAsync(string id);
+
+        // Lấy danh sách hàng THIẾU (diff < 0) để pre-fill phiếu xuất XK3
+        Task<IEnumerable<ShortageItemDto>> GetShortageItemsAsync(string id);
 
         // Lấy tất cả hàng hóa với tồn kho tính đến ngày asOfDate
         Task<IEnumerable<GoodsStockDto>> GetGoodsStockAsOfDateAsync(DateOnly asOfDate);

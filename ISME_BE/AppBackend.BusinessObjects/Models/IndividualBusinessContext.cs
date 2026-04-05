@@ -205,7 +205,6 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.Properties).HasMaxLength(50);
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.VoucherNumber).HasMaxLength(50);
-            entity.Property(e => e.WarehouseId).HasMaxLength(50);
         });
 
         modelBuilder.Entity<StockTakeDetail>(entity =>

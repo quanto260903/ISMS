@@ -3,7 +3,7 @@
 // ============================================================
 
 // Lý do nhập kho — quyết định VoucherCode
-export type InwardReason = "PURCHASE" | "SALES_RETURN";
+export type InwardReason = "PURCHASE" | "SALES_RETURN" | "STOCK_TAKE";
 
 export interface InwardItem {
   goodsId:         string;

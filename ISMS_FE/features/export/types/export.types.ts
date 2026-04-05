@@ -6,7 +6,7 @@
 // Chỉ 2 trường hợp user tạo tay:
 //   IMPORT_RETURN → XK1 = Xuất trả hàng nhập
 //   DESTROY       → XK2 = Xuất hủy hàng
-export type ExportReason = "IMPORT_RETURN" | "DESTROY";
+export type ExportReason = "IMPORT_RETURN" | "DESTROY" | "STOCK_TAKE";
 
 // ── Mã chứng từ đầy đủ (dùng để hiển thị ở danh sách) ───────
 // XK1/XK2 = user tạo thủ công
