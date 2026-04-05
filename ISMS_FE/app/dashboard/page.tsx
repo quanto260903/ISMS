@@ -140,7 +140,7 @@ export default function DashboardPage() {
 
   // Check user role on mount - redirect if not Admin
   useEffect(() => {
-    if (user && user.role !== UserRole.Admin) {
+    if (user && Number(user.role) !== UserRole.Admin) {
       router.push('/unauthorized')
     }
   }, [user, router])
@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
   // Load data on mount and when period type changes
   useEffect(() => {
-    if (user?.role === UserRole.Admin) {
+    if (user && Number(user.role) === UserRole.Admin) {
       loadDashboardData()
     }
   }, [periodType, user])
