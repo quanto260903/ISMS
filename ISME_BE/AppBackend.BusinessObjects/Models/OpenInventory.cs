@@ -9,8 +9,6 @@ public partial class OpenInventory
 
     public string? VoucherNumber { get; set; }
 
-    public string? WarehouseId { get; set; }
-
     public string Unit { get; set; } = null!;
 
     public int? Quantity { get; set; }

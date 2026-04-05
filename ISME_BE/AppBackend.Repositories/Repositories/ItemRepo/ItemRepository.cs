@@ -140,21 +140,23 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
         }
         /// <inheritdoc/>
         public async Task<IEnumerable<GoodsSearchDto>> SearchByIdAsync(
-            string keyword,
-            int limit = 10,
-            CancellationToken cancellationToken = default)
+      string keyword,
+      int limit = 10,
+      CancellationToken cancellationToken = default)
         {
-            // Chuẩn hoá keyword: bỏ khoảng trắng 2 đầu, không phân biệt hoa thường
             var normalizedKeyword = keyword.Trim().ToLower();
 
             return await _context.Goods
-                .AsNoTracking()                              // chỉ đọc → nhanh hơn
+                .AsNoTracking()
                 .Where(g =>
-                    !g.IsInactive &&                            // chỉ hàng đang hoạt động
-                    g.GoodsId.ToLower()
-                              .Contains(normalizedKeyword))  // GoodsId chứa keyword
-                .OrderBy(g => g.GoodsId)                    // sắp xếp để dropdown dễ đọc
-                .Take(limit)                                 // giới hạn số kết quả
+                    !g.IsInactive &&
+                    (g.GoodsId.ToLower().Contains(normalizedKeyword) ||
+                     g.GoodsName.ToLower().Contains(normalizedKeyword)))
+                .OrderBy(g =>
+                    g.GoodsId.ToLower().StartsWith(normalizedKeyword) ? 0 :
+                    g.GoodsName.ToLower().StartsWith(normalizedKeyword) ? 1 : 2)
+                .ThenBy(g => g.GoodsId)
+                .Take(limit)
                 .Select(g => new GoodsSearchDto
                 {
                     GoodsId = g.GoodsId,

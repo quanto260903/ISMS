@@ -5,6 +5,7 @@ import type {
   GoodsDto, CreateStockTakeRequest, UpdateStockTakeHeaderRequest,
   ProcessStockTakeResultDto,
   BackendVoucherDetailRaw, BackendListRaw,
+  SurplusItemDto, ShortageItemDto,
 } from "./types/stockTake.types";
 import { getGoodsList } from "../goods/goods.api";
 import type { GoodsListResult, GoodsListDto } from "../goods/types/goods.types";
@@ -162,13 +163,15 @@ export async function processStockTake(id: string): Promise<ProcessStockTakeResu
   return {
     success:           body?.success          ?? true,
     message:           body?.message          ?? "Xử lý thành công",
-    importVoucherId:   body?.importVoucherId   ?? null,
-    importVoucherCode: body?.importVoucherCode ?? null,
-    exportVoucherId:   body?.exportVoucherId   ?? null,
-    exportVoucherCode: body?.exportVoucherCode ?? null,
   };
 }
+export async function getSurplusItems(id: string): Promise<SurplusItemDto[]> {
+  return apiFetch<SurplusItemDto[]>(`${ENDPOINT}/${id}/surplus-items`);
+}
 
+export async function getShortageItems(id: string): Promise<ShortageItemDto[]> {
+  return apiFetch<ShortageItemDto[]>(`${ENDPOINT}/${id}/shortage-items`);
+}
 export async function deleteStockTake(id: string): Promise<void> {
   await apiFetch<void>(`${ENDPOINT}/${id}`, { method: "DELETE" });
 }

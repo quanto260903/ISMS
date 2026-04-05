@@ -17,6 +17,7 @@ export const DEFAULT_CREDIT_ACCOUNT = "111";
 export const getVoucherCodeByReason = (reason: InwardReason): string => {
   switch (reason) {
     case "SALES_RETURN": return "NK2";
+    case "STOCK_TAKE":   return "NK3";
     default:             return "NK1";  // PURCHASE
   }
 };
@@ -24,6 +25,7 @@ export const getVoucherCodeByReason = (reason: InwardReason): string => {
 export const INWARD_REASON_LABELS: Record<InwardReason, string> = {
   PURCHASE:     "Nhập kho mua hàng",
   SALES_RETURN: "Nhập kho hàng bán trả lại",
+  STOCK_TAKE:   "Nhập kho kiểm kê",
 };
 
 // Nhãn cho tất cả loại phiếu nhập (kể cả tự động)

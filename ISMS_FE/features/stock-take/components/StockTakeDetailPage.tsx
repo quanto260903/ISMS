@@ -26,100 +26,6 @@ function getXuLyLabel(diff: number): { label: string; color: string; bg: string;
   return         { label: "Khớp ✓",   color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" };
 }
 
-// ── Kết quả xử lý ─────────────────────────────────────────────
-function ProcessResultBanner({ result }: { result: ProcessStockTakeResultDto }) {
-  const hasImport = !!result.importVoucherCode || !!result.importVoucherId;
-  const hasExport = !!result.exportVoucherCode || !!result.exportVoucherId;
-  return (
-    <div style={{ margin: "12px 24px 0", borderRadius: 10, border: "1px solid #bbf7d0", background: "#f0fdf4", padding: "14px 18px" }}>
-      <div style={{ fontWeight: 700, color: "#15803d", marginBottom: 8, fontSize: 14 }}>
-        ✅ Xử lý kiểm kê thành công
-      </div>
-      <div style={{ fontSize: 13, color: "#166534", lineHeight: 2 }}>
-        {hasImport && (
-          <div>📥 Phiếu <strong>nhập kho</strong> đã tạo:&nbsp;
-            <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 14 }}>
-              {result.importVoucherCode ?? result.importVoucherId}
-            </span>
-          </div>
-        )}
-        {hasExport && (
-          <div>📤 Phiếu <strong>xuất kho</strong> đã tạo:&nbsp;
-            <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 14 }}>
-              {result.exportVoucherCode ?? result.exportVoucherId}
-            </span>
-          </div>
-        )}
-        {!hasImport && !hasExport && (
-          <div>Tất cả mặt hàng khớp — không cần tạo phiếu điều chỉnh.</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Modal xác nhận Xử lý ──────────────────────────────────────
-function ProcessModal({ lines, busy, onClose, onConfirm }: {
-  lines: StockTakeDetailDto[];
-  busy: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  const surplus  = lines.filter((l) => l.differenceQuantity > 0);
-  const shortage = lines.filter((l) => l.differenceQuantity < 0);
-
-  return (
-    <div style={m.overlay} onClick={onClose}>
-      <div style={{ ...m.box, width: 500 }} onClick={(e) => e.stopPropagation()}>
-        <div style={m.head}>
-          <span style={m.title}>⚙️ Xác nhận xử lý phiếu kiểm kê</span>
-          <button style={m.close} onClick={onClose}>✕</button>
-        </div>
-        <div style={{ padding: "16px 20px 20px" }}>
-          <p style={{ fontSize: 13, color: "#475569", marginBottom: 16, lineHeight: 1.7 }}>
-            Hệ thống sẽ tự động sinh phiếu nhập/xuất kho tương ứng với số lượng chênh lệch.
-            <strong> Sau khi xử lý phiếu sẽ không thể chỉnh sửa.</strong>
-          </p>
-          {surplus.length > 0 && (
-            <div style={m.successBox}>
-              <div style={{ fontWeight: 700, color: "#15803d", marginBottom: 6 }}>
-                📥 Tạo phiếu NHẬP kho ({surplus.length} mặt hàng thừa)
-              </div>
-              {surplus.map((l) => (
-                <div key={l.stockTakeDetailId} style={{ fontSize: 12, color: "#166534" }}>
-                  • {l.goodsName} ({l.goodsId}) — thừa <strong>+{fmtNum(l.differenceQuantity)}</strong> {l.unit ?? ""}
-                </div>
-              ))}
-            </div>
-          )}
-          {shortage.length > 0 && (
-            <div style={m.dangerBox}>
-              <div style={{ fontWeight: 700, color: "#b91c1c", marginBottom: 6 }}>
-                📤 Tạo phiếu XUẤT kho ({shortage.length} mặt hàng thiếu)
-              </div>
-              {shortage.map((l) => (
-                <div key={l.stockTakeDetailId} style={{ fontSize: 12, color: "#991b1b" }}>
-                  • {l.goodsName} ({l.goodsId}) — thiếu <strong>{fmtNum(l.differenceQuantity)}</strong> {l.unit ?? ""}
-                </div>
-              ))}
-            </div>
-          )}
-          {surplus.length === 0 && shortage.length === 0 && (
-            <div style={m.infoBox}>
-              ✅ Tất cả mặt hàng đều khớp — không cần tạo phiếu điều chỉnh.
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button style={m.btnSec} onClick={onClose}>Huỷ</button>
-            <button style={m.btnProcess} onClick={onConfirm} disabled={busy}>
-              {busy ? "⏳ Đang xử lý..." : "⚙️ Xử lý"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Modal chỉnh sửa phiếu ─────────────────────────────────────
 interface EditLine extends CreateStockTakeDetailRequest { _id: number; bookQuantity: number; }
@@ -288,6 +194,54 @@ function EditModal({ voucher, onClose, onSave }: {
   );
 }
 
+// ── Modal xác nhận xử lý phiếu ───────────────────────────────
+function ProcessModal({ lines, busy, onClose, onConfirm }: {
+  lines:     import("../types/stockTake.types").StockTakeDetailDto[];
+  busy:      boolean;
+  onClose:   () => void;
+  onConfirm: () => void;
+}) {
+  const surplus  = lines.filter((l) => l.differenceQuantity > 0).length;
+  const shortage = lines.filter((l) => l.differenceQuantity < 0).length;
+  return (
+    <div style={m.overlay} onClick={onClose}>
+      <div style={{ ...m.box, width: 440 }} onClick={(e) => e.stopPropagation()}>
+        <div style={m.head}>
+          <span style={m.title}>Xác nhận hoàn thành kiểm kê</span>
+          <button style={m.close} onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: "16px 22px 20px" }}>
+          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, marginBottom: 14 }}>
+            Phiếu sẽ được <strong>khoá</strong> và không thể chỉnh sửa sau khi xác nhận.
+          </p>
+          {(surplus > 0 || shortage > 0) && (
+            <div style={m.infoBox}>
+              {surplus > 0 && <div>• <strong>{surplus}</strong> mặt hàng thừa → cần lập phiếu <strong>Nhập NK3</strong></div>}
+              {shortage > 0 && <div>• <strong>{shortage}</strong> mặt hàng thiếu → cần lập phiếu <strong>Xuất XK3</strong> (chọn chứng từ nhập nguồn)</div>}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <button style={m.btnSec} onClick={onClose} disabled={busy}>Huỷ</button>
+            <button style={m.btnProcess} onClick={onConfirm} disabled={busy}>
+              {busy ? "⏳ Đang xử lý..." : "✔ Xác nhận hoàn thành"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Banner kết quả (giữ placeholder — hiện không dùng) ───────
+function ProcessResultBanner({ result }: { result: import("../types/stockTake.types").ProcessStockTakeResultDto }) {
+  if (!result.message) return null;
+  return (
+    <div style={{ margin: "10px 24px 0", padding: "10px 14px", background: result.success ? "#f0fdf4" : "#fff1f2", border: `1px solid ${result.success ? "#bbf7d0" : "#fca5a5"}`, borderRadius: 8, fontSize: 13, color: result.success ? "#15803d" : "#b91c1c" }}>
+      {result.success ? "✅" : "⚠️"} {result.message}
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════
 // MAIN
 // ══════════════════════════════════════════════════════════════
@@ -325,23 +279,19 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
     showToast("Đã lưu phiếu kiểm kê");
   };
 
-  // Lỗi 6: xóa gọi getStockTakeById thêm lần nữa trong processStockTake API
-  // thay vào đó gọi fetchVoucher() từ component sau khi process xong
-  const handleProcess = async () => {
-    setBusy(true);
-    try {
-      const result  = await processStockTake(voucherId);
-      // Reload voucher từ server để lấy trạng thái mới nhất (IsCompleted = true)
-      await fetchVoucher();
-      setProcessResult(result);
-      setShowProcess(false);
-      showToast("Xử lý kiểm kê thành công ✅");
-    } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : "Lỗi xử lý", false);
-    } finally {
-      setBusy(false);
-    }
-  };
+ const handleProcess = async () => {
+  setBusy(true);
+  setShowProcess(false);
+  try {
+    await processStockTake(voucherId);
+    await fetchVoucher();
+    showToast("Phiếu kiểm kê đã hoàn thành ✅");
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : "Lỗi xử lý", false);
+  } finally {
+    setBusy(false);
+  }
+};
 
   const handleDelete = async () => {
     if (!confirm("Xóa phiếu kiểm kê này?")) return;
@@ -424,16 +374,71 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
 
       {processResult && <ProcessResultBanner result={processResult} />}
 
-      {!isCompleted && (surplusCount > 0 || shortageCount > 0) && !processResult && (
-        <div style={{ margin: "12px 24px 0", padding: "10px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, fontSize: 13, color: "#92400e", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <span>
-            Phiếu có <strong>{surplusCount} mặt hàng thừa</strong> và <strong>{shortageCount} mặt hàng thiếu</strong>.
-            Nhấn <strong>"Xử lý"</strong> để tự động sinh phiếu nhập/xuất kho.
-          </span>
-          <button style={{ ...s.btnProcess, height: 30, fontSize: 12, whiteSpace: "nowrap" }}
-            onClick={() => setShowProcess(true)}>⚙️ Xử lý ngay</button>
-        </div>
+     {/* Hiển thị khi phiếu ĐÃ hoàn thành và có chênh lệch */}
+{isCompleted && (surplusCount > 0 || shortageCount > 0) && (
+  <div style={{
+    margin: "12px 24px 0", padding: "16px 20px",
+    background: "#f8faff", border: "1px solid #ddd6fe",
+    borderRadius: 10
+  }}>
+    <div style={{ fontWeight: 700, color: "#6d28d9", marginBottom: 12, fontSize: 14 }}>
+      📋 Điều chỉnh tồn kho theo kết quả kiểm kê
+    </div>
+    <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.7 }}>
+      Phiếu có chênh lệch — vui lòng lập phiếu nhập/xuất kho tương ứng.
+      Phiếu xuất kho yêu cầu chọn phiếu nhập nguồn (xuất kho đích danh).
+    </div>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {surplusCount > 0 && (
+        <button
+          style={{
+            height: 36, padding: "0 18px", borderRadius: 8,
+            border: "none", background: "linear-gradient(135deg,#15803d,#16a34a)",
+            color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
+          }}
+          onClick={() => router.push(
+            `/dashboard/import/new?fromStockTake=${voucherId}&reason=NK3`
+          )}
+        >
+          📥 Lập phiếu nhập NK3 ({surplusCount} mặt hàng thừa)
+        </button>
       )}
+      {shortageCount > 0 && (
+        <button
+          style={{
+            height: 36, padding: "0 18px", borderRadius: 8,
+            border: "none", background: "linear-gradient(135deg,#b91c1c,#dc2626)",
+            color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
+          }}
+          onClick={() => router.push(
+            `/dashboard/export/new?fromStockTake=${voucherId}&reason=XK3`
+          )}
+        >
+          📤 Lập phiếu xuất XK3 ({shortageCount} mặt hàng thiếu)
+        </button>
+      )}
+    </div>
+    <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+      💡 Phiếu xuất sẽ mở form xuất kho — bạn cần chọn phiếu nhập nguồn cho từng mặt hàng.
+    </div>
+  </div>
+)}
+
+{/* Banner cũ khi chưa hoàn thành — giữ nút Xử lý */}
+{!isCompleted && (surplusCount > 0 || shortageCount > 0) && (
+  <div style={{
+    margin: "12px 24px 0", padding: "10px 16px",
+    background: "#fffbeb", border: "1px solid #fde68a",
+    borderRadius: 8, fontSize: 13, color: "#92400e",
+    display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12
+  }}>
+    <span>
+      Phiếu có <strong>{surplusCount} mặt hàng thừa</strong> và{" "}
+      <strong>{shortageCount} mặt hàng thiếu</strong>.
+      Nhấn <strong>"Hoàn thành"</strong> để khoá phiếu trước khi lập phiếu điều chỉnh.
+    </span>
+  </div>
+)}
 
       {/* Summary cards */}
       <div style={{ padding: "12px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -549,7 +554,7 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
 
       {!isCompleted && (
         <div style={{ margin: "12px 24px", padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, color: "#64748b" }}>
-          Bấm <strong>"Xử lý"</strong> để tự động sinh phiếu nhập kho / xuất kho theo chênh lệch.
+          Bấm <strong>"Xử lý"</strong> để khoá phiếu kiểm kê. Sau đó dùng nút <strong>"Lập phiếu nhập / xuất"</strong> để tạo phiếu điều chỉnh tồn kho.
         </div>
       )}
 
