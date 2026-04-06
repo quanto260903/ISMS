@@ -253,7 +253,6 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
   const [busy,          setBusy]          = useState(false);
   const [showEdit,      setShowEdit]      = useState(false);
   const [showProcess,   setShowProcess]   = useState(false);
-  const [processResult, setProcessResult] = useState<ProcessStockTakeResultDto | null>(null);
   const [toast,         setToast]         = useState<{ msg: string; ok: boolean } | null>(null);
   const [keyword,       setKeyword]       = useState("");
   const [filterTab,     setFilterTab]     = useState<"all" | "surplus" | "shortage">("all");
@@ -372,7 +371,6 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         </div>
       )}
 
-      {processResult && <ProcessResultBanner result={processResult} />}
 
      {/* Hiển thị khi phiếu ĐÃ hoàn thành và có chênh lệch */}
 {isCompleted && (surplusCount > 0 || shortageCount > 0) && (
