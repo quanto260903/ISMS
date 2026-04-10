@@ -113,7 +113,7 @@ namespace AppBackend.ApiCore.Controllers
         private string CurrentUser =>
            User.FindFirstValue("userId") ?? User.FindFirstValue("username") ?? "SYSTEM";
 
-        /// POST /api/StockTake/{id}/process — Xử lý: tạo phiếu nhập/xuất kho
+        // POST /api/stock-take-vouchers/{id}/process — Khoá phiếu (IsCompleted = true)
         [HttpPost("{id}/process")]
         public async Task<IActionResult> Process(string id)
         {
@@ -122,6 +122,21 @@ namespace AppBackend.ApiCore.Controllers
                 ? Ok(new { isSuccess = true, data = result, message = result.Message })
                 : BadRequest(new { isSuccess = false, message = result.Message });
         }
-    }
 
+        // GET /api/stock-take-vouchers/{id}/surplus-items — Hàng thừa (diff > 0)
+        [HttpGet("{id}/surplus-items")]
+        public async Task<IActionResult> GetSurplusItems(string id)
+        {
+            var items = await _service.GetSurplusItemsAsync(id);
+            return Ok(items);
+        }
+
+        // GET /api/stock-take-vouchers/{id}/shortage-items — Hàng thiếu (diff < 0)
+        [HttpGet("{id}/shortage-items")]
+        public async Task<IActionResult> GetShortageItems(string id)
+        {
+            var items = await _service.GetShortageItemsAsync(id);
+            return Ok(items);
+        }
+    }
 }

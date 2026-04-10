@@ -106,7 +106,23 @@
     {
         public bool Success { get; set; }
         public string Message { get; set; } = null!;
-        public string? ImportVoucherId { get; set; }  // phiếu nhập NK3 nếu có hàng thừa
-        public string? ExportVoucherId { get; set; }  // phiếu xuất XK3 nếu có hàng thiếu
+    }
+
+    // ── Hàng thừa kho (dùng để pre-fill phiếu nhập NK3) ─────
+    public class SurplusItemDto
+    {
+        public string GoodsId { get; set; } = null!;
+        public string GoodsName { get; set; } = null!;
+        public string? Unit { get; set; }
+        public int Quantity { get; set; }   // làm tròn từ DifferenceQuantity
+    }
+
+    // ── Hàng thiếu kho (dùng để pre-fill phiếu xuất XK3) ────
+    public class ShortageItemDto
+    {
+        public string GoodsId { get; set; } = null!;
+        public string GoodsName { get; set; } = null!;
+        public string? Unit { get; set; }
+        public int Quantity { get; set; }   // làm tròn từ Math.Abs(DifferenceQuantity)
     }
 }

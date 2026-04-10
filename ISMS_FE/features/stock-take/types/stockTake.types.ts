@@ -81,10 +81,6 @@ export interface UpdateStockTakeHeaderRequest {
 export interface ProcessStockTakeResultDto {
   success:           boolean;
   message:           string;
-  importVoucherId:   string | null;
-  importVoucherCode: string | null;
-  exportVoucherId:   string | null;
-  exportVoucherCode: string | null;
 }
 
 // ── Raw backend shapes ─────────────────────────────────────────
@@ -122,4 +118,18 @@ export interface BackendListRaw {
   isCompleted:        boolean | null;
   createdBy:          string | null;
   createdDate:        string | null;
+}
+// Thêm vào cuối file
+export interface SurplusItemDto {
+  goodsId:   string;
+  goodsName: string;
+  unit:      string | null;
+  quantity:  number;   // = Math.round(differenceQuantity)
+}
+
+export interface ShortageItemDto {
+  goodsId:   string;
+  goodsName: string;
+  unit:      string | null;
+  quantity:  number;   // = Math.round(Math.abs(differenceQuantity))
 }

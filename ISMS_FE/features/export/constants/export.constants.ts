@@ -4,27 +4,28 @@
 
 import type { ExportItem, ExportReason, ExportVoucherCode } from "../types/export.types";
 
-// ── VoucherCode theo lý do xuất (chỉ 2 lý do thủ công) ───────
 export const getVoucherCodeByReason = (reason: ExportReason): string => {
   switch (reason) {
     case "IMPORT_RETURN": return "XK1";
     case "DESTROY":       return "XK2";
+    case "STOCK_TAKE":    return "XK3";
   }
 };
 
 // ── Detect ExportReason từ voucherCode khi load phiếu edit ───
-// XK3/XK4 không thể edit thủ công nên fallback về IMPORT_RETURN
 export const detectReasonFromCode = (code?: string): ExportReason => {
   if (code === "XK1") return "IMPORT_RETURN";
   if (code === "XK2") return "DESTROY";
+  if (code === "XK3") return "STOCK_TAKE";
   return "IMPORT_RETURN";
 };
 
 // ── TK Nợ theo lý do xuất ────────────────────────────────────
 export const getDebitAccountByReason = (reason: ExportReason): string => {
   switch (reason) {
-    case "IMPORT_RETURN": return "331";  // Phải trả nhà cung cấp
-    case "DESTROY":       return "632";  // Chi phí hủy hàng
+    case "IMPORT_RETURN": return "331";   // Phải trả nhà cung cấp
+    case "DESTROY":       return "632";   // Chi phí hủy hàng
+    case "STOCK_TAKE":    return "1381";  // Tài sản thiếu chờ xử lý
   }
 };
 
@@ -37,10 +38,10 @@ export const calcAmount = (item: ExportItem): number =>
     ? item.quantity * item.costPerUnit
     : item.quantity * item.unitPrice;
 
-// ── Labels cho form (chỉ 2 lý do thủ công) ───────────────────
 export const EXPORT_REASON_LABELS: Record<ExportReason, string> = {
   IMPORT_RETURN: "Xuất trả hàng nhập",
   DESTROY:       "Xuất hủy hàng",
+  STOCK_TAKE:    "Xuất kho kiểm kê",
 };
 
 // ── Labels cho danh sách (đầy đủ 4 loại XK1-XK4) ─────────────

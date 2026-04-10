@@ -5,6 +5,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   INWARD_REASON_LABELS,
@@ -14,6 +15,7 @@ import {
 import { useInwardForm }        from "../hooks/useInwardForm";
 import { useGoodsSearch }       from "../hooks/useGoodsSearch";
 import { useSaleVoucherLookup } from "../hooks/useSaleVoucherLookup";
+import { getSurplusItems }      from "@/features/stock-take/stockTake.api";
 import InwardItemTable          from "./InwardItemTable";
 import SupplierSearchInput      from "@/shared/components/supplier/SupplierSearchInput";
 import SupplierDropdown         from "@/shared/components/supplier/SupplierDropdown";
@@ -24,7 +26,11 @@ import type { InwardReason, InwardItem, GoodsSearchResult } from "../types/impor
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 
 export default function AddInwardForm() {
-  const [reason, setReason] = useState<InwardReason>("PURCHASE");
+  const searchParams     = useSearchParams();
+  const fromStockTakeId  = searchParams.get("fromStockTake");
+  const isFromStockTake  = !!fromStockTakeId && searchParams.get("reason") === "NK3";
+
+  const [reason, setReason] = useState<InwardReason>(isFromStockTake ? "STOCK_TAKE" : "PURCHASE");
 
   const { user } = useAuthStore();
   const currentUserId   = String(user?.userId ?? "");
@@ -115,6 +121,33 @@ export default function AddInwardForm() {
     replaceAllItems([...newItems, createEmptyItemShim()]);
   }, [saleVoucherLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-fill từ phiếu kiểm kê (STOCK_TAKE / NK3) ─────────
+  useEffect(() => {
+    if (!isFromStockTake || !fromStockTakeId) return;
+    handleReasonChange("STOCK_TAKE");
+    setField("voucherDescription", `Nhập kho kiểm kê — hàng thừa từ phiếu ${fromStockTakeId}`);
+
+    getSurplusItems(fromStockTakeId).then((items) => {
+      if (!items.length) return;
+      const newItems: InwardItem[] = items.map((it) => ({
+        goodsId:         it.goodsId,
+        goodsName:       it.goodsName,
+        unit:            it.unit ?? "",
+        quantity:        it.quantity,
+        unitPrice:       0,
+        amount1:         0,
+        promotion:       0,
+        debitAccount1:   "156",
+        creditAccount1:  "3381",  // Hàng thừa phát hiện khi kiểm kê
+        debitAccount2:   "",
+        creditAccount2:  "",
+        userId:          currentUserId,
+        createdDateTime: new Date().toISOString(),
+      }));
+      replaceAllItems([...newItems, createEmptyItemShim()]);
+    }).catch(() => {/* giữ form rỗng nếu lỗi */});
+  }, [fromStockTakeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Goods search ─────────────────────────────────────────
   const handleSelectGoods = (index: number, goods: GoodsSearchResult) => {
     updateItem(index, "goodsId",   goods.goodsId);
@@ -126,10 +159,10 @@ export default function AddInwardForm() {
     updateItem, onSelectGoods: handleSelectGoods, onAddItem: addItem,
   });
 
-  // Init dòng đầu tiên
+  // Init dòng đầu tiên (chỉ khi KHÔNG từ kiểm kê — kiểm kê sẽ pre-fill trong useEffect trên)
   const initialized = useRef(false);
   useEffect(() => {
-    if (!initialized.current) { addItem(); initialized.current = true; }
+    if (!initialized.current && !isFromStockTake) { addItem(); initialized.current = true; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync số dropdown với số dòng items
@@ -158,26 +191,37 @@ export default function AddInwardForm() {
       {/* ── Lý do nhập kho ── */}
       <section style={s.card}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Chọn loại phiếu nhập</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <select
-            value={reason}
-            onChange={(e) => onReasonChange(e.target.value as InwardReason)}
-            style={s.reasonSelect}
-          >
-            {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
-              <option key={r} value={r}>
-                {r === "PURCHASE" ? "🛒 " : "↩️ "}
-                {INWARD_REASON_LABELS[r]}
-              </option>
-            ))}
-          </select>
-          <span style={s.codeBadge}>
-            Mã CT:{" "}
-            <strong style={{ color: "#2255cc" }}>
-              {getVoucherCodeByReason(reason)}
-            </strong>
-          </span>
-        </div>
+        {isFromStockTake ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ padding: "6px 16px", background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 8, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
+              📋 NK3 — Nhập kho kiểm kê
+            </div>
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              Hàng thừa từ phiếu kiểm kê <strong>{fromStockTakeId}</strong>
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <select
+              value={reason}
+              onChange={(e) => onReasonChange(e.target.value as InwardReason)}
+              style={s.reasonSelect}
+            >
+              {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
+                <option key={r} value={r}>
+                  {r === "PURCHASE" ? "🛒 " : "↩️ "}
+                  {INWARD_REASON_LABELS[r]}
+                </option>
+              ))}
+            </select>
+            <span style={s.codeBadge}>
+              Mã CT:{" "}
+              <strong style={{ color: "#2255cc" }}>
+                {getVoucherCodeByReason(reason)}
+              </strong>
+            </span>
+          </div>
+        )}
       </section>
 
       <hr style={styles.hr} />

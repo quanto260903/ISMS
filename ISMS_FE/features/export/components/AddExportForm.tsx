@@ -5,6 +5,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   EXPORT_REASON_LABELS,
@@ -15,6 +16,7 @@ import { useExportForm }           from "../hooks/useExportForm";
 import { useInwardVoucherLookup }  from "../hooks/useInwardVoucherLookup";
 import { useGoodsSearch }          from "../hooks/useGoodsSearch";
 import { getWarehouseReport }      from "../export.api";
+import { getShortageItems }        from "@/features/stock-take/stockTake.api";
 import ExportItemTable             from "./ExportItemTable";
 import SelectInboundModal          from "./SelectInboundModal";
 import type { InboundSelection }   from "./SelectInboundModal";
@@ -26,8 +28,7 @@ import { useAuthStore }            from "@/store/authStore";
 import type { ExportReason, ExportItem, GoodsSearchResult } from "../types/export.types";
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 
-// Chỉ 2 lý do cho phép tạo thủ công
-// XK3 (kiểm kê) và XK4 (bán hàng) do hệ thống tự động sinh
+// 2 lý do tạo thủ công thông thường (XK3 từ kiểm kê có flow riêng)
 const MANUAL_REASONS: ExportReason[] = ["IMPORT_RETURN", "DESTROY"];
 
 interface PendingGoodsState {
@@ -39,6 +40,10 @@ interface PendingGoodsState {
 }
 
 export default function AddExportForm() {
+  const searchParams    = useSearchParams();
+  const fromStockTakeId = searchParams.get("fromStockTake");
+  const isFromStockTake = !!fromStockTakeId && searchParams.get("reason") === "XK3";
+
   const { user } = useAuthStore();
   const currentUserId   = String(user?.userId ?? "");
   const currentUserName = user?.fullName ?? "";
@@ -120,6 +125,34 @@ export default function AddExportForm() {
 
     replaceAllItems([...newItems, createEmptyExportItemShim()]);
   }, [inwardLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-fill từ phiếu kiểm kê (STOCK_TAKE / XK3) ─────────
+  useEffect(() => {
+    if (!isFromStockTake || !fromStockTakeId) return;
+    handleReasonChange("STOCK_TAKE");
+    setField("voucherDescription", `Xuất kho kiểm kê — hàng thiếu từ phiếu ${fromStockTakeId}`);
+
+    getShortageItems(fromStockTakeId).then((items) => {
+      if (!items.length) return;
+      const newItems: ExportItem[] = items.map((it) => ({
+        goodsId:         it.goodsId,
+        goodsName:       it.goodsName,
+        unit:            it.unit ?? "",
+        quantity:        it.quantity,
+        unitPrice:       0,
+        amount1:         0,
+        debitAccount1:   "1381",   // Tài sản thiếu chờ xử lý
+        creditAccount1:  "156",
+        debitAccount2:   "",
+        creditAccount2:  "",
+        costPerUnit:     0,
+        userId:          currentUserId,
+        createdDateTime: new Date().toISOString(),
+        offsetVoucher:   "",       // Bắt buộc chọn chứng từ nhập nguồn (đích danh)
+      }));
+      replaceAllItems([...newItems, createEmptyExportItemShim()]);
+    }).catch(() => {/* giữ form rỗng nếu lỗi */});
+  }, [fromStockTakeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Modal bắt buộc chọn chứng từ nhập ───────────────────
   const [pendingGoods, setPendingGoods] = useState<PendingGoodsState | null>(null);
@@ -223,7 +256,7 @@ export default function AddExportForm() {
 
   const initialized = useRef(false);
   useEffect(() => {
-    if (!initialized.current) { addItem(); initialized.current = true; }
+    if (!initialized.current && !isFromStockTake) { addItem(); initialized.current = true; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prevLengthRef = useRef(voucher.items.length);
@@ -246,26 +279,37 @@ export default function AddExportForm() {
         </div>
       </div>
 
-      {/* ── Lý do xuất kho — chỉ hiện 2 lý do thủ công ── */}
+      {/* ── Lý do xuất kho ── */}
       <section style={s.card}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Chọn loại phiếu xuất</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <select
-            value={reason}
-            onChange={(e) => onReasonChange(e.target.value as ExportReason)}
-            style={s.reasonSelect}
-          >
-            {MANUAL_REASONS.map((r) => (
-              <option key={r} value={r}>
-                {r === "IMPORT_RETURN" ? "↩️ " : "🗑️ "}
-                {EXPORT_REASON_LABELS[r]}
-              </option>
-            ))}
-          </select>
-          <span style={s.codeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>{getVoucherCodeByReason(reason)}</strong>
-          </span>
-        </div>
+        {isFromStockTake ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ padding: "6px 16px", background: "#f0f9ff", border: "1.5px solid #bae6fd", borderRadius: 8, fontSize: 13, color: "#0369a1", fontWeight: 600 }}>
+              📋 XK3 — Xuất kho kiểm kê
+            </div>
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              Hàng thiếu từ phiếu kiểm kê <strong>{fromStockTakeId}</strong> — cần chọn chứng từ nhập nguồn cho từng mặt hàng
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <select
+              value={reason}
+              onChange={(e) => onReasonChange(e.target.value as ExportReason)}
+              style={s.reasonSelect}
+            >
+              {MANUAL_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r === "IMPORT_RETURN" ? "↩️ " : "🗑️ "}
+                  {EXPORT_REASON_LABELS[r]}
+                </option>
+              ))}
+            </select>
+            <span style={s.codeBadge}>
+              Mã CT: <strong style={{ color: "#2255cc" }}>{getVoucherCodeByReason(reason)}</strong>
+            </span>
+          </div>
+        )}
       </section>
 
       <hr style={styles.hr} />

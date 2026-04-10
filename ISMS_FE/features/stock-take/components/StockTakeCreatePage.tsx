@@ -12,7 +12,6 @@ const FONT = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
 const fmtNum = (n: number | null | undefined) =>
   (n ?? 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-// Lỗi 5: thêm T00:00:00 tránh lệch timezone với DateOnly từ C#
 const fmtDate = (s: string | null) =>
   s ? new Date(s + "T00:00:00").toLocaleDateString("vi-VN") : "--";
 
@@ -35,11 +34,10 @@ interface LineRow {
   goodsId:        string;
   goodsName:      string;
   unit:           string | null;
-  bookQuantity:   number;   // chỉ dùng để hiển thị, KHÔNG gửi lên backend
+  bookQuantity:   number;   
   actualQuantity: number;
 }
 
-// Lỗi 3: thêm trường hợp "Khớp" khi diff = 0 và đã touched
 function getXuLy(line: LineRow): { label: string; color: string; bg: string; border: string } | null {
   if (!line._touched) return null;
   const diff = line.actualQuantity - line.bookQuantity;
@@ -105,7 +103,6 @@ export default function StockTakeCreatePage() {
   const router = useRouter();
   const today  = new Date().toISOString().slice(0, 10);
 
-  // Lỗi 1: xóa voucherCode state — backend tự sinh
   const [previewCode,   setPreviewCode]   = useState("");
   const [createdBy,     setCreatedBy]     = useState("");
   const [voucherDate,   setVoucherDate]   = useState(today);
@@ -225,8 +222,6 @@ export default function StockTakeCreatePage() {
   const doSave = async () => {
     setSaving(true);
     try {
-      // Lỗi 2: chỉ gửi actualQuantity, KHÔNG gửi bookQuantity
-      // Lỗi 1: KHÔNG gửi voucherCode — backend tự sinh
       const stockTakeDetails: CreateStockTakeDetailRequest[] = lines.map((l) => ({
         goodsId:        l.goodsId,
         goodsName:      l.goodsName,
