@@ -15,5 +15,9 @@ namespace AppBackend.Services.Services.AuthServices
         Task<ResultModel<AuthData>> LoginAsync(AuthLoginRequest request);
         Task<ResultModel<AuthData>> RegisterAsync(AuthRegisterRequest request);
         Task<ResultModel<UserDto>> GetMeAsync(string userId);
+
+        Task SendLinkResetPassword(string email);
+
+        Task ResetPasswordAsync(ResetPasswordRequestDto request);
     }
 }

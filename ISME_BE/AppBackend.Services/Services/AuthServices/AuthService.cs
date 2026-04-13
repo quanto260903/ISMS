@@ -1,15 +1,17 @@
-﻿using AppBackend.BusinessObjects.Dtos;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using AppBackend.BusinessObjects.Dtos;
+using AppBackend.BusinessObjects.Exceptions;
 using AppBackend.BusinessObjects.Models;
 using AppBackend.Services.ApiModels;
 using AppBackend.Services.ApiModels.Auth;
+using AppBackend.Services.Services.Email;
 using CloudinaryDotNet.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace AppBackend.Services.Services.AuthServices
 {
@@ -17,11 +19,16 @@ namespace AppBackend.Services.Services.AuthServices
     {
         private readonly IndividualBusinessContext _context;
         private readonly IConfiguration _config;
-
-        public AuthService(IndividualBusinessContext context, IConfiguration config)
+        private IResetPasswordTokenService _resetPasswordService;
+        private IEmailService _emailService;
+        public AuthService(IndividualBusinessContext context, IConfiguration config,
+            IResetPasswordTokenService resetPasswordTokenService,
+            IEmailService emailService)
         {
             _context = context;
             _config = config;
+            _resetPasswordService = resetPasswordTokenService;
+            _emailService = emailService;
         }
 
         // ── Login ──────────────────────────────────────────────────────────
@@ -179,5 +186,52 @@ namespace AppBackend.Services.Services.AuthServices
 
         private static ResultModel<T> Error<T>(Exception ex) => new()
         { IsSuccess = false, ResponseCode = "EXCEPTION", StatusCode = 500, Data = default, Message = ex.Message };
+
+        public async Task SendLinkResetPassword(string email)
+        {
+            email = email.Trim().ToLower();
+            var user = await _context.Users.FirstOrDefaultAsync(e => e.Email == email)
+                ?? throw new BadRequestException("Không tìm thấy email");
+
+            var token = _resetPasswordService.GenerateToken(user);
+            var resetLink = $"{_config["ResetPassword:ResetUrl"]}?token={Uri.EscapeDataString(token)}";
+            var expiredTime = _config["ResetPassword:ExpireMinutes"];
+            var subject = "Reset password";
+            var body = $@"
+        Xin chào,
+        
+        Bạn vừa yêu cầu đặt lại mật khẩu.
+        
+        Bấm vào link bên dưới để đặt lại mật khẩu:
+        {resetLink}
+        
+        Link có hiệu lực trong {expiredTime} phút.
+        
+        Nếu không phải bạn yêu cầu, hãy bỏ qua email này.
+        ";
+            await _emailService.SendEmail(user.Email, subject, body);
+
+        }
+
+        public async Task ResetPasswordAsync(ResetPasswordRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.NewPassword))
+                throw new BadRequestException("Mật khẩu mới không được để trống.");
+
+            if (request.NewPassword != request.ConfirmPassword)
+                throw new BadRequestException("Xác nhận mật khẩu không khớp.");
+
+            var validateResult = await _resetPasswordService.ValidateTokenAsync(request.Token);
+
+            if (!validateResult.IsValid || validateResult.User == null)
+                throw new BadRequestException(validateResult.Message);
+
+            var user = validateResult.User;
+
+            // Đổi password -> PasswordHash đổi -> token cũ tự vô hiệu
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

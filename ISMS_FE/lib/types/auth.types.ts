@@ -21,6 +21,10 @@ export interface GoogleAuthUrlData {
   authUrl: string;
 }
 
+export interface AuthMessageResponse {
+  message: string;
+}
+
 // Request Models
 export interface RegisterRequest {
   fullName: string;
@@ -39,6 +43,12 @@ export interface LoginRequest {
 export interface ChangePasswordRequest {
   oldPassword: string;
   newPassword: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface GoogleLoginRequest {
