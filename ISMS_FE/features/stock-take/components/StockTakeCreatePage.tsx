@@ -121,8 +121,30 @@ export default function StockTakeCreatePage() {
   const [saving,       setSaving]       = useState(false);
   const [showWarning,  setShowWarning]  = useState(false);
   const [error,        setError]        = useState("");
-  const [addKeyword,   setAddKeyword]   = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [addKeyword,    setAddKeyword]    = useState("");
+  const [showDropdown,  setShowDropdown]  = useState(false);
+  const [uncheckedPage, setUncheckedPage] = useState(1);
+  const UNCHECKED_PAGE_SIZE = 10;
+  const [pendingDate,   setPendingDate]   = useState<string | null>(null);
+
+  const hasEnteredData = lines.some((l) => l.goodsId.trim() !== "");
+
+  const handleStockTakeDateChange = (newDate: string) => {
+    if (!newDate || newDate === stockTakeDate) return;
+    if (hasEnteredData) {
+      setPendingDate(newDate);
+    } else {
+      setStockTakeDate(newDate);
+    }
+  };
+
+  const confirmDateChange = () => {
+    if (!pendingDate) return;
+    setLines([]);
+    setIdCounter(1);
+    setStockTakeDate(pendingDate);
+    setPendingDate(null);
+  };
 
   useEffect(() => {
     setCreatedBy(getNameFromToken());
@@ -197,7 +219,7 @@ export default function StockTakeCreatePage() {
   const removeRow = (id: number) =>
     setLines((prev) => prev.filter((l) => l._id !== id));
 
-  const checkedIds    = useMemo(() => new Set(lines.filter((l) => l._touched).map((l) => l.goodsId)), [lines]);
+  const checkedIds    = useMemo(() => new Set(lines.filter((l) => l.goodsId.trim() !== "").map((l) => l.goodsId)), [lines]);
   const uncheckedRows = useMemo(() => allGoods.filter((g) => !checkedIds.has(g.goodsId)), [allGoods, checkedIds]);
 
   const visibleLines = useMemo(() => {
@@ -206,11 +228,19 @@ export default function StockTakeCreatePage() {
     return lines.filter((l) => l.goodsId.toLowerCase().includes(kw) || l.goodsName.toLowerCase().includes(kw));
   }, [lines, keyword]);
 
-  const visibleUnchecked = useMemo(() => {
+  const filteredUnchecked = useMemo(() => {
     if (!keyword) return uncheckedRows;
     const kw = keyword.toLowerCase();
     return uncheckedRows.filter((g) => g.goodsId.toLowerCase().includes(kw) || g.goodsName.toLowerCase().includes(kw));
   }, [uncheckedRows, keyword]);
+
+  // Reset trang khi filter thay đổi
+  const uncheckedTotalPages = Math.max(1, Math.ceil(filteredUnchecked.length / UNCHECKED_PAGE_SIZE));
+  const safeUncheckedPage   = Math.min(uncheckedPage, uncheckedTotalPages);
+  const visibleUnchecked    = filteredUnchecked.slice(
+    (safeUncheckedPage - 1) * UNCHECKED_PAGE_SIZE,
+    safeUncheckedPage * UNCHECKED_PAGE_SIZE,
+  );
 
   const handleSaveClick = () => {
     if (!voucherDate || !stockTakeDate) { setError("Vui lòng điền đầy đủ ngày"); return; }
@@ -291,7 +321,7 @@ export default function StockTakeCreatePage() {
             <div>
               <label style={s.lbl}>Ngày kiểm kê <span style={{ color: "#e53e3e" }}>*</span></label>
               <input type="date" style={s.inp} value={stockTakeDate}
-                onChange={(e) => setStockTakeDate(e.target.value)} />
+                onChange={(e) => handleStockTakeDateChange(e.target.value)} />
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
@@ -328,7 +358,7 @@ export default function StockTakeCreatePage() {
                     color: isActive ? color : "#64748b",
                     fontWeight: isActive ? 700 : 500, marginBottom: -1,
                   }}
-                  onClick={() => { setActiveTab(tab.key); setKeyword(""); }}>
+                  onClick={() => { setActiveTab(tab.key); setKeyword(""); setUncheckedPage(1); }}>
                   {tab.label}
                   <span style={{
                     marginLeft: 6, padding: "1px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700,
@@ -373,7 +403,7 @@ export default function StockTakeCreatePage() {
               <input
                 style={{ border: "none", outline: "none", background: "transparent", paddingLeft: 28, width: "100%", fontSize: 13 }}
                 placeholder="Lọc mã hàng, tên hàng..." value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
+                onChange={(e) => { setKeyword(e.target.value); setUncheckedPage(1); }}
               />
             </div>
           </div>
@@ -454,9 +484,9 @@ export default function StockTakeCreatePage() {
                         </td>
                         <td style={{
                           ...s.td2, textAlign: "right", fontWeight: 700,
-                          color: !line._touched ? "#cbd5e1" : diff > 0 ? "#16a34a" : diff < 0 ? "#dc2626" : "#1d4ed8",
+                          color: !line._touched ? "#1d4ed8" : diff > 0 ? "#16a34a" : diff < 0 ? "#dc2626" : "#1d4ed8",
                         }}>
-                          {!line._touched ? "--" : diff === 0 ? "Khớp" : (diff > 0 ? "+" : "") + fmtNum(diff)}
+                          {!line._touched ? "Khớp" : diff === 0 ? "Khớp" : (diff > 0 ? "+" : "") + fmtNum(diff)}
                         </td>
                         <td style={{ ...s.td2, textAlign: "center" }}>
                           {xuLy ? (
@@ -512,46 +542,96 @@ export default function StockTakeCreatePage() {
 
           {/* ══ Bảng Tab CHƯA KIỂM ══ */}
           {activeTab === "unchecked" && !goodsLoading && (
-            <div style={{ border: "1px solid #fde68a", borderRadius: 10, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "linear-gradient(135deg,#d97706,#f59e0b)" }}>
-                    <th style={{ ...s.th2, width: 130 }}>Mã hàng hóa</th>
-                    <th style={s.th2}>Tên hàng hóa</th>
-                    <th style={{ ...s.th2, width: 80, textAlign: "center" }}>ĐVT</th>
-                    <th style={{ ...s.th2, width: 130, textAlign: "right" }}>SL tồn kho</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleUnchecked.length === 0 && (
-                    <tr><td colSpan={4} style={{ padding: "36px 0", textAlign: "center" }}>
-                      <div style={{ fontSize: 24, marginBottom: 6 }}>✅</div>
-                      <div style={{ color: "#16a34a", fontWeight: 600 }}>Tất cả hàng hóa đã được kiểm kê</div>
-                    </td></tr>
+            <>
+              {filteredUnchecked.length === 0 ? (
+                <div style={{ padding: "48px 0", textAlign: "center" }}>
+                  <div style={{ fontSize: 32, marginBottom: 10 }}>✅</div>
+                  <div style={{ color: "#16a34a", fontWeight: 700, fontSize: 15 }}>Tất cả hàng hóa đã được kiểm kê</div>
+                  <div style={{ color: "#94a3b8", fontSize: 13, marginTop: 4 }}>Không còn mặt hàng nào chưa kiểm</div>
+                </div>
+              ) : (
+                <>
+                  {/* Summary bar */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 4px 8px", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "6px 14px", fontSize: 12 }}>
+                        <span style={{ color: "#92400e", fontWeight: 600 }}>Chưa kiểm: </span>
+                        <strong style={{ color: "#d97706" }}>{filteredUnchecked.length}</strong>
+                        {keyword && filteredUnchecked.length !== uncheckedRows.length && (
+                          <span style={{ color: "#94a3b8" }}> / {uncheckedRows.length}</span>
+                        )}
+                        <span style={{ color: "#92400e" }}> mặt hàng</span>
+                      </div>
+                      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12 }}>
+                        <span style={{ color: "#64748b", fontWeight: 600 }}>Tổng SL tồn: </span>
+                        <strong style={{ color: "#1e293b", fontFamily: "monospace" }}>
+                          {fmtNum(filteredUnchecked.reduce((a, g) => a + g.stockQuantity, 0))}
+                        </strong>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                      {(safeUncheckedPage - 1) * UNCHECKED_PAGE_SIZE + 1}–{Math.min(safeUncheckedPage * UNCHECKED_PAGE_SIZE, filteredUnchecked.length)} / {filteredUnchecked.length}
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: "linear-gradient(135deg,#6d28d9,#4f46e5)" }}>
+                          <th style={{ ...s.th2, width: 36, textAlign: "center" }}>#</th>
+                          <th style={{ ...s.th2, width: 130 }}>Mã hàng hóa</th>
+                          <th style={s.th2}>Tên hàng hóa</th>
+                          <th style={{ ...s.th2, width: 80, textAlign: "center" }}>ĐVT</th>
+                          <th style={{ ...s.th2, width: 130, textAlign: "right" }}>SL tồn kho</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleUnchecked.map((g, i) => {
+                          const rowNum = (safeUncheckedPage - 1) * UNCHECKED_PAGE_SIZE + i + 1;
+                          return (
+                            <tr key={g.goodsId} style={{ background: i % 2 === 0 ? "#fff" : "#fafbff", borderTop: "1px solid #f1f5f9" }}>
+                              <td style={{ ...s.td2, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>{rowNum}</td>
+                              <td style={{ ...s.td2, fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#6d28d9" }}>{g.goodsId}</td>
+                              <td style={{ ...s.td2, color: "#1e293b" }}>{g.goodsName}</td>
+                              <td style={{ ...s.td2, textAlign: "center", fontSize: 12, color: "#64748b" }}>{g.unit ?? "--"}</td>
+                              <td style={{ ...s.td2, textAlign: "right", fontFamily: "monospace", color: "#475569", fontWeight: 600 }}>{fmtNum(g.stockQuantity)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {uncheckedTotalPages > 1 && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "12px 0 4px" }}>
+                      <button style={s.pageBtn} disabled={safeUncheckedPage <= 1} onClick={() => setUncheckedPage(1)}>⟨⟨</button>
+                      <button style={s.pageBtn} disabled={safeUncheckedPage <= 1} onClick={() => setUncheckedPage((p) => p - 1)}>⟨</button>
+                      {Array.from({ length: uncheckedTotalPages }, (_, i) => i + 1)
+                        .filter((p) => p === 1 || p === uncheckedTotalPages || Math.abs(p - safeUncheckedPage) <= 1)
+                        .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                          if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                          acc.push(p);
+                          return acc;
+                        }, [])
+                        .map((p, idx) =>
+                          p === "..." ? (
+                            <span key={`ellipsis-${idx}`} style={{ padding: "0 4px", color: "#94a3b8" }}>…</span>
+                          ) : (
+                            <button key={p} style={{ ...s.pageBtn, ...(p === safeUncheckedPage ? s.pageBtnActive : {}) }}
+                              onClick={() => setUncheckedPage(p as number)}>
+                              {p}
+                            </button>
+                          )
+                        )}
+                      <button style={s.pageBtn} disabled={safeUncheckedPage >= uncheckedTotalPages} onClick={() => setUncheckedPage((p) => p + 1)}>⟩</button>
+                      <button style={s.pageBtn} disabled={safeUncheckedPage >= uncheckedTotalPages} onClick={() => setUncheckedPage(uncheckedTotalPages)}>⟩⟩</button>
+                    </div>
                   )}
-                  {visibleUnchecked.map((g, i) => (
-                    <tr key={g.goodsId} style={{ background: i % 2 === 0 ? "#fff" : "#fffbeb", borderTop: "1px solid #fde68a" }}>
-                      <td style={{ ...s.td2, fontFamily: "monospace", fontSize: 12, color: "#92400e" }}>{g.goodsId}</td>
-                      <td style={{ ...s.td2, color: "#475569" }}>{g.goodsName}</td>
-                      <td style={{ ...s.td2, textAlign: "center", fontSize: 12, color: "#64748b" }}>{g.unit ?? "--"}</td>
-                      <td style={{ ...s.td2, textAlign: "right", fontFamily: "monospace", color: "#475569" }}>{fmtNum(g.stockQuantity)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                {visibleUnchecked.length > 0 && (
-                  <tfoot>
-                    <tr style={{ background: "#fffbeb", fontWeight: 700, borderTop: "2px solid #fde68a" }}>
-                      <td colSpan={3} style={{ ...s.td2, textAlign: "right", fontSize: 12, color: "#92400e" }}>
-                        Chưa kiểm ({visibleUnchecked.length} mặt hàng):
-                      </td>
-                      <td style={{ ...s.td2, textAlign: "right", fontFamily: "monospace", color: "#92400e" }}>
-                        {fmtNum(visibleUnchecked.reduce((a, g) => a + g.stockQuantity, 0))}
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
+                </>
+              )}
+            </>
           )}
         </section>
 
@@ -574,6 +654,31 @@ export default function StockTakeCreatePage() {
           </div>
         </div>
       </div>
+
+      {pendingDate && (
+        <div style={m.overlay}>
+          <div style={{ ...m.box, maxWidth: 420, width: "100%", padding: 0 }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>
+                ⚠️ Thay đổi ngày kiểm kê
+              </div>
+              <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
+                Bạn đã nhập dữ liệu kiểm kê. Thay đổi ngày sẽ <strong style={{ color: "#dc2626" }}>xóa toàn bộ số lượng thực tế</strong> đã nhập.
+                <br />Bạn có chắc muốn tiếp tục?
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "14px 22px" }}>
+              <button style={m.btnSec} onClick={() => setPendingDate(null)}>Hủy</button>
+              <button
+                style={{ ...m.btnWarn, background: "linear-gradient(135deg,#dc2626,#ef4444)" }}
+                onClick={confirmDateChange}
+              >
+                Tiếp tục
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showWarning && (
         <UncheckedWarningModal
@@ -608,8 +713,10 @@ const s: Record<string, React.CSSProperties> = {
   td2:        { padding: "6px 10px", verticalAlign: "middle" as const, borderBottom: "1px solid #f1f5f9" },
   cellInp:    { width: "100%", height: 30, padding: "0 8px", border: "1px solid #e2e8f0", borderRadius: 5, fontSize: 13, outline: "none", boxSizing: "border-box" as const },
   addRowBtn:  { height: 36, padding: "0 14px", border: "1.5px solid #7c3aed", borderRadius: 8, background: "#ede9fe", color: "#6d28d9", fontWeight: 600, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" as const },
-  dropdown:   { position: "absolute" as const, top: "calc(100% + 4px)", left: 0, minWidth: 480, zIndex: 9999, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 280, overflowY: "auto" as const },
-  dropItem:   { display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 13, whiteSpace: "nowrap" as const },
+  dropdown:    { position: "absolute" as const, top: "calc(100% + 4px)", left: 0, minWidth: 480, zIndex: 9999, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 280, overflowY: "auto" as const },
+  dropItem:    { display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 13, whiteSpace: "nowrap" as const },
+  pageBtn:     { height: 28, minWidth: 28, padding: "0 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, background: "#fff", color: "#475569", fontWeight: 600, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" },
+  pageBtnActive: { background: "linear-gradient(135deg,#6d28d9,#4f46e5)", color: "#fff", border: "1.5px solid #6d28d9" },
 };
 
 const m: Record<string, React.CSSProperties> = {

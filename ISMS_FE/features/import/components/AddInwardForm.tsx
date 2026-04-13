@@ -6,6 +6,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   INWARD_REASON_LABELS,
@@ -26,6 +27,7 @@ import type { InwardReason, InwardItem, GoodsSearchResult } from "../types/impor
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 
 export default function AddInwardForm() {
+  const router           = useRouter();
   const searchParams     = useSearchParams();
   const fromStockTakeId  = searchParams.get("fromStockTake");
   const isFromStockTake  = !!fromStockTakeId && searchParams.get("reason") === "NK3";
@@ -42,7 +44,15 @@ export default function AddInwardForm() {
     setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
-  } = useInwardForm({ userId: currentUserId });
+  } = useInwardForm({
+    userId: currentUserId,
+    onSuccess: () => {
+      if (fromStockTakeId) {
+        localStorage.setItem(`nk3_done_${fromStockTakeId}`, "true");
+      }
+      setTimeout(() => router.push("/dashboard/import"), 1500);
+    },
+  });
 
   const saleVoucherLookup = useSaleVoucherLookup();
 

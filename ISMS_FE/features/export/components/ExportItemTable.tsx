@@ -25,12 +25,14 @@ interface Props {
   onInputFocus:     (index: number, e: React.FocusEvent<HTMLInputElement>) => void;
   onSelectGoods:    (index: number, goods: GoodsSearchResult, totalItems: number) => void;
   onSetDropdownPos: (pos: DropdownPos | null) => void;
+  onRowClick?:      (index: number) => void;
+  viewOnly?:        boolean;
 }
 
 export default function ExportItemTable({
   items, dropdowns, dropdownPos, dropdownRefs, inputRefs,
   onUpdateItem, onRemoveItem, onGoodsIdChange, onInputFocus,
-  onSelectGoods, onSetDropdownPos,
+  onSelectGoods, onSetDropdownPos, onRowClick, viewOnly = false,
 }: Props) {
   return (
     <>
@@ -47,11 +49,23 @@ export default function ExportItemTable({
             </tr>
           </thead>
           <tbody>
-            {items.map((item, index) => {
+            {(viewOnly ? items.filter((it) => it.goodsId.trim() !== "") : items).map((item, index) => {
               const dd = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
 
               return (
-                <tr key={index} style={{ background: index % 2 === 0 ? "#fff" : "#f8f9ff" }}>
+                <tr
+                  key={index}
+                  style={{
+                    background: index % 2 === 0 ? "#fff" : "#f8f9ff",
+                    cursor: item.goodsId ? "pointer" : "default",
+                  }}
+                  title={item.goodsId ? "Click để chỉnh sửa chứng từ đối trừ" : undefined}
+                  onClick={(e) => {
+                    if (!item.goodsId || !onRowClick) return;
+                    const tag = (e.target as HTMLElement).tagName.toLowerCase();
+                    if (tag === "tr" || tag === "td") onRowClick(index);
+                  }}
+                >
 
                   {/* # */}
                   <td style={{ ...styles.itemTd, textAlign: "center", color: "#999", width: 32 }}>
@@ -94,18 +108,20 @@ export default function ExportItemTable({
                   {/* Số lượng */}
                   <td style={{ ...styles.itemTd, width: 60 }}>
                     <input type="number" min={1}
-                      style={{ ...styles.inputTable, textAlign: "right" }}
+                      style={{ ...styles.inputTable, textAlign: "right", ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
                       value={item.quantity}
-                      onChange={(e) => onUpdateItem(index, "quantity", Number(e.target.value))}
+                      readOnly={viewOnly}
+                      onChange={(e) => !viewOnly && onUpdateItem(index, "quantity", Number(e.target.value))}
                     />
                   </td>
 
                   {/* Đơn giá */}
                   <td style={{ ...styles.itemTd, width: 100 }}>
                     <input type="number" min={0}
-                      style={{ ...styles.inputTable, textAlign: "right" }}
+                      style={{ ...styles.inputTable, textAlign: "right", ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
                       value={item.unitPrice}
-                      onChange={(e) => onUpdateItem(index, "unitPrice", Number(e.target.value))}
+                      readOnly={viewOnly}
+                      onChange={(e) => !viewOnly && onUpdateItem(index, "unitPrice", Number(e.target.value))}
                     />
                   </td>
 
@@ -119,22 +135,26 @@ export default function ExportItemTable({
                     <input
                       style={{
                         ...styles.inputTable,
-                        background: item.offsetVoucher ? "#f0fdf4" : undefined,
+                        background: viewOnly ? "#f5f5f5" : (item.offsetVoucher ? "#f0fdf4" : undefined),
                         color:      item.offsetVoucher ? "#15803d" : undefined,
                         fontWeight: item.offsetVoucher ? 600 : undefined,
                       }}
                       placeholder="Phiếu nhập gốc..."
                       value={item.offsetVoucher ?? ""}
-                      onChange={(e) => onUpdateItem(index, "offsetVoucher", e.target.value)}
+                      readOnly={viewOnly}
+                      onChange={(e) => !viewOnly && onUpdateItem(index, "offsetVoucher", e.target.value)}
                     />
                   </td>
 
-                  {/* Actions: Xóa */}
-                  <td style={{ ...styles.itemTd, width: 80, textAlign: "center" }}>
-                    <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
-                      Xóa
-                    </button>
-                  </td>
+                  {/* Actions: Xóa (ẩn khi chỉ xem) */}
+                  {!viewOnly && (
+                    <td style={{ ...styles.itemTd, width: 80, textAlign: "center" }}>
+                      <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
+                        Xóa
+                      </button>
+                    </td>
+                  )}
+                  {viewOnly && <td style={{ ...styles.itemTd, width: 80 }} />}
                 </tr>
               );
             })}

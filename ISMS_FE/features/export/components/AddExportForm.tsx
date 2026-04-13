@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   EXPORT_REASON_LABELS,
@@ -40,6 +41,7 @@ interface PendingGoodsState {
 }
 
 export default function AddExportForm() {
+  const router          = useRouter();
   const searchParams    = useSearchParams();
   const fromStockTakeId = searchParams.get("fromStockTake");
   const isFromStockTake = !!fromStockTakeId && searchParams.get("reason") === "XK3";
@@ -54,7 +56,16 @@ export default function AddExportForm() {
     setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
-  } = useExportForm({ userId: currentUserId, userFullName: currentUserName });
+  } = useExportForm({
+    userId: currentUserId,
+    userFullName: currentUserName,
+    onSuccess: () => {
+      if (fromStockTakeId) {
+        localStorage.setItem(`xk3_done_${fromStockTakeId}`, "true");
+      }
+      setTimeout(() => router.push("/dashboard/export"), 1500);
+    },
+  });
 
   const inwardLookup   = useInwardVoucherLookup();
   const isImportReturn = reason === "IMPORT_RETURN";
@@ -183,6 +194,21 @@ export default function AddExportForm() {
       setPendingGoods((prev) => prev ? { ...prev, inbounds: [], loading: false } : null);
     }
   }, []);
+
+  // Mở lại modal chứng từ đối trừ khi người dùng click vào dòng đã có hàng hóa
+  const handleRowClick = useCallback((index: number) => {
+    const item = voucher.items[index];
+    if (!item?.goodsId) return;
+    const goods: GoodsSearchResult = {
+      goodsId:   item.goodsId,
+      goodsName: item.goodsName,
+      unit:      item.unit,
+      salePrice:  0,
+      vatrate:    "",
+      itemOnHand: 0,
+    };
+    handleGoodsSelected(index, goods, voucher.items.length);
+  }, [voucher.items, handleGoodsSelected]);
 
   // Xác nhận chọn phiếu nhập — xử lý toàn bộ trong 1 lần setVoucher tránh race condition
   const handleConfirmInbound = useCallback((selections: InboundSelection[]) => {
@@ -490,6 +516,7 @@ export default function AddExportForm() {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
+            onRowClick={handleRowClick}
           />
         )}
 

@@ -1,4 +1,5 @@
 "use client";
+import { useSearchParams } from "next/navigation";
 import EditInwardForm from "@/features/import/components/EditInwardForm";
 
 interface Props {
@@ -6,5 +7,7 @@ interface Props {
 }
 
 export default function EditInwardPage({ params }: Props) {
-  return <EditInwardForm voucherId={params.id} />;
+  const searchParams = useSearchParams();
+  const viewOnly = searchParams.get("mode") === "view";
+  return <EditInwardForm voucherId={params.id} viewOnly={viewOnly} />;
 }
