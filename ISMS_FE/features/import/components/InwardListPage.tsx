@@ -1,6 +1,6 @@
-// ============================================================
+﻿// ============================================================
 //  features/inward/components/InwardListPage.tsx
-//  Trang chủ nhập kho — danh sách phiếu + nút tạo mới
+//  Trang chủ nhập kho - danh sách phiếu và nút tạo mới
 // ============================================================
 
 "use client";
@@ -10,11 +10,11 @@ import { useRouter } from "next/navigation";
 import { useInwardList } from "../hooks/useInwardList";
 import type { InwardListItem } from "../types/import.types";
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("vi-VN") : "--";
+const fmtDate = (date: string | null) =>
+  date ? new Date(date).toLocaleDateString("vi-VN") : "--";
 
-const fmtMoney = (n: number) =>
-  n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
+const fmtMoney = (value: number) =>
+  value.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
 const VOUCHER_CODE_LABELS: Record<string, string> = {
   NK1: "Mua hàng",
@@ -22,7 +22,10 @@ const VOUCHER_CODE_LABELS: Record<string, string> = {
   NK3: "Nhập kiểm kê",
 };
 
-const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+const VOUCHER_CODE_COLORS: Record<
+  string,
+  { bg: string; color: string; border: string }
+> = {
   NK1: { bg: "#f0fdf4", color: "#15803d", border: "#86efac" },
   NK2: { bg: "#fff1f2", color: "#b91c1c", border: "#fca5a5" },
   NK3: { bg: "#fefce8", color: "#854d0e", border: "#fde68a" },
@@ -32,23 +35,31 @@ const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: s
 export default function InwardListPage() {
   const router = useRouter();
   const {
-    filters, handleFilterChange, handleSearch, handleRefresh,
-    page, setPage, PAGE_SIZE,
-    result, loading, error,
+    filters,
+    handleFilterChange,
+    handleSearch,
+    handleRefresh,
+    page,
+    setPage,
+    PAGE_SIZE,
+    result,
+    loading,
+    error,
   } = useInwardList();
 
   const totalPages = result ? Math.ceil(result.total / PAGE_SIZE) : 1;
 
   return (
     <div style={s.page}>
-      {/* ── Hero header ── */}
       <div style={s.heroBanner}>
         <div style={s.heroDecorOrb} />
         <div style={s.heroDecorOrb2} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={s.heroEyebrow}>WMS Pro · Quản lý nhập kho</div>
           <h1 style={s.heroTitle}>Danh sách phiếu nhập kho</h1>
-          <p style={s.heroSub}>Quản lý toàn bộ phiếu nhập, tra cứu và theo dõi tình trạng hàng hóa</p>
+          <p style={s.heroSub}>
+            Quản lý toàn bộ phiếu nhập, tra cứu và theo dõi tình trạng hàng hóa
+          </p>
         </div>
         <button
           style={s.btnPrimary}
@@ -59,13 +70,13 @@ export default function InwardListPage() {
         </button>
       </div>
 
-      {/* ── Filter bar ── */}
       <div style={s.filterCard}>
         <div style={s.filterBar}>
           <div style={s.filterGroup}>
             <label style={s.filterLabel}>Từ ngày</label>
             <input
-              type="date" style={s.filterInput}
+              type="date"
+              style={s.filterInput}
               value={filters.fromDate}
               onChange={(e) => handleFilterChange("fromDate", e.target.value)}
             />
@@ -74,7 +85,8 @@ export default function InwardListPage() {
           <div style={s.filterGroup}>
             <label style={s.filterLabel}>Đến ngày</label>
             <input
-              type="date" style={s.filterInput}
+              type="date"
+              style={s.filterInput}
               value={filters.toDate}
               onChange={(e) => handleFilterChange("toDate", e.target.value)}
             />
@@ -94,18 +106,23 @@ export default function InwardListPage() {
             </div>
           </div>
 
-          <button style={s.btnRefresh} onClick={handleRefresh} title="Làm mới dữ liệu">
-            <span style={{ fontSize: 15 }}>↺</span>
+          <button
+            style={s.btnRefresh}
+            onClick={handleRefresh}
+            title="Làm mới dữ liệu"
+          >
+            <span style={{ fontSize: 15 }}>↻</span>
           </button>
         </div>
       </div>
 
-      {/* ── Table ── */}
       <div style={s.tableCard}>
         <table style={s.table}>
           <thead>
             <tr style={s.theadRow}>
-              <th style={s.th}><input type="checkbox" /></th>
+              <th style={s.th}>
+                <input type="checkbox" />
+              </th>
               <th style={s.th}>Số hóa đơn</th>
               <th style={s.th}>Số phiếu</th>
               <th style={s.th}>Loại phiếu</th>
@@ -126,52 +143,90 @@ export default function InwardListPage() {
                 </td>
               </tr>
             )}
+
             {!loading && error && (
               <tr>
-                <td colSpan={8} style={{ ...s.statusCell }}>
+                <td colSpan={8} style={s.statusCell}>
                   <div style={s.errorBox}>⚠️ {error}</div>
                 </td>
               </tr>
             )}
+
             {!loading && !error && result?.items.length === 0 && (
               <tr>
                 <td colSpan={8} style={s.statusCell}>
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>📦</div>
-                    <p style={{ fontWeight: 600, color: "#374151" }}>Chưa có phiếu nào</p>
-                    <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>Nhấn "Tạo phiếu nhập mới" để bắt đầu</p>
+                    <p style={{ fontWeight: 600, color: "#374151" }}>
+                      Chưa có phiếu nào
+                    </p>
+                    <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
+                      Nhấn "Tạo phiếu nhập mới" để bắt đầu
+                    </p>
                   </div>
                 </td>
               </tr>
             )}
-            {!loading && result?.items.map((row, i) => (
-              <InwardRow key={row.voucherId} row={row} i={i}
-                onView={() => router.push(`/dashboard/import/${row.voucherId}?mode=view`)}
-                onEdit={() => router.push(`/dashboard/import/${row.voucherId}`)}
-              />
-            ))}
+
+            {!loading &&
+              result?.items.map((row, index) => (
+                <InwardRow
+                  key={row.voucherId}
+                  row={row}
+                  index={index}
+                  onView={() =>
+                    router.push(`/dashboard/import/${row.voucherId}?mode=view`)
+                  }
+                  onEdit={() => router.push(`/dashboard/import/${row.voucherId}`)}
+                />
+              ))}
           </tbody>
         </table>
       </div>
 
-      {/* ── Footer: total + pagination ── */}
       {result && (
         <div style={s.footer}>
           <div style={s.grandTotal}>
             <span style={{ color: "#64748b", fontSize: 13 }}>
-              Tổng số: <strong style={{ color: "#1e293b" }}>{result.total}</strong> phiếu
+              Tổng số:{" "}
+              <strong style={{ color: "#1e293b" }}>{result.total}</strong> phiếu
             </span>
             <span style={s.grandTotalAmount}>{fmtMoney(result.grandTotal)} ₫</span>
           </div>
 
           <div style={s.pagination}>
             <span style={s.pageInfo}>
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, result.total)} / {result.total}
+              {(page - 1) * PAGE_SIZE + 1}-
+              {Math.min(page * PAGE_SIZE, result.total)} / {result.total}
             </span>
-            <button style={s.pageBtn} disabled={page <= 1} onClick={() => setPage(1)}>⟨⟨</button>
-            <button style={s.pageBtn} disabled={page <= 1} onClick={() => setPage(page - 1)}>⟨</button>
-            <button style={s.pageBtn} disabled={page >= totalPages} onClick={() => setPage(page + 1)}>⟩</button>
-            <button style={s.pageBtn} disabled={page >= totalPages} onClick={() => setPage(totalPages)}>⟩⟩</button>
+            <button
+              style={s.pageBtn}
+              disabled={page <= 1}
+              onClick={() => setPage(1)}
+            >
+              ⟨⟨
+            </button>
+            <button
+              style={s.pageBtn}
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              ⟨
+            </button>
+            <button
+              style={s.pageBtn}
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              ⟩
+            </button>
+            <button
+              style={s.pageBtn}
+              disabled={page >= totalPages}
+              onClick={() => setPage(totalPages)}
+            >
+              ⟩⟩
+            </button>
           </div>
         </div>
       )}
@@ -179,17 +234,28 @@ export default function InwardListPage() {
   );
 }
 
-/* ── Row component ── */
 function InwardRow({
-  row, i, onView, onEdit
-}: { row: InwardListItem; i: number; onView: () => void; onEdit: () => void }) {
+  row,
+  index,
+  onView,
+  onEdit,
+}: {
+  row: InwardListItem;
+  index: number;
+  onView: () => void;
+  onEdit: () => void;
+}) {
   const [hover, setHover] = React.useState(false);
-  const codeStyle = VOUCHER_CODE_COLORS[row.voucherCode ?? "DEFAULT"] ?? VOUCHER_CODE_COLORS.DEFAULT;
+  const codeStyle =
+    VOUCHER_CODE_COLORS[row.voucherCode ?? "DEFAULT"] ??
+    VOUCHER_CODE_COLORS.DEFAULT;
+  const showQuarantineBadge =
+    row.stockBucket === "QUARANTINE" || row.voucherCode === "NK2";
 
   return (
     <tr
       style={{
-        background: hover ? "#f5f3ff" : i % 2 === 0 ? "#fff" : "#fafafa",
+        background: hover ? "#f5f3ff" : index % 2 === 0 ? "#fff" : "#fafafa",
         transition: "background 0.12s",
         cursor: "pointer",
       }}
@@ -200,41 +266,63 @@ function InwardRow({
       <td style={s.td} onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" />
       </td>
-      <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>{row.invoiceNumber ?? "--"}</td>
-      <td style={{ ...s.td, fontWeight: 700, color: "#6d28d9" }}>{row.voucherId}</td>
+      <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>
+        {row.invoiceNumber ?? "--"}
+      </td>
+      <td style={{ ...s.td, fontWeight: 700, color: "#6d28d9" }}>
+        {row.voucherId}
+      </td>
       <td style={s.td}>
-        {row.voucherCode && (
-          <span style={{
-            padding: "3px 10px",
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 700,
-            background: codeStyle.bg,
-            color: codeStyle.color,
-            border: `1.5px solid ${codeStyle.border}`,
-            whiteSpace: "nowrap",
-            letterSpacing: "0.02em",
-          }}>
-            {VOUCHER_CODE_LABELS[row.voucherCode] ?? row.voucherCode}
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {row.voucherCode && (
+            <span
+              style={{
+                padding: "3px 10px",
+                borderRadius: 20,
+                fontSize: 11,
+                fontWeight: 700,
+                background: codeStyle.bg,
+                color: codeStyle.color,
+                border: `1.5px solid ${codeStyle.border}`,
+                whiteSpace: "nowrap",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {VOUCHER_CODE_LABELS[row.voucherCode] ?? row.voucherCode}
+            </span>
+          )}
+          {showQuarantineBadge && <span style={s.bucketBadge}>Cách ly QC</span>}
+        </div>
       </td>
       <td style={{ ...s.td, color: "#64748b" }}>{fmtDate(row.voucherDate)}</td>
       <td style={{ ...s.td, fontWeight: 500 }}>{row.customerName ?? "--"}</td>
-      <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: "#6d28d9" }}>
+      <td
+        style={{
+          ...s.td,
+          textAlign: "right",
+          fontWeight: 700,
+          color: "#6d28d9",
+        }}
+      >
         {fmtMoney(row.totalAmount)} ₫
       </td>
-      <td style={{ ...s.td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+      <td
+        style={{ ...s.td, textAlign: "center" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-          <button style={s.btnView} onClick={onView}>👁 Xem</button>
-          <button style={s.btnEdit} onClick={onEdit}>✏️ Sửa</button>
+          <button style={s.btnView} onClick={onView}>
+            👁 Xem
+          </button>
+          <button style={s.btnEdit} onClick={onEdit}>
+            ✏️ Sửa
+          </button>
         </div>
       </td>
     </tr>
   );
 }
 
-/* ── Styles ── */
 const FONT = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
 
 const s: Record<string, React.CSSProperties> = {
@@ -247,12 +335,11 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 0,
   },
-
-  /* Hero banner */
   heroBanner: {
     position: "relative",
     overflow: "hidden",
-    background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 60%, #3b82f6 100%)",
+    background:
+      "linear-gradient(135deg, #6d28d9 0%, #4f46e5 60%, #3b82f6 100%)",
     borderRadius: "14px",
     padding: "24px 28px",
     marginBottom: 20,
@@ -301,8 +388,6 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
     marginBottom: 0,
   },
-
-  /* Filter card */
   filterCard: {
     background: "#fff",
     borderRadius: 12,
@@ -319,7 +404,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   filterGroup: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     gap: 5,
   },
   filterLabel: {
@@ -363,10 +448,8 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 22,
     transition: "background 0.15s",
   },
-
-  /* Table card */
   tableCard: {
-    overflowX: "auto" as const,
+    overflowX: "auto",
     background: "#fff",
     borderRadius: 12,
     border: "1px solid #e2e8f0",
@@ -375,7 +458,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   table: {
     width: "100%",
-    borderCollapse: "collapse" as const,
+    borderCollapse: "collapse",
     fontSize: 13,
   },
   theadRow: {
@@ -383,11 +466,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   th: {
     padding: "12px 16px",
-    textAlign: "left" as const,
+    textAlign: "left",
     fontWeight: 700,
     color: "#fff",
     borderBottom: "none",
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     fontSize: 12,
     letterSpacing: "0.04em",
   },
@@ -395,20 +478,18 @@ const s: Record<string, React.CSSProperties> = {
     padding: "11px 16px",
     borderBottom: "1px solid #f1f5f9",
     color: "#334155",
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     fontSize: 13,
   },
-
-  /* Status cells */
   statusCell: {
     padding: "40px 32px",
-    textAlign: "center" as const,
+    textAlign: "center",
     color: "#94a3b8",
     fontSize: 14,
   },
   loadingSpinner: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     alignItems: "center",
     gap: 12,
     color: "#7c3aed",
@@ -436,7 +517,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyState: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     alignItems: "center",
     gap: 4,
   },
@@ -445,8 +526,6 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 4,
     filter: "grayscale(0.5)",
   },
-
-  /* Footer */
   footer: {
     display: "flex",
     justifyContent: "space-between",
@@ -532,4 +611,16 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     transition: "all 0.12s",
   },
+  bucketBadge: {
+    padding: "3px 10px",
+    borderRadius: 20,
+    border: "1px solid #fbbf24",
+    background: "#fffbeb",
+    color: "#b45309",
+    fontSize: 11,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+    letterSpacing: "0.02em",
+  },
 };
+

@@ -30,6 +30,7 @@ namespace AppBackend.Services.Services.GoodsServices
             IsPromotion = g.IsPromotion,
             IsInactive = g.IsInactive,
             ItemOnHand = g.ItemOnHand,
+            QuarantineOnHand = g.QuarantineOnHand,
             CreatedDate = g.CreatedDate,
         };
 
@@ -49,6 +50,7 @@ namespace AppBackend.Services.Services.GoodsServices
             IsPromotion = g.IsPromotion,
             IsInactive = g.IsInactive,
             ItemOnHand = g.ItemOnHand,
+            QuarantineOnHand = g.QuarantineOnHand,
             CreatedDate = g.CreatedDate,
         };
 
@@ -127,6 +129,7 @@ namespace AppBackend.Services.Services.GoodsServices
                     IsInactive = false,
                     CreatedDate = DateTime.Now,
                     ItemOnHand = 0,
+                    QuarantineOnHand = 0,
                 };
 
                 await _repo.AddAsync(entity);
@@ -206,9 +209,9 @@ namespace AppBackend.Services.Services.GoodsServices
                 if (g == null)
                     return Fail<int>(404, "NOT_FOUND", $"Không tìm thấy hàng hóa: {id}");
 
-                if (g.ItemOnHand > 0)
+                if ((g.ItemOnHand ?? 0) > 0 || (g.QuarantineOnHand ?? 0) > 0)
                     return Fail<int>(409, "HAS_STOCK",
-                        $"Hàng hóa đang có {g.ItemOnHand} tồn kho, không thể xóa");
+                        $"Hàng hóa đang có tồn bán được {(g.ItemOnHand ?? 0)} và tồn cách ly {(g.QuarantineOnHand ?? 0)}, không thể xóa");
 
                 var rows = await _repo.DeleteAsync(id);
                 return Ok(rows, $"Đã xóa hàng hóa '{g.GoodsName}'");

@@ -14,5 +14,6 @@ namespace AppBackend.BusinessObjects.Dtos
         public decimal? SalePrice { get; set; }
         public string Vatrate { get; set; } = null!;
         public int? ItemOnHand { get; set; }
+        public int? QuarantineOnHand { get; set; }
     }
 }

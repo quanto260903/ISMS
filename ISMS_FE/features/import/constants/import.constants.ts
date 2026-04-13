@@ -2,7 +2,7 @@
 //  features/inward/constants/import.constants.ts
 // ============================================================
 
-import type { InwardItem, InwardReason } from "../types/import.types";
+import type { InwardItem, InwardReason, InwardStockBucket } from "../types/import.types";
 
 // Thành tiền = SL × Đơn giá × (1 - %KM/100)
 export const calcAmount = (item: InwardItem): number => {
@@ -12,6 +12,8 @@ export const calcAmount = (item: InwardItem): number => {
 
 // Tài khoản Có mặc định — luôn là tiền mặt (111)
 export const DEFAULT_CREDIT_ACCOUNT = "111";
+export const SELLABLE_BUCKET: InwardStockBucket = "SELLABLE";
+export const QUARANTINE_BUCKET: InwardStockBucket = "QUARANTINE";
 
 // VoucherCode theo lý do nhập kho
 export const getVoucherCodeByReason = (reason: InwardReason): string => {
@@ -33,6 +35,11 @@ export const INWARD_VOUCHER_CODE_LABELS: Record<string, string> = {
   NK1: "Nhập kho mua hàng",
   NK2: "Nhập kho hàng bán trả lại",
   NK3: "Nhập kho kiểm kê",
+};
+
+export const STOCK_BUCKET_LABELS: Record<InwardStockBucket, string> = {
+  SELLABLE: "Bán được",
+  QUARANTINE: "Cách ly QC",
 };
 
 export const INWARD_TABLE_COLUMNS = [

@@ -1,11 +1,7 @@
-﻿using AppBackend.BusinessObjects.Dtos;
+using AppBackend.BusinessObjects.Constants;
+using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AppBackend.Repositories.Repositories.GoodsRepo
 {
@@ -74,6 +70,7 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                     Unit = g.Unit,
                     SalePrice = g.SalePrice,
                     ItemOnHand = g.ItemOnHand,
+                    QuarantineOnHand = g.QuarantineOnHand,
                 })
                 .ToListAsync();
         }
@@ -99,24 +96,32 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                 .OrderBy(g => g.GoodsName)
                 .ToListAsync();
 
-            // Tồn đầu kỳ từ OpenInventory
             var openInventories = await _context.OpenInventories
                 .ToDictionaryAsync(oi => oi.GoodsId!, oi => (decimal)(oi.Quantity ?? 0));
 
-            // Tổng nhập kho (Debit 156) đến ngày asOfDate
             var inbounds = await _context.VoucherDetails
                 .Join(_context.Vouchers,
                     vd => vd.VoucherId,
                     v => v.VoucherId,
-                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.DebitAccount1, vd.DebitAccount2, v.VoucherDate })
+                    (vd, v) => new
+                    {
+                        vd.GoodsId,
+                        vd.Quantity,
+                        vd.DebitAccount1,
+                        vd.DebitAccount2,
+                        vd.StockBucket,
+                        v.VoucherDate,
+                        v.VoucherCode
+                    })
                 .Where(x => x.GoodsId != null
                          && (x.DebitAccount1 == "156" || x.DebitAccount2 == "156")
+                         && x.StockBucket != StockBucketConstants.Quarantine
+                         && x.VoucherCode != "NK2"
                          && x.VoucherDate != null && x.VoucherDate <= asOfDate)
                 .GroupBy(x => x.GoodsId!)
                 .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
                 .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
 
-            // Tổng xuất kho (Credit 156) đến ngày asOfDate
             var outbounds = await _context.VoucherDetails
                 .Join(_context.Vouchers,
                     vd => vd.VoucherId,
@@ -149,9 +154,20 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                 .Join(_context.Vouchers,
                     vd => vd.VoucherId,
                     v => v.VoucherId,
-                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.DebitAccount1, vd.DebitAccount2, v.VoucherDate })
+                    (vd, v) => new
+                    {
+                        vd.GoodsId,
+                        vd.Quantity,
+                        vd.DebitAccount1,
+                        vd.DebitAccount2,
+                        vd.StockBucket,
+                        v.VoucherDate,
+                        v.VoucherCode
+                    })
                 .Where(x => x.GoodsId == goodsId
                          && (x.DebitAccount1 == "156" || x.DebitAccount2 == "156")
+                         && x.StockBucket != StockBucketConstants.Quarantine
+                         && x.VoucherCode != "NK2"
                          && x.VoucherDate != null && x.VoucherDate <= asOfDate)
                 .SumAsync(x => (decimal)(x.Quantity ?? 0));
 

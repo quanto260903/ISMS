@@ -162,21 +162,36 @@ namespace AppBackend.Services.Services.GoodsServices
                 var dto = new SaleVoucherLookupDto
                 {
                     VoucherId = voucher.VoucherId,
+                    CustomerId = voucher.CustomerId,
                     CustomerName = voucher.CustomerName,
                     VoucherDate = voucher.VoucherDate,
-                    Items = voucher.VoucherDetails.Select(d => new SaleVoucherDetailDto
-                    {
-                        GoodsId = d.GoodsId,
-                        GoodsName = d.GoodsName,
-                        Unit = d.Unit,
-                        Quantity = d.Quantity,
-                        UnitPrice = d.UnitPrice,
-                        Amount1 = d.Amount1,
-                        Promotion = d.Promotion,
-                        DebitAccount1 = d.DebitAccount1,
-                        CreditAccount1 = d.CreditAccount1,
-                    }).ToList()
+                    Items = new List<SaleVoucherDetailDto>()
                 };
+
+                foreach (var detail in voucher.VoucherDetails)
+                {
+                    var soldQty = detail.Quantity ?? 0;
+                    var returnedQty = await _saleRepository.GetReturnedQtyForSaleDetailAsync(
+                        detail.Id,
+                        voucher.VoucherId,
+                        detail.GoodsId ?? string.Empty);
+
+                    dto.Items.Add(new SaleVoucherDetailDto
+                    {
+                        SaleVoucherDetailId = detail.Id,
+                        GoodsId = detail.GoodsId,
+                        GoodsName = detail.GoodsName,
+                        Unit = detail.Unit,
+                        SoldQty = soldQty,
+                        ReturnedQty = returnedQty,
+                        Quantity = soldQty,
+                        UnitPrice = detail.UnitPrice,
+                        Amount1 = detail.Amount1,
+                        Promotion = detail.Promotion,
+                        DebitAccount1 = detail.DebitAccount1,
+                        CreditAccount1 = detail.CreditAccount1,
+                    });
+                }
 
                 return new ResultModel<SaleVoucherLookupDto>
                 {

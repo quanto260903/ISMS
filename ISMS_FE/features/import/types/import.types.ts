@@ -4,6 +4,7 @@
 
 // Lý do nhập kho — quyết định VoucherCode
 export type InwardReason = "PURCHASE" | "SALES_RETURN" | "STOCK_TAKE";
+export type InwardStockBucket = "SELLABLE" | "QUARANTINE";
 
 export interface InwardItem {
   goodsId:         string;
@@ -17,7 +18,15 @@ export interface InwardItem {
   creditAccount1:  string;   // 111 (Tiền mặt) — mặc định
   debitAccount2:   string;   // 1331 (Thuế GTGT được khấu trừ) — để trống nếu không dùng
   creditAccount2:  string;
+  stockBucket?:    InwardStockBucket;
   offsetVoucher?:  string;   // Liên kết phiếu bán gốc (chỉ có khi SALES_RETURN)
+  sourceVoucherId?: string;
+  sourceVoucherDetailId?: number;
+  returnReason?:   string;
+  rootCause?:      string;
+  expiryDate?:     string | null;
+  soldQty?:        number;
+  returnedQty?:    number;
   userId:          string;
   createdDateTime: string;
 }
@@ -41,6 +50,7 @@ export interface GoodsSearchResult {
   goodsName:  string;
   unit:       string;
   itemOnHand: number;
+  quarantineOnHand?: number;
 }
 
 export interface DropdownState {
@@ -58,9 +68,12 @@ export interface DropdownPos {
 
 // ── Lookup phiếu bán ─────────────────────────────────────────
 export interface SaleVoucherLookupItem {
+  saleVoucherDetailId: number;
   goodsId:         string;
   goodsName:       string;
   unit:            string;
+  soldQty:         number;
+  returnedQty:     number;
   quantity:        number;
   unitPrice:       number;
   amount1:         number;
@@ -83,6 +96,7 @@ export interface InwardListItem {
   customerName: string | null;
   totalAmount:  number;
   itemCount:    number;
+  stockBucket?: InwardStockBucket;
 }
 
 export interface InwardListResult {

@@ -1,11 +1,7 @@
-﻿using AppBackend.BusinessObjects.Dtos;
+using AppBackend.BusinessObjects.Constants;
+using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AppBackend.Repositories.Repositories.ItemRepo
 {
@@ -31,61 +27,50 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
 
             return item;
         }
+
         /// <summary>
         /// Lấy tồn kho theo từng phiếu nhập của 1 mặt hàng.
-        /// 
+        ///
         /// Logic FIFO có lùi ngày:
         /// - Chỉ tính các phiếu NHẬP có VoucherDate <= asOfDate (ngày xuất kho đang tạo)
         /// - Tồn của mỗi phiếu nhập = WarehouseIn - tổng WarehouseOut đã xuất từ phiếu đó
         /// - Chỉ trả về các phiếu còn tồn > 0
-        /// 
-        /// Ví dụ: asOfDate = ngày 11
-        /// → phiếu nhập ngày 12 bị loại → không có hàng để xuất ✅
-        /// 
-        /// Ví dụ: asOfDate = ngày 13
-        /// → phiếu nhập ngày 10 và ngày 12 đều hợp lệ
-        /// → tính tồn thực tế của từng phiếu ✅
+        /// - Phiếu NK2 / bucket QUARANTINE không được xem là tồn bán được
         /// </summary>
         public async Task<List<WarehouseTransactionDto>> GetWarehouseTransactionsAsync(
             string goodsId,
-            DateOnly? asOfDate = null)   // null = không giới hạn ngày (dùng khi xem báo cáo)
+            DateOnly? asOfDate = null)
         {
-            // ── 1. Lấy tất cả VoucherDetail liên quan đến TK 156 của mặt hàng ──
             var data = await _context.VoucherDetails
                 .Where(vd =>
-                    vd.GoodsId == goodsId
-                    && (
-                        vd.DebitAccount1 == "156"
-                        || vd.DebitAccount2 == "156"
-                        || vd.CreditAccount1 == "156"
-                        || vd.CreditAccount2 == "156"
+                    vd.GoodsId == goodsId &&
+                    (
+                        vd.DebitAccount1 == "156" ||
+                        vd.DebitAccount2 == "156" ||
+                        vd.CreditAccount1 == "156" ||
+                        vd.CreditAccount2 == "156"
                     ))
                 .Include(vd => vd.Voucher)
                 .ToListAsync();
 
-            // ── 2. Tách riêng dòng NHẬP và dòng XUẤT ──────────────────────────
-            // Nhập kho: Debit 156 (tồn tăng)
-            // Xuất kho: Credit 156 (tồn giảm)
             var inboundRows = data
-                .Where(vd => vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156")
+                .Where(vd =>
+                    (vd.DebitAccount1 == "156" || vd.DebitAccount2 == "156") &&
+                    vd.StockBucket != StockBucketConstants.Quarantine &&
+                    vd.Voucher?.VoucherCode != "NK2")
                 .ToList();
 
             var outboundRows = data
                 .Where(vd => vd.CreditAccount1 == "156" || vd.CreditAccount2 == "156")
                 .ToList();
 
-            // ── 3. Filter phiếu NHẬP theo asOfDate ────────────────────────────
-            // Nếu asOfDate = ngày 11 → bỏ phiếu nhập ngày 12 trở đi
-            // Nếu asOfDate = null    → giữ tất cả (dùng cho màn hình báo cáo)
             var eligibleInbounds = asOfDate.HasValue
                 ? inboundRows.Where(vd =>
-                    vd.Voucher?.VoucherDate != null
-                    && vd.Voucher.VoucherDate.Value <= asOfDate.Value)
+                    vd.Voucher?.VoucherDate != null &&
+                    vd.Voucher.VoucherDate.Value <= asOfDate.Value)
                   .ToList()
                 : inboundRows;
 
-            // ── 4. Group theo VoucherId của phiếu NHẬP ────────────────────────
-            // Tính WarehouseIn, Cost, UnitPrice cho từng phiếu nhập đủ điều kiện
             var inboundGroups = eligibleInbounds
                 .GroupBy(vd => vd.VoucherId)
                 .Select(g =>
@@ -102,9 +87,6 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                 })
                 .ToList();
 
-            // ── 5. Tính WarehouseOut cho từng phiếu nhập ──────────────────────
-            // OffsetVoucher trên dòng xuất trỏ đến VoucherId của phiếu nhập
-            // → group theo OffsetVoucher để biết đã xuất bao nhiêu từ mỗi phiếu nhập
             var outboundByInbound = outboundRows
                 .Where(vd => vd.OffsetVoucher != null)
                 .GroupBy(vd => vd.OffsetVoucher!)
@@ -113,8 +95,7 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                     g => g.Sum(vd => (decimal?)vd.Quantity ?? 0)
                 );
 
-            // ── 6. Build kết quả ──────────────────────────────────────────────
-            var result = inboundGroups
+            return inboundGroups
                 .Select(ib =>
                 {
                     var warehouseOut = outboundByInbound.TryGetValue(
@@ -132,17 +113,15 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                         UnitPrice = ib.UnitPrice,
                     };
                 })
-                .Where(x => x.CustomInHand > 0)     // chỉ phiếu còn tồn
-                .OrderBy(x => x.VoucherDate)         // FIFO: cũ nhất lên đầu
+                .Where(x => x.CustomInHand > 0)
+                .OrderBy(x => x.VoucherDate)
                 .ToList();
-
-            return result;
         }
-        /// <inheritdoc/>
+
         public async Task<IEnumerable<GoodsSearchDto>> SearchByIdAsync(
-      string keyword,
-      int limit = 10,
-      CancellationToken cancellationToken = default)
+            string keyword,
+            int limit = 10,
+            CancellationToken cancellationToken = default)
         {
             var normalizedKeyword = keyword.Trim().ToLower();
 
@@ -165,6 +144,7 @@ namespace AppBackend.Repositories.Repositories.ItemRepo
                     SalePrice = g.SalePrice,
                     Vatrate = g.Vatrate,
                     ItemOnHand = g.ItemOnHand,
+                    QuarantineOnHand = g.QuarantineOnHand,
                 })
                 .ToListAsync(cancellationToken);
         }

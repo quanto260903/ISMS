@@ -18,9 +18,19 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
         Task<Voucher?> GetByIdAsync(string voucherId);
         Task UpdateAsync(Voucher voucher);
         Task DeleteAsync(string voucherId);
-        Task<bool> IsAlreadyReturnedAsync(string saleVoucherId);
-        Task AddStockAsync(string goodsId, int quantity);
-        Task DeductStockAsync(string goodsId, int quantity);
+        Task<(int SaleVoucherDetailId, int SoldQty)?> GetSaleSourceDetailAsync(
+            string saleVoucherId,
+            string goodsId,
+            int? saleVoucherDetailId = null);
+        Task<int> GetReturnedQuantityForSaleLineAsync(
+            int saleVoucherDetailId,
+            string saleVoucherId,
+            string goodsId,
+            string? excludeImportVoucherId = null);
+        Task AddSellableStockAsync(string goodsId, int quantity);
+        Task DeductSellableStockAsync(string goodsId, int quantity);
+        Task AddQuarantineStockAsync(string goodsId, int quantity);
+        Task DeductQuarantineStockAsync(string goodsId, int quantity);
         Task<bool> HasDependentExportsAsync(string inboundVoucherId);
         Task<string> GenerateVoucherIdAsync();
     }
