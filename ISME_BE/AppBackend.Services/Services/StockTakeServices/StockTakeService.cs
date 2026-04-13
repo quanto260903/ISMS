@@ -99,9 +99,6 @@ namespace AppBackend.Services.Services.StockTakeServices
             var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
             if (voucher == null) return null;
 
-            if (voucher.IsCompleted == true)
-                throw new InvalidOperationException("Phiếu kiểm kê đã được xử lý, không thể chỉnh sửa.");
-
             voucher.VoucherDate = dto.VoucherDate;
             voucher.StockTakeDate = dto.StockTakeDate;
             voucher.Purpose = dto.Purpose;
@@ -146,9 +143,6 @@ namespace AppBackend.Services.Services.StockTakeServices
         {
             var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
             if (voucher == null) return false;
-
-            if (voucher.IsCompleted == true)
-                throw new InvalidOperationException("Phiếu kiểm kê đã xử lý, không thể xóa.");
 
             await _uow.StockTakeDetails.DeleteByVoucherIdAsync(id);
             await _uow.StockTakeVouchers.DeleteAsync(id);

@@ -7,12 +7,14 @@ import type { ApiResponse } from '@/lib/types/api.types'
 import type { User } from '@/lib/types/user.types'
 import type {
   AuthData,
+  AuthMessageResponse,
   GoogleAuthData,
   GoogleAuthUrlData,
   LoginRequest,
   RegisterRequest,
   GoogleLoginRequest,
   ChangePasswordRequest,
+  ResetPasswordRequest,
   UpdateUserRequest,
 } from '@/lib/types/auth.types'
 
@@ -84,6 +86,22 @@ export const authService = {
   /** POST /warehouse/auth/change-password */
   changePassword: async (data: ChangePasswordRequest): Promise<ApiResponse<void>> => {
     const res = await authApi.post<ApiResponse<void>>('/change-password', data)
+    return res.data
+  },
+
+  /** POST /warehouse/auth/forgot-password */
+  forgotPassword: async (email: string): Promise<AuthMessageResponse> => {
+    const res = await authApi.post<AuthMessageResponse>('/forgot-password', JSON.stringify(email))
+    return res.data
+  },
+
+  /** POST /warehouse/auth/reset-password */
+  resetPassword: async (data: ResetPasswordRequest): Promise<AuthMessageResponse> => {
+    const res = await authApi.post<AuthMessageResponse>('/reset-password', {
+      Token: data.token,
+      NewPassword: data.newPassword,
+      ConfirmPassword: data.confirmPassword,
+    })
     return res.data
   },
 

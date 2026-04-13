@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   DEFAULT_CREDIT_ACCOUNT,
@@ -20,9 +20,9 @@ import CreateSupplierModal from "@/shared/components/supplier/CreateSupplierModa
 import { useSupplierSearch } from "@/shared/hooks/supplier/useSupplierSearch";
 import { useAuthStore } from "@/store/authStore";
 import type {
+  GoodsSearchResult,
   InwardItem,
   InwardReason,
-  GoodsSearchResult,
 } from "../types/import.types";
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 
@@ -45,6 +45,7 @@ function createEmptyItem(userId: string): InwardItem {
 }
 
 export default function AddInwardForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const fromStockTakeId = searchParams.get("fromStockTake");
   const isFromStockTake =
@@ -65,6 +66,7 @@ export default function AddInwardForm() {
   const {
     voucher,
     message,
+    loading,
     totalAmount,
     setField,
     handleReasonChange,
@@ -73,7 +75,15 @@ export default function AddInwardForm() {
     updateItem,
     replaceAllItems,
     handleSubmit,
-  } = useInwardForm({ userId: currentUserId });
+  } = useInwardForm({
+    userId: currentUserId,
+    onSuccess: () => {
+      if (fromStockTakeId) {
+        localStorage.setItem(`nk3_done_${fromStockTakeId}`, "true");
+      }
+      setTimeout(() => router.push("/dashboard/import"), 1500);
+    },
+  });
 
   const saleVoucherLookup = useSaleVoucherLookup();
 
@@ -223,7 +233,7 @@ export default function AddInwardForm() {
   return (
     <div style={styles.container}>
       <section style={s.sectionCard}>
-        <h2 style={s.sectionTitle}>Thêm mới phiếu nhập khp</h2>
+        <h2 style={s.sectionTitle}>Thêm mới phiếu nhập kho</h2>
 
         {isFromStockTake ? (
           <div style={s.badgeRow}>
@@ -248,7 +258,7 @@ export default function AddInwardForm() {
               )}
             </select>
             <span style={s.hintText}>
-              Ma CT: <strong>{getVoucherCodeByReason(reason)}</strong>
+              Mã CT: <strong>{getVoucherCodeByReason(reason)}</strong>
             </span>
           </div>
         )}
@@ -269,11 +279,15 @@ export default function AddInwardForm() {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") saleVoucherLookup.handleLookup();
                 }}
-                placeholder="Nhập số phiếu bán, vd: BH12345678"
+                placeholder="Nhập số phiếu bán, VD: BH12345678"
               />
             </div>
             <button
-              style={{ ...styles.btnPrimary, minWidth: 120 }}
+              style={{
+                ...styles.btnPrimary,
+                minWidth: 120,
+                opacity: saleVoucherLookup.lookupLoading ? 0.7 : 1,
+              }}
               onClick={saleVoucherLookup.handleLookup}
               disabled={saleVoucherLookup.lookupLoading}
             >
@@ -290,7 +304,7 @@ export default function AddInwardForm() {
                   replaceAllItems([]);
                 }}
               >
-                Xoa
+                Xóa
               </button>
             )}
           </div>
@@ -381,12 +395,13 @@ export default function AddInwardForm() {
               value={voucher.customerName ?? ""}
               readOnly={isSalesReturn}
               onChange={(event) => {
-                if (!isSalesReturn)
+                if (!isSalesReturn) {
                   setField("customerName", event.target.value);
+                }
               }}
               placeholder={
                 isSalesReturn
-                  ? "Tự động điền phiếu bán"
+                  ? "Tự động điền từ phiếu bán"
                   : "Tự động điền khi chọn NCC"
               }
             />
@@ -411,7 +426,7 @@ export default function AddInwardForm() {
           </div>
 
           <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
-            <label style={styles.label}>Điện giải</label>
+            <label style={styles.label}>Diễn giải</label>
             <input
               style={styles.input}
               value={voucher.voucherDescription ?? ""}
@@ -424,7 +439,7 @@ export default function AddInwardForm() {
       </section>
 
       <section style={s.sectionCard}>
-        <h3 style={styles.sectionTitle}>Chi tiết hàng hoá</h3>
+        <h3 style={styles.sectionTitle}>Chi tiết hàng hóa</h3>
 
         {voucher.items.length > 0 && (
           <InwardItemTable
@@ -461,8 +476,12 @@ export default function AddInwardForm() {
       </section>
 
       <div style={s.actionRow}>
-        <button style={styles.btnPrimary} onClick={handleSubmit}>
-          Lưu phiếu nhập kho
+        <button
+          style={{ ...styles.btnPrimary, opacity: loading ? 0.7 : 1 }}
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? "Đang lưu..." : "Lưu phiếu nhập kho"}
         </button>
         {message && (
           <span
@@ -591,3 +610,4 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
   },
 };
+

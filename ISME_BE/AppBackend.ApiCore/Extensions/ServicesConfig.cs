@@ -71,6 +71,7 @@ public static class ServicesConfig
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IOpenInventoryService, OpenInventoryService>();
         services.AddScoped<IStockTakeService, StockTakeService>();
+        services.AddScoped<IResetPasswordTokenService, ResetPasswordTokenService>();
         #endregion
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         #region Helpers

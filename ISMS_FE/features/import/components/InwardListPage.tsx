@@ -1,6 +1,6 @@
-// ============================================================
+﻿// ============================================================
 //  features/inward/components/InwardListPage.tsx
-//  Trang chủ nhập kho — danh sách phiếu + nút tạo mới
+//  Trang chủ nhập kho - danh sách phiếu và nút tạo mới
 // ============================================================
 
 "use client";
@@ -10,11 +10,11 @@ import { useRouter } from "next/navigation";
 import { useInwardList } from "../hooks/useInwardList";
 import type { InwardListItem } from "../types/import.types";
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("vi-VN") : "--";
+const fmtDate = (date: string | null) =>
+  date ? new Date(date).toLocaleDateString("vi-VN") : "--";
 
-const fmtMoney = (n: number) =>
-  n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
+const fmtMoney = (value: number) =>
+  value.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
 const VOUCHER_CODE_LABELS: Record<string, string> = {
   NK1: "Mua hàng",
@@ -51,7 +51,6 @@ export default function InwardListPage() {
 
   return (
     <div style={s.page}>
-      {/* ── Hero header ── */}
       <div style={s.heroBanner}>
         <div style={s.heroDecorOrb} />
         <div style={s.heroDecorOrb2} />
@@ -71,7 +70,6 @@ export default function InwardListPage() {
         </button>
       </div>
 
-      {/* ── Filter bar ── */}
       <div style={s.filterCard}>
         <div style={s.filterBar}>
           <div style={s.filterGroup}>
@@ -113,12 +111,11 @@ export default function InwardListPage() {
             onClick={handleRefresh}
             title="Làm mới dữ liệu"
           >
-            <span style={{ fontSize: 15 }}>↺</span>
+            <span style={{ fontSize: 15 }}>↻</span>
           </button>
         </div>
       </div>
 
-      {/* ── Table ── */}
       <div style={s.tableCard}>
         <table style={s.table}>
           <thead>
@@ -146,13 +143,15 @@ export default function InwardListPage() {
                 </td>
               </tr>
             )}
+
             {!loading && error && (
               <tr>
-                <td colSpan={8} style={{ ...s.statusCell }}>
+                <td colSpan={8} style={s.statusCell}>
                   <div style={s.errorBox}>⚠️ {error}</div>
                 </td>
               </tr>
             )}
+
             {!loading && !error && result?.items.length === 0 && (
               <tr>
                 <td colSpan={8} style={s.statusCell}>
@@ -168,22 +167,23 @@ export default function InwardListPage() {
                 </td>
               </tr>
             )}
+
             {!loading &&
-              result?.items.map((row, i) => (
+              result?.items.map((row, index) => (
                 <InwardRow
                   key={row.voucherId}
                   row={row}
-                  i={i}
-                  onEdit={() =>
-                    router.push(`/dashboard/import/${row.voucherId}`)
+                  index={index}
+                  onView={() =>
+                    router.push(`/dashboard/import/${row.voucherId}?mode=view`)
                   }
+                  onEdit={() => router.push(`/dashboard/import/${row.voucherId}`)}
                 />
               ))}
           </tbody>
         </table>
       </div>
 
-      {/* ── Footer: total + pagination ── */}
       {result && (
         <div style={s.footer}>
           <div style={s.grandTotal}>
@@ -191,14 +191,12 @@ export default function InwardListPage() {
               Tổng số:{" "}
               <strong style={{ color: "#1e293b" }}>{result.total}</strong> phiếu
             </span>
-            <span style={s.grandTotalAmount}>
-              {fmtMoney(result.grandTotal)} ₫
-            </span>
+            <span style={s.grandTotalAmount}>{fmtMoney(result.grandTotal)} ₫</span>
           </div>
 
           <div style={s.pagination}>
             <span style={s.pageInfo}>
-              {(page - 1) * PAGE_SIZE + 1}–
+              {(page - 1) * PAGE_SIZE + 1}-
               {Math.min(page * PAGE_SIZE, result.total)} / {result.total}
             </span>
             <button
@@ -236,14 +234,15 @@ export default function InwardListPage() {
   );
 }
 
-/* ── Row component ── */
 function InwardRow({
   row,
-  i,
+  index,
+  onView,
   onEdit,
 }: {
   row: InwardListItem;
-  i: number;
+  index: number;
+  onView: () => void;
   onEdit: () => void;
 }) {
   const [hover, setHover] = React.useState(false);
@@ -256,7 +255,7 @@ function InwardRow({
   return (
     <tr
       style={{
-        background: hover ? "#f5f3ff" : i % 2 === 0 ? "#fff" : "#fafafa",
+        background: hover ? "#f5f3ff" : index % 2 === 0 ? "#fff" : "#fafafa",
         transition: "background 0.12s",
         cursor: "pointer",
       }}
@@ -292,7 +291,7 @@ function InwardRow({
               {VOUCHER_CODE_LABELS[row.voucherCode] ?? row.voucherCode}
             </span>
           )}
-          {showQuarantineBadge && <span style={s.bucketBadge}>QUARANTINE</span>}
+          {showQuarantineBadge && <span style={s.bucketBadge}>Cách ly QC</span>}
         </div>
       </td>
       <td style={{ ...s.td, color: "#64748b" }}>{fmtDate(row.voucherDate)}</td>
@@ -311,15 +310,19 @@ function InwardRow({
         style={{ ...s.td, textAlign: "center" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <button style={s.btnEdit} onClick={onEdit}>
-          ✏️ Sửa
-        </button>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          <button style={s.btnView} onClick={onView}>
+            👁 Xem
+          </button>
+          <button style={s.btnEdit} onClick={onEdit}>
+            ✏️ Sửa
+          </button>
+        </div>
       </td>
     </tr>
   );
 }
 
-/* ── Styles ── */
 const FONT = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
 
 const s: Record<string, React.CSSProperties> = {
@@ -332,8 +335,6 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 0,
   },
-
-  /* Hero banner */
   heroBanner: {
     position: "relative",
     overflow: "hidden",
@@ -387,8 +388,6 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
     marginBottom: 0,
   },
-
-  /* Filter card */
   filterCard: {
     background: "#fff",
     borderRadius: 12,
@@ -405,7 +404,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   filterGroup: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     gap: 5,
   },
   filterLabel: {
@@ -449,10 +448,8 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 22,
     transition: "background 0.15s",
   },
-
-  /* Table card */
   tableCard: {
-    overflowX: "auto" as const,
+    overflowX: "auto",
     background: "#fff",
     borderRadius: 12,
     border: "1px solid #e2e8f0",
@@ -461,7 +458,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   table: {
     width: "100%",
-    borderCollapse: "collapse" as const,
+    borderCollapse: "collapse",
     fontSize: 13,
   },
   theadRow: {
@@ -469,11 +466,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   th: {
     padding: "12px 16px",
-    textAlign: "left" as const,
+    textAlign: "left",
     fontWeight: 700,
     color: "#fff",
     borderBottom: "none",
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     fontSize: 12,
     letterSpacing: "0.04em",
   },
@@ -481,20 +478,18 @@ const s: Record<string, React.CSSProperties> = {
     padding: "11px 16px",
     borderBottom: "1px solid #f1f5f9",
     color: "#334155",
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     fontSize: 13,
   },
-
-  /* Status cells */
   statusCell: {
     padding: "40px 32px",
-    textAlign: "center" as const,
+    textAlign: "center",
     color: "#94a3b8",
     fontSize: 14,
   },
   loadingSpinner: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     alignItems: "center",
     gap: 12,
     color: "#7c3aed",
@@ -522,7 +517,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyState: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     alignItems: "center",
     gap: 4,
   },
@@ -531,8 +526,6 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 4,
     filter: "grayscale(0.5)",
   },
-
-  /* Footer */
   footer: {
     display: "flex",
     justifyContent: "space-between",
@@ -596,6 +589,17 @@ const s: Record<string, React.CSSProperties> = {
     transition: "background 0.15s",
     letterSpacing: "0.02em",
   },
+  btnView: {
+    padding: "5px 14px",
+    border: "1.5px solid #bae6fd",
+    borderRadius: 7,
+    background: "#f0f9ff",
+    color: "#0369a1",
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: "pointer",
+    transition: "all 0.12s",
+  },
   btnEdit: {
     padding: "5px 14px",
     border: "1.5px solid #ddd6fe",
@@ -615,7 +619,8 @@ const s: Record<string, React.CSSProperties> = {
     color: "#b45309",
     fontSize: 11,
     fontWeight: 700,
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     letterSpacing: "0.02em",
   },
 };
+

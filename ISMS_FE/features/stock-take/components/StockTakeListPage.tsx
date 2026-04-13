@@ -54,6 +54,7 @@ export default function StockTakeListPage() {
   const [keyword,      setKeyword]      = useState("");
   const [filterDone,   setFilterDone]   = useState<boolean | "">("");
   const [page,         setPage]         = useState(1);
+  const [refreshTick,  setRefreshTick]  = useState(0);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StockTakeListDto | null>(null);
   const [deleting,     setDeleting]     = useState(false);
@@ -76,6 +77,22 @@ export default function StockTakeListPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Refresh localStorage-based status when user returns to this tab
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setRefreshTick((t) => t + 1);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  const isDoneById = useCallback((id: string) =>
+    typeof window !== "undefined" && (
+      localStorage.getItem(`nk3_done_${id}`) === "true" ||
+      localStorage.getItem(`xk3_done_${id}`) === "true"
+    ),
+  [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const filteredRows = useMemo(() => {
     let items = allRows;
     if (keyword) {
@@ -84,9 +101,9 @@ export default function StockTakeListPage() {
         (i) => i.stockTakeVoucherId.toLowerCase().includes(kw) || (i.purpose ?? "").toLowerCase().includes(kw)
       );
     }
-    if (filterDone !== "") items = items.filter((i) => i.isCompleted === filterDone);
+    if (filterDone !== "") items = items.filter((i) => isDoneById(i.stockTakeVoucherId) === filterDone);
     return items;
-  }, [allRows, keyword, filterDone]);
+  }, [allRows, keyword, filterDone, isDoneById]);
 
   const pagedRows  = useMemo(
     () => filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -112,9 +129,9 @@ export default function StockTakeListPage() {
   };
 
   const TABS = [
-    { label: "Tất cả",     value: ""    as const },
-    { label: "Đang kiểm",  value: false as const },
-    { label: "Hoàn thành", value: true  as const },
+    { label: "Tất cả",      value: ""    as const },
+    { label: "Chưa xử lý", value: false as const },
+    { label: "Đã xử lý",   value: true  as const },
   ];
 
   return (
@@ -265,6 +282,11 @@ function StockTakeRow({ row, i, onView, onDelete }: {
   onView: () => void; onDelete: () => void;
 }) {
   const [hover, setHover] = React.useState(false);
+  const isDone =
+    typeof window !== "undefined" && (
+      localStorage.getItem(`nk3_done_${row.stockTakeVoucherId}`) === "true" ||
+      localStorage.getItem(`xk3_done_${row.stockTakeVoucherId}`) === "true"
+    );
   return (
     <tr
       style={{ background: hover ? "#f5f3ff" : i % 2 === 0 ? "#fff" : "#fafafa", transition: "background 0.12s", cursor: "pointer" }}
@@ -283,21 +305,19 @@ function StockTakeRow({ row, i, onView, onDelete }: {
       <td style={{ ...s.td, textAlign: "center" }}>
         <span style={{
           padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
-          background: row.isCompleted ? "#f0fdf4" : "#fffbeb",
-          color:      row.isCompleted ? "#15803d" : "#d97706",
-          border:     `1.5px solid ${row.isCompleted ? "#86efac" : "#fde68a"}`,
+          background: isDone ? "#f0fdf4" : "#fffbeb",
+          color:      isDone ? "#15803d" : "#d97706",
+          border:     `1.5px solid ${isDone ? "#86efac" : "#fde68a"}`,
         }}>
-          {row.isCompleted ? "✓ Hoàn thành" : "◑ Đang kiểm"}
+          {isDone ? "✓ Đã xử lý" : "◑ Chưa xử lý"}
         </span>
       </td>
       <td style={{ ...s.td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
         <button style={s.btnView} onClick={onView}>✏️ Xem</button>
-        {!row.isCompleted && (
-          <button style={{ ...s.btnView, marginLeft: 6, color: "#b91c1c", borderColor: "#fca5a5", background: "#fff1f2" }}
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-            🗑
-          </button>
-        )}
+        <button style={{ ...s.btnView, marginLeft: 6, color: "#b91c1c", borderColor: "#fca5a5", background: "#fff1f2" }}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+          🗑
+        </button>
       </td>
     </tr>
   );

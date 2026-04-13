@@ -7,10 +7,10 @@ import {
   STOCK_BUCKET_LABELS,
 } from "../constants/import.constants";
 import type {
-  InwardItem,
-  GoodsSearchResult,
-  DropdownState,
   DropdownPos,
+  DropdownState,
+  GoodsSearchResult,
+  InwardItem,
 } from "../types/import.types";
 
 interface Props {
@@ -35,6 +35,7 @@ interface Props {
   onSetDropdownPos: (pos: DropdownPos | null) => void;
   lockGoodsSelection?: boolean;
   showReturnMetadata?: boolean;
+  viewOnly?: boolean;
 }
 
 export default function InwardItemTable({
@@ -51,11 +52,16 @@ export default function InwardItemTable({
   onSetDropdownPos,
   lockGoodsSelection = false,
   showReturnMetadata = false,
+  viewOnly = false,
 }: Props) {
-  const setPromotion = (index: number, val: number) => {
-    const clamped = Math.max(0, Math.min(val, 100));
+  const setPromotion = (index: number, value: number) => {
+    const clamped = Math.max(0, Math.min(value, 100));
     onUpdateItem(index, "promotion", clamped);
   };
+
+  const rows = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !viewOnly || item.goodsId.trim() !== "");
 
   return (
     <>
@@ -79,8 +85,8 @@ export default function InwardItemTable({
             </tr>
           </thead>
           <tbody>
-            {items.map((item, index) => {
-              const dd = dropdowns[index] ?? {
+            {rows.map(({ item, index }, rowIndex) => {
+              const dropdown = dropdowns[index] ?? {
                 suggestions: [],
                 loading: false,
                 open: false,
@@ -91,6 +97,7 @@ export default function InwardItemTable({
                 (item.soldQty ?? item.quantity) - (item.returnedQty ?? 0),
               );
               const canEnforceReturnLimit = typeof item.soldQty === "number";
+              const lockPriceFields = lockGoodsSelection || viewOnly;
 
               return (
                 <React.Fragment key={`${item.goodsId || "row"}-${index}`}>
@@ -98,7 +105,7 @@ export default function InwardItemTable({
                     style={{
                       background: isEmpty
                         ? "#fffbf0"
-                        : index % 2 === 0
+                        : rowIndex % 2 === 0
                           ? "#fff"
                           : "#f8f9ff",
                       opacity: isEmpty ? 0.7 : 1,
@@ -115,7 +122,7 @@ export default function InwardItemTable({
                       {isEmpty ? (
                         <span style={{ color: "#ccc" }}>-</span>
                       ) : (
-                        index + 1
+                        rowIndex + 1
                       )}
                     </td>
 
@@ -132,24 +139,26 @@ export default function InwardItemTable({
                           }}
                           style={{
                             ...styles.inputTable,
-                            paddingRight: dd.loading ? 26 : 6,
-                            background: lockGoodsSelection
-                              ? "#f4f4f4"
-                              : undefined,
-                            color: lockGoodsSelection ? "#555" : undefined,
+                            paddingRight: dropdown.loading ? 26 : 6,
+                            background: lockPriceFields ? "#f4f4f4" : "#fff",
+                            color: lockPriceFields ? "#555" : "#1e293b",
                           }}
                           placeholder="Mã hàng..."
                           value={item.goodsId}
-                          onChange={(e) =>
-                            onGoodsIdChange(index, e.target.value)
-                          }
+                          onChange={(e) => {
+                            if (!viewOnly && !lockGoodsSelection) {
+                              onGoodsIdChange(index, e.target.value);
+                            }
+                          }}
                           onFocus={(e) => {
-                            if (!lockGoodsSelection) onInputFocus(index, e);
+                            if (!viewOnly && !lockGoodsSelection) {
+                              onInputFocus(index, e);
+                            }
                           }}
                           autoComplete="off"
-                          readOnly={lockGoodsSelection}
+                          readOnly={viewOnly || lockGoodsSelection}
                         />
-                        {!lockGoodsSelection && dd.loading && (
+                        {!viewOnly && !lockGoodsSelection && dropdown.loading && (
                           <span style={styles.spinner}>...</span>
                         )}
                       </div>
@@ -192,17 +201,26 @@ export default function InwardItemTable({
                             ? remainingReturnQty || undefined
                             : undefined
                         }
-                        style={{ ...styles.inputTable, textAlign: "right" }}
+                        style={{
+                          ...styles.inputTable,
+                          textAlign: "right",
+                          ...(viewOnly
+                            ? { background: "#f4f4f4", color: "#555" }
+                            : {}),
+                        }}
                         value={item.quantity}
-                        onChange={(e) =>
-                          onUpdateItem(
-                            index,
-                            "quantity",
-                            Number(e.target.value),
-                          )
-                        }
-                        disabled={isEmpty}
-                        tabIndex={isEmpty ? -1 : undefined}
+                        readOnly={viewOnly}
+                        onChange={(e) => {
+                          if (!viewOnly) {
+                            onUpdateItem(
+                              index,
+                              "quantity",
+                              Number(e.target.value),
+                            );
+                          }
+                        }}
+                        disabled={isEmpty || viewOnly}
+                        tabIndex={isEmpty || viewOnly ? -1 : undefined}
                       />
                     </td>
 
@@ -213,22 +231,25 @@ export default function InwardItemTable({
                         style={{
                           ...styles.inputTable,
                           textAlign: "right",
-                          background: lockGoodsSelection
-                            ? "#f4f4f4"
-                            : undefined,
-                          color: lockGoodsSelection ? "#555" : undefined,
+                          background: lockPriceFields ? "#f4f4f4" : "#fff",
+                          color: lockPriceFields ? "#555" : "#1e293b",
                         }}
                         value={item.unitPrice}
-                        onChange={(e) =>
-                          onUpdateItem(
-                            index,
-                            "unitPrice",
-                            Number(e.target.value),
-                          )
-                        }
-                        disabled={isEmpty || lockGoodsSelection}
+                        readOnly={viewOnly}
+                        onChange={(e) => {
+                          if (!viewOnly && !lockGoodsSelection) {
+                            onUpdateItem(
+                              index,
+                              "unitPrice",
+                              Number(e.target.value),
+                            );
+                          }
+                        }}
+                        disabled={isEmpty || lockGoodsSelection || viewOnly}
                         tabIndex={
-                          isEmpty || lockGoodsSelection ? -1 : undefined
+                          isEmpty || lockGoodsSelection || viewOnly
+                            ? -1
+                            : undefined
                         }
                       />
                     </td>
@@ -242,19 +263,22 @@ export default function InwardItemTable({
                         style={{
                           ...styles.inputTable,
                           textAlign: "right",
-                          background: lockGoodsSelection
-                            ? "#f4f4f4"
-                            : undefined,
-                          color: lockGoodsSelection ? "#555" : undefined,
+                          background: lockPriceFields ? "#f4f4f4" : "#fff",
+                          color: lockPriceFields ? "#555" : "#1e293b",
                         }}
                         value={item.promotion === 0 ? "" : item.promotion}
                         placeholder="0"
-                        onChange={(e) =>
-                          setPromotion(index, Number(e.target.value))
-                        }
-                        disabled={isEmpty || lockGoodsSelection}
+                        readOnly={viewOnly}
+                        onChange={(e) => {
+                          if (!viewOnly && !lockGoodsSelection) {
+                            setPromotion(index, Number(e.target.value));
+                          }
+                        }}
+                        disabled={isEmpty || lockGoodsSelection || viewOnly}
                         tabIndex={
-                          isEmpty || lockGoodsSelection ? -1 : undefined
+                          isEmpty || lockGoodsSelection || viewOnly
+                            ? -1
+                            : undefined
                         }
                       />
                     </td>
@@ -278,12 +302,12 @@ export default function InwardItemTable({
                         textAlign: "center",
                       }}
                     >
-                      {!isEmpty && (
+                      {!viewOnly && !isEmpty && (
                         <button
                           style={styles.btnDanger}
                           onClick={() => onRemoveItem(index)}
                         >
-                          Xoa
+                          Xoá
                         </button>
                       )}
                     </td>
@@ -338,26 +362,52 @@ export default function InwardItemTable({
                           <label style={s.inputLabel}>
                             Lý do trả hàng *
                             <input
-                              style={s.metaInput}
+                              style={{
+                                ...s.metaInput,
+                                ...(viewOnly
+                                  ? {
+                                      background: "#f8fafc",
+                                      color: "#475569",
+                                    }
+                                  : {}),
+                              }}
                               value={item.returnReason ?? ""}
-                              onChange={(e) =>
-                                onUpdateItem(
-                                  index,
-                                  "returnReason",
-                                  e.target.value,
-                                )
-                              }
+                              readOnly={viewOnly}
+                              onChange={(e) => {
+                                if (!viewOnly) {
+                                  onUpdateItem(
+                                    index,
+                                    "returnReason",
+                                    e.target.value,
+                                  );
+                                }
+                              }}
                               placeholder="VD: Khách đổi trả, hàng hư hỏng..."
                             />
                           </label>
                           <label style={s.inputLabel}>
                             Nguyên nhân lỗi *
                             <input
-                              style={s.metaInput}
+                              style={{
+                                ...s.metaInput,
+                                ...(viewOnly
+                                  ? {
+                                      background: "#f8fafc",
+                                      color: "#475569",
+                                    }
+                                  : {}),
+                              }}
                               value={item.rootCause ?? ""}
-                              onChange={(e) =>
-                                onUpdateItem(index, "rootCause", e.target.value)
-                              }
+                              readOnly={viewOnly}
+                              onChange={(e) => {
+                                if (!viewOnly) {
+                                  onUpdateItem(
+                                    index,
+                                    "rootCause",
+                                    e.target.value,
+                                  );
+                                }
+                              }}
                               placeholder="VD: Hết hạn, lỗi bảo quản, lỗi sản phẩm..."
                             />
                           </label>
@@ -365,15 +415,26 @@ export default function InwardItemTable({
                             Hạn dùng
                             <input
                               type="date"
-                              style={s.metaInput}
+                              style={{
+                                ...s.metaInput,
+                                ...(viewOnly
+                                  ? {
+                                      background: "#f8fafc",
+                                      color: "#475569",
+                                    }
+                                  : {}),
+                              }}
                               value={item.expiryDate ?? ""}
-                              onChange={(e) =>
-                                onUpdateItem(
-                                  index,
-                                  "expiryDate",
-                                  e.target.value || null,
-                                )
-                              }
+                              readOnly={viewOnly}
+                              onChange={(e) => {
+                                if (!viewOnly) {
+                                  onUpdateItem(
+                                    index,
+                                    "expiryDate",
+                                    e.target.value || null,
+                                  );
+                                }
+                              }}
                             />
                           </label>
                         </div>
@@ -388,16 +449,17 @@ export default function InwardItemTable({
       </div>
 
       {!lockGoodsSelection &&
+        !viewOnly &&
         dropdownPos &&
         (() => {
-          const dd = dropdowns[dropdownPos.index];
-          if (!dd) return null;
+          const dropdown = dropdowns[dropdownPos.index];
+          if (!dropdown) return null;
 
-          const hasResults = dd.open && dd.suggestions.length > 0;
+          const hasResults = dropdown.open && dropdown.suggestions.length > 0;
           const isEmpty =
-            dd.open &&
-            !dd.loading &&
-            dd.suggestions.length === 0 &&
+            dropdown.open &&
+            !dropdown.loading &&
+            dropdown.suggestions.length === 0 &&
             (items[dropdownPos.index]?.goodsId ?? "").trim() !== "";
 
           if (!hasResults && !isEmpty) return null;
@@ -426,9 +488,9 @@ export default function InwardItemTable({
                     overflowY: "auto",
                   }}
                 >
-                  {dd.suggestions.map((g) => (
+                  {dropdown.suggestions.map((goods) => (
                     <li
-                      key={g.goodsId}
+                      key={goods.goodsId}
                       style={styles.dropdownItem}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLLIElement).style.background =
@@ -439,17 +501,17 @@ export default function InwardItemTable({
                           "transparent";
                       }}
                       onMouseDown={() => {
-                        onSelectGoods(dropdownPos.index, g, items.length);
+                        onSelectGoods(dropdownPos.index, goods, items.length);
                         onSetDropdownPos(null);
                       }}
                     >
-                      <span style={styles.dropdownId}>{g.goodsId}</span>
-                      <span style={styles.dropdownName}>{g.goodsName}</span>
+                      <span style={styles.dropdownId}>{goods.goodsId}</span>
+                      <span style={styles.dropdownName}>{goods.goodsName}</span>
                       <span style={styles.dropdownMeta}>
-                        {g.unit} | Bán được:{" "}
-                        {g.itemOnHand.toLocaleString("vi-VN")}
-                        {typeof g.quarantineOnHand === "number"
-                          ? ` | Cach ly: ${g.quarantineOnHand.toLocaleString("vi-VN")}`
+                        {goods.unit} | Bán được:{" "}
+                        {goods.itemOnHand.toLocaleString("vi-VN")}
+                        {typeof goods.quarantineOnHand === "number"
+                          ? ` | Cách ly: ${goods.quarantineOnHand.toLocaleString("vi-VN")}`
                           : ""}
                       </span>
                     </li>
@@ -457,9 +519,7 @@ export default function InwardItemTable({
                 </ul>
               )}
               {isEmpty && (
-                <div
-                  style={{ padding: "10px 14px", fontSize: 13, color: "#999" }}
-                >
+                <div style={{ padding: "10px 14px", fontSize: 13, color: "#999" }}>
                   Không tìm thấy sản phẩm
                 </div>
               )}

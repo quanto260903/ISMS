@@ -57,5 +57,27 @@ namespace AppBackend.ApiCore.Controllers
         {
             return Ok(new { isSuccess = true, message = "Logged out" });
         }
+
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] string email)
+        {
+            await _authService.SendLinkResetPassword(email);
+            return Ok(new
+            {
+                message = "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi link reset mật khẩu."
+            });
+        }
+
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request)
+        {
+            await _authService.ResetPasswordAsync(request);
+            return Ok(new
+            {
+                message = "Đổi mật khẩu thành công."
+            });
+        }
     }
 }

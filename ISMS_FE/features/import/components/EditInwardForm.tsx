@@ -13,9 +13,13 @@ import type { GoodsSearchResult } from "../types/import.types";
 
 interface Props {
   voucherId: string;
+  viewOnly?: boolean;
 }
 
-export default function EditInwardForm({ voucherId }: Props) {
+export default function EditInwardForm({
+  voucherId,
+  viewOnly = false,
+}: Props) {
   const router = useRouter();
   const { user } = useAuthStore();
   const currentUserId = String(user?.userId ?? "");
@@ -109,9 +113,16 @@ export default function EditInwardForm({ voucherId }: Props) {
           Quay lại
         </button>
         <h2 style={s.pageTitle}>
-          Sửa phiếu nhập kho <span style={s.voucherBadge}>{voucherId}</span>
+          {viewOnly ? "Xem phieu nhap kho" : "Sua phieu nhap kho"}
+          <span style={s.voucherBadge}>{voucherId}</span>
         </h2>
       </div>
+
+      {viewOnly && (
+        <div style={s.viewOnlyBanner}>
+          Chế độ xen - không thể chỉnh sửa phiếu này
+        </div>
+      )}
 
       <section style={s.sectionCard}>
         <h3 style={styles.sectionTitle}>Loại phiếu</h3>
@@ -121,7 +132,14 @@ export default function EditInwardForm({ voucherId }: Props) {
         </div>
         {isSalesReturn && (
           <div style={s.noticeBox}>
-            NK2 chỉ cho phép sửa thông tin nhận hàng và lý do trả hàng trên các dòng đã được liên kết với phiếu bán gốc
+            NK2 chỉ cho phép sửa thông tin nhắn hàng và lý do trả hàng trên
+            các dòng đã được liên kết với phiếu trên bản gốc
+          </div>
+        )}
+        {isStockTake && (
+          <div style={s.noticeBox}>
+            NK3 là phiếu nhập từ kiểm kê, thông tin hàng hoá được khoá để giữ
+            nguyên số liệu đối chiếu.
           </div>
         )}
       </section>
@@ -142,9 +160,17 @@ export default function EditInwardForm({ voucherId }: Props) {
             <label style={styles.label}>Ngày nhập kho *</label>
             <input
               type="date"
-              style={styles.input}
+              style={{
+                ...styles.input,
+                ...(viewOnly ? s.readonlyInput : {}),
+              }}
               value={voucher.voucherDate}
-              onChange={(event) => setField("voucherDate", event.target.value)}
+              readOnly={viewOnly}
+              onChange={(event) => {
+                if (!viewOnly) {
+                  setField("voucherDate", event.target.value);
+                }
+              }}
             />
           </div>
 
@@ -164,30 +190,35 @@ export default function EditInwardForm({ voucherId }: Props) {
             <input
               style={{
                 ...styles.input,
-                ...(isSalesReturn ? s.readonlyInput : {}),
+                ...((isSalesReturn || viewOnly) ? s.readonlyInput : {}),
               }}
               value={voucher.customerId ?? ""}
-              readOnly={isSalesReturn}
+              readOnly={isSalesReturn || viewOnly}
               onChange={(event) => {
-                if (!isSalesReturn) setField("customerId", event.target.value);
+                if (!isSalesReturn && !viewOnly) {
+                  setField("customerId", event.target.value);
+                }
               }}
             />
           </div>
 
           <div style={styles.fieldGroup}>
             <label style={styles.label}>
-              {isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *"}
+              {isSalesReturn
+                ? "Tên khách hàng *"
+                : "Tên nhà cung cấp *"}
             </label>
             <input
               style={{
                 ...styles.input,
-                ...(isSalesReturn ? s.readonlyInput : {}),
+                ...((isSalesReturn || viewOnly) ? s.readonlyInput : {}),
               }}
               value={voucher.customerName ?? ""}
-              readOnly={isSalesReturn}
+              readOnly={isSalesReturn || viewOnly}
               onChange={(event) => {
-                if (!isSalesReturn)
+                if (!isSalesReturn && !viewOnly) {
                   setField("customerName", event.target.value);
+                }
               }}
             />
           </div>
@@ -195,29 +226,51 @@ export default function EditInwardForm({ voucherId }: Props) {
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Mã số thuế</label>
             <input
-              style={styles.input}
+              style={{
+                ...styles.input,
+                ...(viewOnly ? s.readonlyInput : {}),
+              }}
               value={voucher.taxCode ?? ""}
-              onChange={(event) => setField("taxCode", event.target.value)}
+              readOnly={viewOnly}
+              onChange={(event) => {
+                if (!viewOnly) {
+                  setField("taxCode", event.target.value);
+                }
+              }}
             />
           </div>
 
-          <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
+          <div style={{ ...styles.fieldGroup, ...s.fullWidthField }}>
             <label style={styles.label}>Địa chỉ</label>
             <input
-              style={styles.input}
+              style={{
+                ...styles.input,
+                ...(viewOnly ? s.readonlyInput : {}),
+              }}
               value={voucher.address ?? ""}
-              onChange={(event) => setField("address", event.target.value)}
+              readOnly={viewOnly}
+              onChange={(event) => {
+                if (!viewOnly) {
+                  setField("address", event.target.value);
+                }
+              }}
             />
           </div>
 
-          <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
-            <label style={styles.label}>Điện giải</label>
+          <div style={{ ...styles.fieldGroup, ...s.fullWidthField }}>
+            <label style={styles.label}>Diễn giải</label>
             <input
-              style={styles.input}
+              style={{
+                ...styles.input,
+                ...(viewOnly ? s.readonlyInput : {}),
+              }}
               value={voucher.voucherDescription ?? ""}
-              onChange={(event) =>
-                setField("voucherDescription", event.target.value)
-              }
+              readOnly={viewOnly}
+              onChange={(event) => {
+                if (!viewOnly) {
+                  setField("voucherDescription", event.target.value);
+                }
+              }}
             />
           </div>
         </div>
@@ -235,11 +288,7 @@ export default function EditInwardForm({ voucherId }: Props) {
             onUpdateItem={updateItem}
             onRemoveItem={removeItem}
             onGoodsIdChange={(index, value) =>
-              goodsSearch.handleGoodsIdChange(
-                index,
-                value,
-                voucher.items.length,
-              )
+              goodsSearch.handleGoodsIdChange(index, value, voucher.items.length)
             }
             onInputFocus={goodsSearch.handleInputFocus}
             onSelectGoods={(index, goods, totalItems) =>
@@ -248,6 +297,7 @@ export default function EditInwardForm({ voucherId }: Props) {
             onSetDropdownPos={goodsSearch.setDropdownPos}
             lockGoodsSelection={lockGoodsSelection}
             showReturnMetadata={isSalesReturn}
+            viewOnly={viewOnly}
           />
         )}
 
@@ -260,20 +310,22 @@ export default function EditInwardForm({ voucherId }: Props) {
       </section>
 
       <div style={s.actionRow}>
-        <button
-          style={{ ...styles.btnPrimary, opacity: loading ? 0.7 : 1 }}
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? "Đang lưu..." : "Lưu thay đổi"}
-        </button>
+        {!viewOnly && (
+          <button
+            style={{ ...styles.btnPrimary, opacity: loading ? 0.7 : 1 }}
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Đang lưu..." : "Lưu thay đổi"}
+          </button>
+        )}
         <button
           style={styles.btnSecondary}
           onClick={() => router.push("/dashboard/import")}
         >
-          Huỷ
+          {viewOnly ? "Quay lại" : "Huỷ"}
         </button>
-        {message && (
+        {!viewOnly && message && (
           <span
             style={
               message.toLowerCase().includes("thành công")
@@ -321,6 +373,19 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1d4ed8",
     fontSize: 14,
   },
+  viewOnlyBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 16px",
+    marginBottom: 12,
+    background: "#fffbeb",
+    border: "1.5px solid #fde68a",
+    borderRadius: 8,
+    fontSize: 13,
+    color: "#92400e",
+    fontWeight: 600,
+  },
   sectionCard: {
     background: "#fff",
     borderRadius: 12,
@@ -361,6 +426,9 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     gap: 16,
+  },
+  fullWidthField: {
+    gridColumn: "1 / -1",
   },
   readonlyInput: {
     background: "#f8fafc",
