@@ -22,7 +22,10 @@ const VOUCHER_CODE_LABELS: Record<string, string> = {
   NK3: "Nhập kiểm kê",
 };
 
-const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+const VOUCHER_CODE_COLORS: Record<
+  string,
+  { bg: string; color: string; border: string }
+> = {
   NK1: { bg: "#f0fdf4", color: "#15803d", border: "#86efac" },
   NK2: { bg: "#fff1f2", color: "#b91c1c", border: "#fca5a5" },
   NK3: { bg: "#fefce8", color: "#854d0e", border: "#fde68a" },
@@ -32,9 +35,16 @@ const VOUCHER_CODE_COLORS: Record<string, { bg: string; color: string; border: s
 export default function InwardListPage() {
   const router = useRouter();
   const {
-    filters, handleFilterChange, handleSearch, handleRefresh,
-    page, setPage, PAGE_SIZE,
-    result, loading, error,
+    filters,
+    handleFilterChange,
+    handleSearch,
+    handleRefresh,
+    page,
+    setPage,
+    PAGE_SIZE,
+    result,
+    loading,
+    error,
   } = useInwardList();
 
   const totalPages = result ? Math.ceil(result.total / PAGE_SIZE) : 1;
@@ -48,7 +58,9 @@ export default function InwardListPage() {
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={s.heroEyebrow}>WMS Pro · Quản lý nhập kho</div>
           <h1 style={s.heroTitle}>Danh sách phiếu nhập kho</h1>
-          <p style={s.heroSub}>Quản lý toàn bộ phiếu nhập, tra cứu và theo dõi tình trạng hàng hóa</p>
+          <p style={s.heroSub}>
+            Quản lý toàn bộ phiếu nhập, tra cứu và theo dõi tình trạng hàng hóa
+          </p>
         </div>
         <button
           style={s.btnPrimary}
@@ -65,7 +77,8 @@ export default function InwardListPage() {
           <div style={s.filterGroup}>
             <label style={s.filterLabel}>Từ ngày</label>
             <input
-              type="date" style={s.filterInput}
+              type="date"
+              style={s.filterInput}
               value={filters.fromDate}
               onChange={(e) => handleFilterChange("fromDate", e.target.value)}
             />
@@ -74,7 +87,8 @@ export default function InwardListPage() {
           <div style={s.filterGroup}>
             <label style={s.filterLabel}>Đến ngày</label>
             <input
-              type="date" style={s.filterInput}
+              type="date"
+              style={s.filterInput}
               value={filters.toDate}
               onChange={(e) => handleFilterChange("toDate", e.target.value)}
             />
@@ -94,7 +108,11 @@ export default function InwardListPage() {
             </div>
           </div>
 
-          <button style={s.btnRefresh} onClick={handleRefresh} title="Làm mới dữ liệu">
+          <button
+            style={s.btnRefresh}
+            onClick={handleRefresh}
+            title="Làm mới dữ liệu"
+          >
             <span style={{ fontSize: 15 }}>↺</span>
           </button>
         </div>
@@ -105,7 +123,9 @@ export default function InwardListPage() {
         <table style={s.table}>
           <thead>
             <tr style={s.theadRow}>
-              <th style={s.th}><input type="checkbox" /></th>
+              <th style={s.th}>
+                <input type="checkbox" />
+              </th>
               <th style={s.th}>Số hóa đơn</th>
               <th style={s.th}>Số phiếu</th>
               <th style={s.th}>Loại phiếu</th>
@@ -138,17 +158,27 @@ export default function InwardListPage() {
                 <td colSpan={8} style={s.statusCell}>
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>📦</div>
-                    <p style={{ fontWeight: 600, color: "#374151" }}>Chưa có phiếu nào</p>
-                    <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>Nhấn "Tạo phiếu nhập mới" để bắt đầu</p>
+                    <p style={{ fontWeight: 600, color: "#374151" }}>
+                      Chưa có phiếu nào
+                    </p>
+                    <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
+                      Nhấn "Tạo phiếu nhập mới" để bắt đầu
+                    </p>
                   </div>
                 </td>
               </tr>
             )}
-            {!loading && result?.items.map((row, i) => (
-              <InwardRow key={row.voucherId} row={row} i={i} onEdit={() =>
-                router.push(`/dashboard/import/${row.voucherId}`)
-              } />
-            ))}
+            {!loading &&
+              result?.items.map((row, i) => (
+                <InwardRow
+                  key={row.voucherId}
+                  row={row}
+                  i={i}
+                  onEdit={() =>
+                    router.push(`/dashboard/import/${row.voucherId}`)
+                  }
+                />
+              ))}
           </tbody>
         </table>
       </div>
@@ -158,19 +188,47 @@ export default function InwardListPage() {
         <div style={s.footer}>
           <div style={s.grandTotal}>
             <span style={{ color: "#64748b", fontSize: 13 }}>
-              Tổng số: <strong style={{ color: "#1e293b" }}>{result.total}</strong> phiếu
+              Tổng số:{" "}
+              <strong style={{ color: "#1e293b" }}>{result.total}</strong> phiếu
             </span>
-            <span style={s.grandTotalAmount}>{fmtMoney(result.grandTotal)} ₫</span>
+            <span style={s.grandTotalAmount}>
+              {fmtMoney(result.grandTotal)} ₫
+            </span>
           </div>
 
           <div style={s.pagination}>
             <span style={s.pageInfo}>
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, result.total)} / {result.total}
+              {(page - 1) * PAGE_SIZE + 1}–
+              {Math.min(page * PAGE_SIZE, result.total)} / {result.total}
             </span>
-            <button style={s.pageBtn} disabled={page <= 1} onClick={() => setPage(1)}>⟨⟨</button>
-            <button style={s.pageBtn} disabled={page <= 1} onClick={() => setPage(page - 1)}>⟨</button>
-            <button style={s.pageBtn} disabled={page >= totalPages} onClick={() => setPage(page + 1)}>⟩</button>
-            <button style={s.pageBtn} disabled={page >= totalPages} onClick={() => setPage(totalPages)}>⟩⟩</button>
+            <button
+              style={s.pageBtn}
+              disabled={page <= 1}
+              onClick={() => setPage(1)}
+            >
+              ⟨⟨
+            </button>
+            <button
+              style={s.pageBtn}
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              ⟨
+            </button>
+            <button
+              style={s.pageBtn}
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              ⟩
+            </button>
+            <button
+              style={s.pageBtn}
+              disabled={page >= totalPages}
+              onClick={() => setPage(totalPages)}
+            >
+              ⟩⟩
+            </button>
           </div>
         </div>
       )}
@@ -180,10 +238,20 @@ export default function InwardListPage() {
 
 /* ── Row component ── */
 function InwardRow({
-  row, i, onEdit
-}: { row: InwardListItem; i: number; onEdit: () => void }) {
+  row,
+  i,
+  onEdit,
+}: {
+  row: InwardListItem;
+  i: number;
+  onEdit: () => void;
+}) {
   const [hover, setHover] = React.useState(false);
-  const codeStyle = VOUCHER_CODE_COLORS[row.voucherCode ?? "DEFAULT"] ?? VOUCHER_CODE_COLORS.DEFAULT;
+  const codeStyle =
+    VOUCHER_CODE_COLORS[row.voucherCode ?? "DEFAULT"] ??
+    VOUCHER_CODE_COLORS.DEFAULT;
+  const showQuarantineBadge =
+    row.stockBucket === "QUARANTINE" || row.voucherCode === "NK2";
 
   return (
     <tr
@@ -199,35 +267,51 @@ function InwardRow({
       <td style={s.td} onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" />
       </td>
-      <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>{row.invoiceNumber ?? "--"}</td>
-      <td style={{ ...s.td, fontWeight: 700, color: "#6d28d9" }}>{row.voucherId}</td>
+      <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>
+        {row.invoiceNumber ?? "--"}
+      </td>
+      <td style={{ ...s.td, fontWeight: 700, color: "#6d28d9" }}>
+        {row.voucherId}
+      </td>
       <td style={s.td}>
-        {row.voucherCode && (
-          <span style={{
-            padding: "3px 10px",
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 700,
-            background: codeStyle.bg,
-            color: codeStyle.color,
-            border: `1.5px solid ${codeStyle.border}`,
-            whiteSpace: "nowrap",
-            letterSpacing: "0.02em",
-          }}>
-            {VOUCHER_CODE_LABELS[row.voucherCode] ?? row.voucherCode}
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {row.voucherCode && (
+            <span
+              style={{
+                padding: "3px 10px",
+                borderRadius: 20,
+                fontSize: 11,
+                fontWeight: 700,
+                background: codeStyle.bg,
+                color: codeStyle.color,
+                border: `1.5px solid ${codeStyle.border}`,
+                whiteSpace: "nowrap",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {VOUCHER_CODE_LABELS[row.voucherCode] ?? row.voucherCode}
+            </span>
+          )}
+          {showQuarantineBadge && <span style={s.bucketBadge}>QUARANTINE</span>}
+        </div>
       </td>
       <td style={{ ...s.td, color: "#64748b" }}>{fmtDate(row.voucherDate)}</td>
       <td style={{ ...s.td, fontWeight: 500 }}>{row.customerName ?? "--"}</td>
-      <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: "#6d28d9" }}>
+      <td
+        style={{
+          ...s.td,
+          textAlign: "right",
+          fontWeight: 700,
+          color: "#6d28d9",
+        }}
+      >
         {fmtMoney(row.totalAmount)} ₫
       </td>
-      <td style={{ ...s.td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-        <button
-          style={s.btnEdit}
-          onClick={onEdit}
-        >
+      <td
+        style={{ ...s.td, textAlign: "center" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button style={s.btnEdit} onClick={onEdit}>
           ✏️ Sửa
         </button>
       </td>
@@ -253,7 +337,8 @@ const s: Record<string, React.CSSProperties> = {
   heroBanner: {
     position: "relative",
     overflow: "hidden",
-    background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 60%, #3b82f6 100%)",
+    background:
+      "linear-gradient(135deg, #6d28d9 0%, #4f46e5 60%, #3b82f6 100%)",
     borderRadius: "14px",
     padding: "24px 28px",
     marginBottom: 20,
@@ -521,5 +606,16 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12,
     cursor: "pointer",
     transition: "all 0.12s",
+  },
+  bucketBadge: {
+    padding: "3px 10px",
+    borderRadius: 20,
+    border: "1px solid #fbbf24",
+    background: "#fffbeb",
+    color: "#b45309",
+    fontSize: 11,
+    fontWeight: 700,
+    whiteSpace: "nowrap" as const,
+    letterSpacing: "0.02em",
   },
 };

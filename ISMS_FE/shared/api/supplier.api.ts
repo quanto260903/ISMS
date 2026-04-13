@@ -27,7 +27,7 @@ isSuccess: boolean;
 message: string;
 data?: SupplierSearchResult;
 }> {
-
+console.log(BASE);
 return apiFetch(
 `${BASE}/Supplier/create`,
 {
