@@ -33,5 +33,7 @@ public partial class Good
 
     public int? ItemOnHand { get; set; }
 
+    public int? QuarantineOnHand { get; set; }
+
     public virtual GoodsCategory? GoodsGroup { get; set; }
 }

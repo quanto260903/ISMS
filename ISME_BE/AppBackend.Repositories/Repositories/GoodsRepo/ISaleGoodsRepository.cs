@@ -12,5 +12,9 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
     {
         Task AddAsync(Voucher sale);
         Task<Voucher?> GetByVoucherIdAsync(string voucherId);
+        Task<int> GetReturnedQtyForSaleDetailAsync(
+            int saleVoucherDetailId,
+            string saleVoucherId,
+            string goodsId);
     }
 }

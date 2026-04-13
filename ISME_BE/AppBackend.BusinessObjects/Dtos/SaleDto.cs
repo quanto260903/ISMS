@@ -70,6 +70,7 @@ namespace AppBackend.BusinessObjects.Dtos
     public class SaleVoucherLookupDto
     {
         public string VoucherId { get; set; } = null!;
+        public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
         public DateOnly? VoucherDate { get; set; }
         public List<SaleVoucherDetailDto> Items { get; set; } = new();
@@ -77,9 +78,12 @@ namespace AppBackend.BusinessObjects.Dtos
 
     public class SaleVoucherDetailDto
     {
+        public int SaleVoucherDetailId { get; set; }
         public string? GoodsId { get; set; }
         public string? GoodsName { get; set; }
         public string? Unit { get; set; }
+        public int? SoldQty { get; set; }
+        public int? ReturnedQty { get; set; }
         public int? Quantity { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? Amount1 { get; set; }

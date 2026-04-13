@@ -49,10 +49,7 @@ public partial class IndividualBusinessContext : DbContext
 
     public virtual DbSet<VoucherDetail> VoucherDetails { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=localhost\\SQLEXPRESS;Initial Catalog=IndividualBusiness;Integrated Security=True;TrustServerCertificate=True");
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ActivityLog>(entity =>
@@ -122,6 +119,7 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.IsIncludeVat).HasColumnName("IsIncludeVAT");
             entity.Property(e => e.LastPurchasePrice).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.MinimumStock).HasDefaultValue(0);
+            entity.Property(e => e.QuarantineOnHand).HasDefaultValue(0);
             entity.Property(e => e.SalePrice).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.Vatrate)
@@ -335,10 +333,15 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.CreditAccount2).HasMaxLength(50);
             entity.Property(e => e.DebitAccount1).HasMaxLength(50);
             entity.Property(e => e.DebitAccount2).HasMaxLength(50);
+            entity.Property(e => e.ExpiryDate).HasColumnType("date");
             entity.Property(e => e.GoodsId).HasMaxLength(50);
             entity.Property(e => e.GoodsName).HasMaxLength(255);
             entity.Property(e => e.OffsetVoucher).HasMaxLength(50);
             entity.Property(e => e.Promotion).HasColumnType("decimal(5, 2)");
+            entity.Property(e => e.ReturnReason).HasMaxLength(255);
+            entity.Property(e => e.RootCause).HasMaxLength(255);
+            entity.Property(e => e.SourceVoucherId).HasMaxLength(50);
+            entity.Property(e => e.StockBucket).HasMaxLength(20);
             entity.Property(e => e.Unit).HasMaxLength(50);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 0)");
             entity.Property(e => e.UserId)

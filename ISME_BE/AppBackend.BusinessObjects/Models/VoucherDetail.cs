@@ -35,6 +35,18 @@ public partial class VoucherDetail
 
     public string? OffsetVoucher { get; set; }
 
+    public string? StockBucket { get; set; }
+
+    public string? SourceVoucherId { get; set; }
+
+    public int? SourceVoucherDetailId { get; set; }
+
+    public string? ReturnReason { get; set; }
+
+    public string? RootCause { get; set; }
+
+    public DateOnly? ExpiryDate { get; set; }
+
     public string? UserId { get; set; }
 
     public DateTime? CreatedDateTime { get; set; }

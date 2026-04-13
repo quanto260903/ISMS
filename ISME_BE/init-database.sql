@@ -130,9 +130,19 @@ CREATE TABLE Goods (
     IsInactive BIT NOT NULL DEFAULT 0,
     CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
     ItemOnHand INT NULL,
+    QuarantineOnHand INT NOT NULL DEFAULT 0,
     CONSTRAINT PK__Goods__663DA92037CD9BDB PRIMARY KEY (GoodsId),
     CONSTRAINT FK_Goodss_GoodsGroups FOREIGN KEY (GoodsGroupId) REFERENCES GoodsCategory(GoodsGroupId)
 );
+GO
+
+IF COL_LENGTH('Goods', 'QuarantineOnHand') IS NULL
+BEGIN
+    ALTER TABLE Goods ADD QuarantineOnHand INT NOT NULL CONSTRAINT DF_Goods_QuarantineOnHand DEFAULT 0;
+END
+GO
+
+UPDATE Goods SET QuarantineOnHand = 0 WHERE QuarantineOnHand IS NULL;
 GO
 
 -- ============================================
@@ -269,11 +279,75 @@ CREATE TABLE VoucherDetail (
     Amount2 DECIMAL(18,0) NULL,
     Promotion DECIMAL(5,2) NULL,
     OffsetVoucher NVARCHAR(50) NULL,
+    StockBucket NVARCHAR(20) NULL,
+    SourceVoucherId NVARCHAR(50) NULL,
+    SourceVoucherDetailId INT NULL,
+    ReturnReason NVARCHAR(255) NULL,
+    RootCause NVARCHAR(255) NULL,
+    ExpiryDate DATE NULL,
     UserID NVARCHAR(16) NULL,
     CreatedDateTime DATETIME NULL DEFAULT GETDATE(),
     CONSTRAINT PK__VoucherD__3214EC07265E235B PRIMARY KEY (Id),
     CONSTRAINT FK_Detail_Header FOREIGN KEY (VoucherID) REFERENCES Voucher(VoucherID)
 );
+GO
+
+IF COL_LENGTH('VoucherDetail', 'StockBucket') IS NULL
+BEGIN
+    ALTER TABLE VoucherDetail ADD StockBucket NVARCHAR(20) NULL;
+END
+GO
+
+IF COL_LENGTH('VoucherDetail', 'SourceVoucherId') IS NULL
+BEGIN
+    ALTER TABLE VoucherDetail ADD SourceVoucherId NVARCHAR(50) NULL;
+END
+GO
+
+IF COL_LENGTH('VoucherDetail', 'SourceVoucherDetailId') IS NULL
+BEGIN
+    ALTER TABLE VoucherDetail ADD SourceVoucherDetailId INT NULL;
+END
+GO
+
+IF COL_LENGTH('VoucherDetail', 'ReturnReason') IS NULL
+BEGIN
+    ALTER TABLE VoucherDetail ADD ReturnReason NVARCHAR(255) NULL;
+END
+GO
+
+IF COL_LENGTH('VoucherDetail', 'RootCause') IS NULL
+BEGIN
+    ALTER TABLE VoucherDetail ADD RootCause NVARCHAR(255) NULL;
+END
+GO
+
+IF COL_LENGTH('VoucherDetail', 'ExpiryDate') IS NULL
+BEGIN
+    ALTER TABLE VoucherDetail ADD ExpiryDate DATE NULL;
+END
+GO
+
+UPDATE vd
+SET vd.SourceVoucherId = vd.OffsetVoucher
+FROM VoucherDetail vd
+INNER JOIN Voucher v ON v.VoucherID = vd.VoucherID
+WHERE v.VoucherCode = 'NK2'
+  AND vd.SourceVoucherId IS NULL
+  AND vd.OffsetVoucher IS NOT NULL;
+GO
+
+UPDATE vd
+SET vd.StockBucket = 'QUARANTINE'
+FROM VoucherDetail vd
+INNER JOIN Voucher v ON v.VoucherID = vd.VoucherID
+WHERE v.VoucherCode = 'NK2'
+  AND (vd.StockBucket IS NULL OR LTRIM(RTRIM(vd.StockBucket)) = '');
+GO
+
+UPDATE VoucherDetail
+SET StockBucket = 'SELLABLE'
+WHERE StockBucket IS NULL OR LTRIM(RTRIM(StockBucket)) = '';
 GO
 
 -- ============================================

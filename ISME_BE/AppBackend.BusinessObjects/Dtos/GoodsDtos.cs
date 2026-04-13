@@ -20,6 +20,7 @@ namespace AppBackend.BusinessObjects.Dtos
         public bool IsPromotion { get; set; }
         public bool IsInactive { get; set; }
         public int? ItemOnHand { get; set; }
+        public int? QuarantineOnHand { get; set; }
         public DateTime CreatedDate { get; set; }
     }
 
@@ -39,6 +40,7 @@ namespace AppBackend.BusinessObjects.Dtos
         public bool IsPromotion { get; set; }
         public bool IsInactive { get; set; }
         public int? ItemOnHand { get; set; }
+        public int? QuarantineOnHand { get; set; }
         public DateTime CreatedDate { get; set; }
     }
 
@@ -49,6 +51,7 @@ namespace AppBackend.BusinessObjects.Dtos
         public string Unit { get; set; } = null!;
         public decimal? SalePrice { get; set; }
         public int? ItemOnHand { get; set; }
+        public int? QuarantineOnHand { get; set; }
     }
 
     public class CreateGoodsRequest

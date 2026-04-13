@@ -34,7 +34,28 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                 .FirstOrDefaultAsync(v =>
                     v.VoucherId == voucherId &&
                     v.VoucherCode != null &&
-                    v.VoucherCode.StartsWith("BH")); // Chỉ lấy phiếu bán
+                    (v.VoucherCode.StartsWith("BH") || v.VoucherCode.StartsWith("XH"))); // Hỗ trợ cả dữ liệu mới và seed legacy
+        }
+
+        public async Task<int> GetReturnedQtyForSaleDetailAsync(
+            int saleVoucherDetailId,
+            string saleVoucherId,
+            string goodsId)
+        {
+            return await _context.VoucherDetails
+                .Where(d =>
+                    d.Voucher != null &&
+                    d.Voucher.VoucherCode == "NK2" &&
+                    (
+                        d.SourceVoucherDetailId == saleVoucherDetailId ||
+                        (
+                            d.SourceVoucherDetailId == null &&
+                            (d.SourceVoucherId == saleVoucherId || d.OffsetVoucher == saleVoucherId) &&
+                            d.GoodsId == goodsId
+                        )
+                    ))
+                .AsNoTracking()
+                .SumAsync(d => d.Quantity ?? 0);
         }
     }
 }

@@ -1,4 +1,6 @@
+using AppBackend.BusinessObjects.Models;
 using AppBackend.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +12,8 @@ builder.Services.AddSwaggerConfig();
 builder.Services.AddDefaultAuth(builder.Configuration);
 //Optional login with google
 // builder.Services.AddGoogleAuth(builder.Configuration);builder.Services.AddServicesConfig();
+
+builder.Services.AddDbContext<IndividualBusinessContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddSessionConfig();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddServicesConfig();
@@ -35,7 +39,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRateLimiter();   
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseCors("AllowAllOrigins");
 app.UseSession();
 app.UseAuthentication();

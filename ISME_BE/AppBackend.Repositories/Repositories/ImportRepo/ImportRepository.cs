@@ -89,14 +89,57 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
                 _context.Vouchers.Remove(voucher);
         }
 
-        public async Task<bool> IsAlreadyReturnedAsync(string saleVoucherId)
+        public async Task<(int SaleVoucherDetailId, int SoldQty)?> GetSaleSourceDetailAsync(
+            string saleVoucherId,
+            string goodsId,
+            int? saleVoucherDetailId = null)
         {
-            return await _context.Vouchers
-                .Where(v => v.VoucherCode == "NK2")
-                .AnyAsync(v => v.VoucherDetails.Any(d => d.OffsetVoucher == saleVoucherId));
+            var query = _context.VoucherDetails
+                .Include(d => d.Voucher)
+                .Where(d =>
+                    d.VoucherId == saleVoucherId &&
+                    d.GoodsId == goodsId &&
+                    d.Voucher != null &&
+                    d.Voucher.VoucherCode != null &&
+                    (d.Voucher.VoucherCode.StartsWith("BH") || d.Voucher.VoucherCode.StartsWith("XH")));
+
+            if (saleVoucherDetailId.HasValue)
+                query = query.Where(d => d.Id == saleVoucherDetailId.Value);
+
+            var detail = await query
+                .OrderBy(d => d.Id)
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            return detail == null
+                ? null
+                : (detail.Id, detail.Quantity ?? 0);
         }
 
-        public async Task AddStockAsync(string goodsId, int quantity)
+        public async Task<int> GetReturnedQuantityForSaleLineAsync(
+            int saleVoucherDetailId,
+            string saleVoucherId,
+            string goodsId,
+            string? excludeImportVoucherId = null)
+        {
+            return await _context.VoucherDetails
+                .Where(d =>
+                    d.Voucher != null &&
+                    d.Voucher.VoucherCode == "NK2" &&
+                    (excludeImportVoucherId == null || d.VoucherId != excludeImportVoucherId) &&
+                    (
+                        d.SourceVoucherDetailId == saleVoucherDetailId ||
+                        (
+                            d.SourceVoucherDetailId == null &&
+                            (d.SourceVoucherId == saleVoucherId || d.OffsetVoucher == saleVoucherId) &&
+                            d.GoodsId == goodsId
+                        )
+                    ))
+                .AsNoTracking()
+                .SumAsync(d => d.Quantity ?? 0);
+        }
+
+        public async Task AddSellableStockAsync(string goodsId, int quantity)
         {
             var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
             if (goods == null)
@@ -104,7 +147,7 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
             goods.ItemOnHand = (goods.ItemOnHand ?? 0) + quantity;
         }
 
-        public async Task DeductStockAsync(string goodsId, int quantity)
+        public async Task DeductSellableStockAsync(string goodsId, int quantity)
         {
             var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
             if (goods == null)
@@ -112,12 +155,32 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
             goods.ItemOnHand = Math.Max(0, (goods.ItemOnHand ?? 0) - quantity);
         }
 
+        public async Task AddQuarantineStockAsync(string goodsId, int quantity)
+        {
+            var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
+            if (goods == null)
+                throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
+            goods.QuarantineOnHand = (goods.QuarantineOnHand ?? 0) + quantity;
+        }
+
+        public async Task DeductQuarantineStockAsync(string goodsId, int quantity)
+        {
+            var goods = await _context.Goods.FirstOrDefaultAsync(g => g.GoodsId == goodsId);
+            if (goods == null)
+                throw new InvalidOperationException($"Không tìm thấy hàng hóa: {goodsId}");
+            goods.QuarantineOnHand = Math.Max(0, (goods.QuarantineOnHand ?? 0) - quantity);
+        }
+
         public async Task<bool> HasDependentExportsAsync(string inboundVoucherId)
         {
             // Kiểm tra có dòng xuất nào đối trừ vào phiếu nhập này không
             // (OffsetVoucher lưu VoucherId của phiếu nhập)
             return await _context.VoucherDetails
-                .AnyAsync(d => d.OffsetVoucher == inboundVoucherId);
+                .AnyAsync(d =>
+                    d.OffsetVoucher == inboundVoucherId &&
+                    d.Voucher != null &&
+                    d.Voucher.VoucherCode != null &&
+                    d.Voucher.VoucherCode.StartsWith("XK"));
         }
 
         public async Task<string> GenerateVoucherIdAsync()
