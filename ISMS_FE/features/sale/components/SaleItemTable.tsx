@@ -237,7 +237,11 @@ export default function SaleItemTable({
                 {dd.suggestions.map((g) => (
                   <li
                     key={g.goodsId}
-                    style={styles.dropdownItem}
+                    style={{
+                    ...styles.dropdownItem,
+                    opacity: g.itemOnHand === 0 ? 0.5 : 1,
+                    pointerEvents: g.itemOnHand === 0 ? "none" : "auto",
+                    }}
                     onMouseEnter={(e) => ((e.currentTarget as HTMLLIElement).style.background = "#f0f4ff")}
                     onMouseLeave={(e) => ((e.currentTarget as HTMLLIElement).style.background = "transparent")}
                     onMouseDown={() => {
@@ -248,7 +252,7 @@ export default function SaleItemTable({
                     <span style={styles.dropdownId}>{g.goodsId}</span>
                     <span style={styles.dropdownName}>{g.goodsName}</span>
                     <span style={styles.dropdownMeta}>
-                      {g.unit} · {g.salePrice.toLocaleString("vi-VN")} ₫
+                      Tồn: {g.itemOnHand} · {g.unit} · {g.salePrice.toLocaleString("vi-VN")} ₫
                     </span>
                   </li>
                 ))}
