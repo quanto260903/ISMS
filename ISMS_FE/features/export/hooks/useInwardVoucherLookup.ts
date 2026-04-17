@@ -7,7 +7,7 @@
 "use client";
 
 import { useState } from "react";
-import { getInward } from "@/features/import/import.api";
+import { getInward, checkInwardUsedForReturn } from "@/features/import/import.api";
 import type { InwardVoucher } from "@/features/import/types/import.types";
 
 export function useInwardVoucherLookup() {
@@ -26,6 +26,11 @@ export function useInwardVoucherLookup() {
     setLookupResult(null);
 
     try {
+      const isUsed = await checkInwardUsedForReturn(inwardVoucherId.trim());
+      if (isUsed) {
+        setLookupError("Đã xuất kho cho phiếu nhập này");
+        return;
+      }
       const result = await getInward(inwardVoucherId.trim());
       setLookupResult(result);
     } catch (err: unknown) {

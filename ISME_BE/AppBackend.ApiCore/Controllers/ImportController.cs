@@ -112,5 +112,29 @@ namespace AppBackend.ApiCore.Controllers
             var result = await _importService.DeleteAsync(voucherId);
             return StatusCode(result.StatusCode, result);
         }
+
+        /// <summary>
+        /// Tìm kiếm phiếu nhập kho theo từ khóa (dùng cho dropdown gợi ý)
+        /// GET /api/Import/search?keyword=NK&amp;limit=10
+        /// </summary>
+        [HttpGet("search")]
+        public async Task<IActionResult> Search(
+            [FromQuery] string keyword = "",
+            [FromQuery] int limit = 10)
+        {
+            var result = await _importService.SearchInwardVouchersAsync(keyword, limit);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Kiểm tra phiếu nhập đã được xuất trả hàng (XK1) chưa
+        /// GET /api/Import/check-return/{inwardVoucherId}
+        /// </summary>
+        [HttpGet("check-return/{inwardVoucherId}")]
+        public async Task<IActionResult> CheckReturn(string inwardVoucherId)
+        {
+            var isUsed = await _importService.CheckInwardUsedForReturnAsync(inwardVoucherId);
+            return Ok(new { isUsed });
+        }
     }
 }
