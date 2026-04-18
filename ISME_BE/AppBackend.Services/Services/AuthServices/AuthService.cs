@@ -74,7 +74,7 @@ namespace AppBackend.Services.Services.AuthServices
                     Email = request.Email.Trim().ToLower(),
                     FullName = request.FullName.Trim(),
                     PasswordHash = HashPassword(request.Password),
-                    RoleId = request.Role,
+                    RoleId = 1, // Tài khoản đăng ký luôn là Admin
                     IsActive = true,
                 };
 

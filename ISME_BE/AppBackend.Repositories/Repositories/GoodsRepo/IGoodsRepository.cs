@@ -24,5 +24,8 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
 
         // Tính tồn kho của 1 mặt hàng đến ngày asOfDate
         Task<decimal> GetStockAsOfDateAsync(string goodsId, DateOnly asOfDate);
+
+        // Lấy dữ liệu tổng hợp tồn kho theo kỳ (đầu kỳ, nhập, xuất, cuối kỳ)
+        Task<InventorySummaryDto> GetInventorySummaryAsync(DateOnly fromDate, DateOnly toDate, string? keyword = null);
     }
 }

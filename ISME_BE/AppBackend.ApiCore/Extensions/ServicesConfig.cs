@@ -23,6 +23,7 @@ using AppBackend.Services.Services.GoodsServices;
 using AppBackend.Services.Services.ImportServices;
 using AppBackend.Services.Services.ItemServices;
 using AppBackend.Services.Services.OpenInventoryServices;
+using AppBackend.Services.Services.InventoryReportServices;
 using AppBackend.Services.Services.StockTakeServices;
 using AppBackend.Services.Services.SupplierServices;
 using AppBackend.Services.Services.UserServices;
@@ -72,6 +73,7 @@ public static class ServicesConfig
         services.AddScoped<IOpenInventoryService, OpenInventoryService>();
         services.AddScoped<IStockTakeService, StockTakeService>();
         services.AddScoped<IResetPasswordTokenService, ResetPasswordTokenService>();
+        services.AddScoped<IInventoryReportService, InventoryReportService>();
         #endregion
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         #region Helpers

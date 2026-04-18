@@ -3,7 +3,7 @@
 //  Tầng API — chỉ nơi này gọi fetch/axios
 // ============================================================
 
-import type { GoodsSearchResult, SaleVoucherLookup, InwardListItem, InwardListResult, InwardVoucher } from "./types/import.types";
+import type { GoodsSearchResult, SaleVoucherLookup, SaleSearchResult, InwardListItem, InwardListResult, InwardVoucher, InwardSearchResult } from "./types/import.types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -78,6 +78,42 @@ export async function deleteInward(voucherId: string): Promise<{ isSuccess: bool
   );
   const json = await res.json();
   return json as { isSuccess: boolean; message: string };
+}
+
+export async function searchSaleVouchers(keyword: string, limit = 10): Promise<SaleSearchResult[]> {
+  const q = new URLSearchParams({ keyword, limit: String(limit) });
+  const res = await fetch(`${BASE}/SaleGoods/search?${q}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Lỗi tìm kiếm phiếu bán hàng");
+  const json = await res.json();
+  return (json.data ?? json) as SaleSearchResult[];
+}
+
+export async function checkSaleUsedForReturn(saleVoucherId: string): Promise<boolean> {
+  const res = await fetch(
+    `${BASE}/SaleGoods/check-return/${encodeURIComponent(saleVoucherId)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return false;
+  const json = await res.json();
+  return (json.isUsed ?? false) as boolean;
+}
+
+export async function searchInwardVouchers(keyword: string, limit = 10): Promise<InwardSearchResult[]> {
+  const q = new URLSearchParams({ keyword, limit: String(limit) });
+  const res = await fetch(`${BASE}/Import/search?${q}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Lỗi tìm kiếm phiếu nhập kho");
+  const json = await res.json();
+  return (json.data ?? json) as InwardSearchResult[];
+}
+
+export async function checkInwardUsedForReturn(inwardVoucherId: string): Promise<boolean> {
+  const res = await fetch(
+    `${BASE}/Import/check-return/${encodeURIComponent(inwardVoucherId)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return false;
+  const json = await res.json();
+  return (json.isUsed ?? false) as boolean;
 }
 
 export async function getInwardList(params: {

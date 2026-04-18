@@ -32,6 +32,8 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
         Task AddQuarantineStockAsync(string goodsId, int quantity);
         Task DeductQuarantineStockAsync(string goodsId, int quantity);
         Task<bool> HasDependentExportsAsync(string inboundVoucherId);
+        Task<bool> IsUsedForXk1ReturnAsync(string inwardVoucherId);
+        Task<List<InwardSearchResult>> SearchAsync(string keyword, int limit);
         Task<string> GenerateVoucherIdAsync();
     }
 }

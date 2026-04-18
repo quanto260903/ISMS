@@ -145,6 +145,145 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
             });
         }
 
+        public async Task<InventorySummaryDto> GetInventorySummaryAsync(
+            DateOnly fromDate, DateOnly toDate, string? keyword = null)
+        {
+            var prevDate = fromDate.AddDays(-1);  // ngày trước kỳ để tính tồn đầu kỳ
+
+            // Danh sách hàng hóa
+            var goodsQuery = _context.Goods
+                .Include(g => g.GoodsGroup)
+                .Where(g => g.IsInactive == false);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var kw = keyword.Trim().ToLower();
+                goodsQuery = goodsQuery.Where(g =>
+                    g.GoodsId.ToLower().Contains(kw) ||
+                    g.GoodsName.ToLower().Contains(kw));
+            }
+
+            var goods = await goodsQuery
+                .OrderBy(g => g.GoodsGroupId)
+                .ThenBy(g => g.GoodsName)
+                .ToListAsync();
+
+            // Tồn kho ban đầu (OpenInventory)
+            var openInventories = await _context.OpenInventories
+                .ToDictionaryAsync(oi => oi.GoodsId!, oi => (decimal)(oi.Quantity ?? 0));
+
+            // ── Nhập trước kỳ (Debit 156, date < fromDate) ────────────
+            var openingInbounds = await _context.VoucherDetails
+                .Join(_context.Vouchers, vd => vd.VoucherId, v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.DebitAccount1, vd.DebitAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId != null
+                         && (x.DebitAccount1 == "156" || x.DebitAccount2 == "156")
+                         && x.VoucherDate != null && x.VoucherDate <= prevDate)
+                .GroupBy(x => x.GoodsId!)
+                .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
+                .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
+
+            // ── Xuất trước kỳ (Credit 156, date < fromDate) ───────────
+            var openingOutbounds = await _context.VoucherDetails
+                .Join(_context.Vouchers, vd => vd.VoucherId, v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.CreditAccount1, vd.CreditAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId != null
+                         && (x.CreditAccount1 == "156" || x.CreditAccount2 == "156")
+                         && x.VoucherDate != null && x.VoucherDate <= prevDate)
+                .GroupBy(x => x.GoodsId!)
+                .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
+                .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
+
+            // ── Nhập trong kỳ (Debit 156, fromDate <= date <= toDate) ──
+            var periodInbounds = await _context.VoucherDetails
+                .Join(_context.Vouchers, vd => vd.VoucherId, v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.DebitAccount1, vd.DebitAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId != null
+                         && (x.DebitAccount1 == "156" || x.DebitAccount2 == "156")
+                         && x.VoucherDate != null
+                         && x.VoucherDate >= fromDate && x.VoucherDate <= toDate)
+                .GroupBy(x => x.GoodsId!)
+                .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
+                .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
+
+            // ── Xuất trong kỳ (Credit 156, fromDate <= date <= toDate) ─
+            var periodOutbounds = await _context.VoucherDetails
+                .Join(_context.Vouchers, vd => vd.VoucherId, v => v.VoucherId,
+                    (vd, v) => new { vd.GoodsId, vd.Quantity, vd.CreditAccount1, vd.CreditAccount2, v.VoucherDate })
+                .Where(x => x.GoodsId != null
+                         && (x.CreditAccount1 == "156" || x.CreditAccount2 == "156")
+                         && x.VoucherDate != null
+                         && x.VoucherDate >= fromDate && x.VoucherDate <= toDate)
+                .GroupBy(x => x.GoodsId!)
+                .Select(g => new { GoodsId = g.Key, Total = g.Sum(x => (decimal)(x.Quantity ?? 0)) })
+                .ToDictionaryAsync(x => x.GoodsId, x => x.Total);
+
+            // ── Tính toán từng mặt hàng ────────────────────────────────
+            var items = goods.Select(g =>
+            {
+                var opening  = (openInventories.TryGetValue(g.GoodsId, out var oi)  ? oi : 0)
+                             + (openingInbounds.TryGetValue(g.GoodsId, out var oin) ? oin : 0)
+                             - (openingOutbounds.TryGetValue(g.GoodsId, out var oout) ? oout : 0);
+                var inbound  = periodInbounds.TryGetValue(g.GoodsId, out var pIn)   ? pIn  : 0;
+                var outbound = periodOutbounds.TryGetValue(g.GoodsId, out var pOut) ? pOut : 0;
+
+                return new
+                {
+                    Good     = g,
+                    GroupId  = g.GoodsGroupId,
+                    GroupName= g.GoodsGroup?.GoodsGroupName ?? "Chưa phân nhóm",
+                    Item     = new InventorySummaryItemDto
+                    {
+                        GoodsId  = g.GoodsId,
+                        GoodsName= g.GoodsName,
+                        Unit     = g.Unit,
+                        Opening  = opening,
+                        Inbound  = inbound,
+                        Outbound = outbound,
+                        Closing  = opening + inbound - outbound,
+                    },
+                };
+            }).ToList();
+
+            // ── Gom nhóm ──────────────────────────────────────────────
+            var groups = items
+                .GroupBy(x => new { x.GroupId, x.GroupName })
+                .OrderBy(g => g.Key.GroupId)
+                .Select(g =>
+                {
+                    var groupItems = g.Select(x => x.Item).ToList();
+                    return new InventorySummaryGroupDto
+                    {
+                        GroupId     = g.Key.GroupId,
+                        GroupName   = g.Key.GroupName,
+                        SubOpening  = groupItems.Sum(i => i.Opening),
+                        SubInbound  = groupItems.Sum(i => i.Inbound),
+                        SubOutbound = groupItems.Sum(i => i.Outbound),
+                        SubClosing  = groupItems.Sum(i => i.Closing),
+                        Items       = groupItems,
+                    };
+                })
+                .ToList();
+
+            var totals = new InventorySummaryTotalsDto
+            {
+                TotalItems   = items.Count,
+                TotalOpening = items.Sum(x => x.Item.Opening),
+                TotalInbound = items.Sum(x => x.Item.Inbound),
+                TotalOutbound= items.Sum(x => x.Item.Outbound),
+                TotalClosing = items.Sum(x => x.Item.Closing),
+            };
+
+            return new InventorySummaryDto
+            {
+                FromDate    = fromDate,
+                ToDate      = toDate,
+                GeneratedAt = DateTime.Now,
+                Groups      = groups,
+                Totals      = totals,
+            };
+        }
+
         public async Task<decimal> GetStockAsOfDateAsync(string goodsId, DateOnly asOfDate)
         {
             var openQty = (decimal?)((await _context.OpenInventories

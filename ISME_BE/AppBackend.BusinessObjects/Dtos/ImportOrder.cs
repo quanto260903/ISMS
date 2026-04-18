@@ -95,6 +95,15 @@ namespace AppBackend.BusinessObjects.Dtos
     }
 
     /// <summary>Bộ lọc danh sách phiếu nhập kho</summary>
+    public class InwardSearchResult
+    {
+        public string VoucherId { get; set; } = null!;
+        public string? VoucherDate { get; set; }
+        public string? CustomerName { get; set; }
+        public decimal TotalAmount { get; set; }
+        public int ItemCount { get; set; }
+    }
+
     public class GetInwardListRequest
     {
         /// <summary>Từ ngày (mặc định: đầu tháng hiện tại)</summary>

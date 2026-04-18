@@ -484,5 +484,47 @@ namespace AppBackend.Services.Services.ImportServices
             Data = 0,
             Message = ex.Message
         };
+
+        public async Task<bool> CheckInwardUsedForReturnAsync(string inwardVoucherId)
+        {
+            return await _inwardRepository.IsUsedForXk1ReturnAsync(inwardVoucherId);
+        }
+
+        public async Task<ResultModel<List<InwardSearchResult>>> SearchInwardVouchersAsync(string keyword, int limit)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(keyword))
+                    return new ResultModel<List<InwardSearchResult>>
+                    {
+                        IsSuccess = true,
+                        ResponseCode = "SUCCESS",
+                        StatusCode = 200,
+                        Data = new List<InwardSearchResult>(),
+                        Message = "OK"
+                    };
+
+                var results = await _inwardRepository.SearchAsync(keyword, limit);
+                return new ResultModel<List<InwardSearchResult>>
+                {
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = results,
+                    Message = "OK"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<List<InwardSearchResult>>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = new List<InwardSearchResult>(),
+                    Message = ex.Message
+                };
+            }
+        }
     }
 }

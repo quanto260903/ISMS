@@ -1,4 +1,4 @@
-﻿using AppBackend.BusinessObjects.Dtos;
+using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
 using AppBackend.Repositories.Repositories.GoodsRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
@@ -19,7 +19,7 @@ namespace AppBackend.Services.Services.GoodsServices
         private readonly IUnitOfWork _unitOfWork;
 
         public SaleGoodsService(
-            ISaleGoodsRepository saleRepository, 
+            ISaleGoodsRepository saleRepository,
             IItemRepository itemRepository,
             IUnitOfWork unitOfWork)
         {
@@ -27,6 +27,7 @@ namespace AppBackend.Services.Services.GoodsServices
             _itemRepository = itemRepository;
             _unitOfWork = unitOfWork;
         }
+
         public async Task<ResultModel<int>> CreateSaleAsync(CreateSaleRequest request, string userId)
         {
             try
@@ -64,7 +65,7 @@ namespace AppBackend.Services.Services.GoodsServices
 
                     int currentOnHand = item.ItemOnHand ?? 0;
 
-                    if (currentOnHand <= 0)  
+                    if (currentOnHand <= 0)
                     {
                         return new ResultModel<int>
                         {
@@ -87,7 +88,6 @@ namespace AppBackend.Services.Services.GoodsServices
                             Message = $"Not enough stock for {item.GoodsName}"
                         };
                     }
-
 
                     sale.VoucherDetails.Add(new VoucherDetail
                     {
@@ -133,6 +133,7 @@ namespace AppBackend.Services.Services.GoodsServices
                 };
             }
         }
+
         public async Task<ResultModel<SaleVoucherLookupDto>> GetByVoucherIdAsync(string voucherId)
         {
             try
@@ -214,5 +215,38 @@ namespace AppBackend.Services.Services.GoodsServices
                 };
             }
         }
+
+        public async Task<bool> CheckSaleUsedForReturnAsync(string saleVoucherId)
+        {
+            return await _saleRepository.IsUsedForNk2ReturnAsync(saleVoucherId);
         }
+
+        public async Task<ResultModel<List<SaleSearchResult>>> SearchSaleVouchersAsync(string keyword, int limit)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(keyword))
+                    return new ResultModel<List<SaleSearchResult>>
+                    {
+                        IsSuccess = true, ResponseCode = "SUCCESS", StatusCode = 200,
+                        Data = new List<SaleSearchResult>(), Message = "OK"
+                    };
+
+                var results = await _saleRepository.SearchAsync(keyword, limit);
+                return new ResultModel<List<SaleSearchResult>>
+                {
+                    IsSuccess = true, ResponseCode = "SUCCESS", StatusCode = 200,
+                    Data = results, Message = "OK"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultModel<List<SaleSearchResult>>
+                {
+                    IsSuccess = false, ResponseCode = "EXCEPTION", StatusCode = 500,
+                    Data = new List<SaleSearchResult>(), Message = ex.Message
+                };
+            }
+        }
+    }
 }

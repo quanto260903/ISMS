@@ -173,14 +173,40 @@ namespace AppBackend.Repositories.Repositories.ImportRepo
 
         public async Task<bool> HasDependentExportsAsync(string inboundVoucherId)
         {
-            // Kiểm tra có dòng xuất nào đối trừ vào phiếu nhập này không
-            // (OffsetVoucher lưu VoucherId của phiếu nhập)
             return await _context.VoucherDetails
                 .AnyAsync(d =>
                     d.OffsetVoucher == inboundVoucherId &&
                     d.Voucher != null &&
                     d.Voucher.VoucherCode != null &&
                     d.Voucher.VoucherCode.StartsWith("XK"));
+        }
+
+        public async Task<bool> IsUsedForXk1ReturnAsync(string inwardVoucherId)
+        {
+            return await _context.Vouchers
+                .Where(v => v.VoucherCode == "XK1")
+                .AnyAsync(v => v.VoucherDetails.Any(d => d.OffsetVoucher == inwardVoucherId));
+        }
+
+        public async Task<List<InwardSearchResult>> SearchAsync(string keyword, int limit)
+        {
+            var kw = keyword.Trim().ToLower();
+            return await _context.Vouchers
+                .Include(v => v.VoucherDetails)
+                .Where(v => v.VoucherCode != null && v.VoucherCode.StartsWith("NK")
+                    && (v.VoucherId.ToLower().Contains(kw)
+                        || (v.CustomerName != null && v.CustomerName.ToLower().Contains(kw))))
+                .OrderByDescending(v => v.VoucherDate)
+                .Take(limit)
+                .Select(v => new InwardSearchResult
+                {
+                    VoucherId    = v.VoucherId,
+                    VoucherDate  = v.VoucherDate.HasValue ? v.VoucherDate.Value.ToString("yyyy-MM-dd") : null,
+                    CustomerName = v.CustomerName,
+                    TotalAmount  = v.VoucherDetails.Where(d => d.Amount1.HasValue).Sum(d => (decimal)d.Amount1!.Value),
+                    ItemCount    = v.VoucherDetails.Count,
+                })
+                .ToListAsync();
         }
 
         public async Task<string> GenerateVoucherIdAsync()
