@@ -15,5 +15,6 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
         Task<Voucher?> GetByVoucherIdAsync(string voucherId);
         Task<bool> IsUsedForNk2ReturnAsync(string saleVoucherId);
         Task<List<SaleSearchResult>> SearchAsync(string keyword, int limit);
+        Task<SaleListResult> GetListAsync(DateOnly? fromDate, DateOnly? toDate, string? keyword, int page, int pageSize);
     }
 }

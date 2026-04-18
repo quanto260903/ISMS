@@ -84,5 +84,23 @@ namespace AppBackend.ApiCore.Controllers
             var isUsed = await _saleService.CheckSaleUsedForReturnAsync(saleVoucherId);
             return Ok(new { isUsed });
         }
+
+        /// <summary>
+        /// Danh sách phiếu bán có lọc + phân trang
+        /// GET /api/SaleGoods/list?fromDate=&toDate=&keyword=&page=1&pageSize=50
+        /// </summary>
+        [HttpGet("list")]
+        public async Task<IActionResult> GetList(
+            [FromQuery] string? fromDate,
+            [FromQuery] string? toDate,
+            [FromQuery] string? keyword,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            DateOnly? from = DateOnly.TryParse(fromDate, out var fd) ? fd : null;
+            DateOnly? to   = DateOnly.TryParse(toDate,   out var td) ? td : null;
+            var result = await _saleService.GetListAsync(from, to, keyword, page, pageSize);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
