@@ -4,8 +4,10 @@
 //  Bên ngoài chỉ import qua file này, không import thẳng vào file con
 // ============================================================
 
-// Component chính
-export { default as AddSaleForm } from "./components/AddSaleForm";
+// Components chính
+export { default as AddSaleForm }    from "./components/AddSaleForm";
+export { default as SaleListPage }   from "./components/SaleListPage";
+export { default as SaleDetailPage } from "./components/SaleDetailPage";
 
 // Hooks (nếu cần dùng ở nơi khác)
 export { useSaleForm }        from "./hooks/useSaleForm";

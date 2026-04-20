@@ -79,27 +79,52 @@ namespace AppBackend.BusinessObjects.Dtos
     public class SaleVoucherLookupDto
     {
         public string VoucherId { get; set; } = null!;
+        public string? VoucherCode { get; set; }
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
+        public string? TaxCode { get; set; }
+        public string? Address { get; set; }
+        public string? VoucherDescription { get; set; }
         public DateOnly? VoucherDate { get; set; }
+        public string? BankName { get; set; }
+        public string? BankAccountNumber { get; set; }
         public List<SaleVoucherDetailDto> Items { get; set; } = new();
     }
 
     public class SaleVoucherDetailDto
     {
-        public int SaleVoucherDetailId { get; set; }
         public string? GoodsId { get; set; }
         public string? GoodsName { get; set; }
         public string? Unit { get; set; }
-        public int? SoldQty { get; set; }
-        public int? ReturnedQty { get; set; }
         public int? Quantity { get; set; }
         public decimal? UnitPrice { get; set; }
         public decimal? Amount1 { get; set; }
+        public decimal? Amount2 { get; set; }
         public decimal? Vat { get; set; }
         public decimal? Promotion { get; set; }
         public string? DebitAccount1 { get; set; }
         public string? CreditAccount1 { get; set; }
+        public string? DebitAccount2 { get; set; }
+        public string? CreditAccount2 { get; set; }
         public string? CreditWarehouseId { get; set; }
+        public string? OffsetVoucher { get; set; }
+    }
+
+    public class SaleListItem
+    {
+        public string VoucherId { get; set; } = null!;
+        public string? VoucherDate { get; set; }
+        public string? CustomerName { get; set; }
+        public decimal TotalAmount { get; set; }
+        public int ItemCount { get; set; }
+    }
+
+    public class SaleListResult
+    {
+        public List<SaleListItem> Items { get; set; } = new();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public decimal GrandTotal { get; set; }
     }
 }

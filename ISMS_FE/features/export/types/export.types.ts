@@ -3,10 +3,11 @@
 // ============================================================
 
 // ── Lý do xuất kho thủ công (dùng trong form tạo/sửa) ────────
-// Chỉ 2 trường hợp user tạo tay:
-//   IMPORT_RETURN → XK1 = Xuất trả hàng nhập
-//   DESTROY       → XK2 = Xuất hủy hàng
-export type ExportReason = "IMPORT_RETURN" | "DESTROY" | "STOCK_TAKE";
+// IMPORT_RETURN → XK1 = Xuất trả hàng nhập
+// DESTROY       → XK2 = Xuất hủy hàng
+// STOCK_TAKE    → XK3 = Xuất kho kiểm kê (tự sinh)
+// SALE          → XK4 = Xuất bán hàng
+export type ExportReason = "IMPORT_RETURN" | "DESTROY" | "STOCK_TAKE" | "SALE";
 
 // ── Mã chứng từ đầy đủ (dùng để hiển thị ở danh sách) ───────
 // XK1/XK2 = user tạo thủ công

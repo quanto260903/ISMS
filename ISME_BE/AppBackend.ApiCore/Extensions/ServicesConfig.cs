@@ -1,4 +1,5 @@
 using AppBackend.Repositories.Generic;
+using AppBackend.Repositories.Repositories.ActivityLogRepo;
 using AppBackend.Repositories.Repositories.CustomerRepo;
 using AppBackend.Repositories.Repositories.DashboardRepo;
 using AppBackend.Repositories.Repositories.ExportRepo;
@@ -13,6 +14,7 @@ using AppBackend.Repositories.Repositories.UserRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.AuthServices;
 using AppBackend.Services.Services.CustomerServices;
 using AppBackend.Services.Services.DashboardServices;
@@ -40,6 +42,7 @@ public static class ServicesConfig
         #endregion
 
         #region Repositories
+        services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISaleGoodsRepository, SaleGoodsRepository>();
         services.AddScoped<IItemRepository, ItemRepository>();
@@ -56,6 +59,7 @@ public static class ServicesConfig
         #endregion
 
         #region Services
+        services.AddScoped<IActivityLogService, ActivityLogService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<ICloudinaryService, CloudinaryService>();

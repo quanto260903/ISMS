@@ -11,10 +11,10 @@ namespace AppBackend.Services.Services.ImportServices
     public interface IImportServices
     {
         Task<ResultModel<PagedResult<InwardListDto>>> GetListAsync(GetInwardListRequest request);
-        Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string userId);
+        Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string? userId);
 
         Task<ResultModel<ImportOrder>> GetByIdAsync(string voucherId);
-        Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId);
+        Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string? userId);
         Task<ResultModel<int>> DeleteAsync(string voucherId);
         Task<string> GetNextVoucherIdAsync();
         Task<bool> CheckInwardUsedForReturnAsync(string inwardVoucherId);

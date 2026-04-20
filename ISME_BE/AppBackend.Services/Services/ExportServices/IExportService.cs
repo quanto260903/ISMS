@@ -10,8 +10,8 @@ namespace AppBackend.Services.Services.ExportServices
 {
     public interface IExportServices
     {
-        Task<ResultModel<int>> CreateExportAsync(ExportOrder request, string userId);
-        Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string userId);
+        Task<ResultModel<int>> CreateExportAsync(ExportOrder request, string? userId);
+        Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string? userId);
         Task<ResultModel<ExportOrder>> GetByIdAsync(string voucherId);
         Task<ResultModel<PagedResult<ExportListDto>>> GetListAsync(GetExportListRequest request);
         Task<IEnumerable<FifoAllocationDto>> GetFifoPreviewAsync(string goodsId, int quantity);

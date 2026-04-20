@@ -15,6 +15,11 @@ const ADMIN_ONLY_ROUTES = [
   '/dashboard/user-management',
 ]
 
+// Routes dành cho Admin + Manager (role = 1 hoặc 2)
+const MANAGER_ROUTES = [
+  '/dashboard/activity-log',
+]
+
 function addSecurityHeaders(res: NextResponse) {
   res.headers.set('X-Frame-Options', 'DENY')
   res.headers.set('X-Content-Type-Options', 'nosniff')
@@ -61,7 +66,13 @@ export function middleware(request: NextRequest) {
 
     // ── 4. Admin-only routes ────────────────────────────────
     const isAdminRoute = ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r))
-    if (isAdminRoute && userRole !== '1') {    // UserRole.Admin = 1
+    if (isAdminRoute && userRole !== '1') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+
+    // ── 5. Manager+ routes (Admin hoặc Manager) ─────────────
+    const isManagerRoute = MANAGER_ROUTES.some(r => pathname.startsWith(r))
+    if (isManagerRoute && userRole !== '1' && userRole !== '2') {
       return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
   }

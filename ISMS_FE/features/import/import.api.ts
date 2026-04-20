@@ -7,6 +7,11 @@ import type { GoodsSearchResult, SaleVoucherLookup, SaleSearchResult, InwardList
 
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
+function authHeader(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // Tìm kiếm hàng hóa (dùng chung endpoint với sale)
 export async function searchGoods(keyword: string, limit = 10): Promise<GoodsSearchResult[]> {
   const res = await fetch(
@@ -35,7 +40,7 @@ export async function updateInward(voucherId: string, payload: Record<string, un
     `${BASE}/Import/${encodeURIComponent(voucherId)}`,
     {
       method:  "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeader() },
       body:    JSON.stringify(payload),
       cache:   "no-store",
     }
@@ -63,7 +68,7 @@ export async function getNextImportId(): Promise<string> {
 export async function createInward(payload: Record<string, unknown>) {
   const res = await fetch(`${BASE}/Import/add-inward`, {
     method:  "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     body:    JSON.stringify(payload),
     cache:   "no-store",
   });
@@ -74,7 +79,7 @@ export async function createInward(payload: Record<string, unknown>) {
 export async function deleteInward(voucherId: string): Promise<{ isSuccess: boolean; message: string }> {
   const res = await fetch(
     `${BASE}/Import/${encodeURIComponent(voucherId)}`,
-    { method: "DELETE", cache: "no-store" }
+    { method: "DELETE", headers: authHeader(), cache: "no-store" }
   );
   const json = await res.json();
   return json as { isSuccess: boolean; message: string };

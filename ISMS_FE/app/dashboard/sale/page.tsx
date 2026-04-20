@@ -1,5 +1,5 @@
 // app/dashboard/sale/page.tsx
-import { AddSaleForm } from "@/features/sale";
+import { SaleListPage } from "@/features/sale";
 export default function SalePage() {
-  return <AddSaleForm />;
+  return <SaleListPage />;
 }
