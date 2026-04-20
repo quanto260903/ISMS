@@ -28,7 +28,7 @@ namespace AppBackend.Services.Services.ImportServices
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string userId)
+        public async Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string? userId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
@@ -312,7 +312,7 @@ namespace AppBackend.Services.Services.ImportServices
             }
         }
 
-        public async Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId)
+        public async Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string? userId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try

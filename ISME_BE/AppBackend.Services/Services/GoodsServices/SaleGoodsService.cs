@@ -32,7 +32,7 @@ namespace AppBackend.Services.Services.GoodsServices
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResultModel<int>> CreateSaleAsync(CreateSaleRequest request, string userId)
+        public async Task<ResultModel<int>> CreateSaleAsync(CreateSaleRequest request, string? userId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try

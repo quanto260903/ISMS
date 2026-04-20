@@ -1,8 +1,10 @@
 ﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.Services.ApiModels;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.ImportServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AppBackend.ApiCore.Controllers
 {
@@ -11,11 +13,15 @@ namespace AppBackend.ApiCore.Controllers
     public class ImportController : ControllerBase
     {
         private readonly IImportServices _importService;
+        private readonly IActivityLogService _actLog;
 
-        public ImportController(IImportServices importService)
+        public ImportController(IImportServices importService, IActivityLogService actLog)
         {
             _importService = importService;
+            _actLog        = actLog;
         }
+
+        private string? CurrentUserId => User.FindFirstValue("userId");
         /// <summary>
         /// Xem trước mã phiếu nhập kho tiếp theo (không tiêu thụ số thứ tự)
         /// GET /api/Import/next-id
@@ -43,8 +49,11 @@ namespace AppBackend.ApiCore.Controllers
                     Message = "Dữ liệu không hợp lệ"
                 });
 
-            string userId = User?.Identity?.Name ?? "SYSTEM";
-            var result = await _importService.CreateInwardAsync(request, userId);
+            var result = await _importService.CreateInwardAsync(request, CurrentUserId);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(CurrentUserId, "TAO_PHIEU",
+                    $"Tạo phiếu nhập kho {request.VoucherId} ({request.VoucherCode})",
+                    ActivityModule.Import);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -97,8 +106,11 @@ namespace AppBackend.ApiCore.Controllers
                     Message = "VoucherId trong URL và body không khớp"
                 });
 
-            string userId = User?.Identity?.Name ?? "SYSTEM";
-            var result = await _importService.UpdateInwardAsync(request, userId);
+            var result = await _importService.UpdateInwardAsync(request, CurrentUserId);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(CurrentUserId, "CAP_NHAT_PHIEU",
+                    $"Cập nhật phiếu nhập kho {voucherId} ({request.VoucherCode})",
+                    ActivityModule.Import);
             return StatusCode(result.StatusCode, result);
         }
 

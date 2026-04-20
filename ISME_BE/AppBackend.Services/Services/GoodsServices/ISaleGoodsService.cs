@@ -10,7 +10,7 @@ namespace AppBackend.Services.Services.GoodsServices
 {
     public interface ISaleGoodsService
     {
-        Task<ResultModel<int>> CreateSaleAsync(CreateSaleRequest request, string userId);
+        Task<ResultModel<int>> CreateSaleAsync(CreateSaleRequest request, string? userId);
         Task<ResultModel<SaleVoucherLookupDto>> GetByVoucherIdAsync(string voucherId);
         Task<bool> CheckSaleUsedForReturnAsync(string saleVoucherId);
         Task<ResultModel<List<SaleSearchResult>>> SearchSaleVouchersAsync(string keyword, int limit);

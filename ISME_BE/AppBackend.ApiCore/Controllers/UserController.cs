@@ -2,6 +2,7 @@
 using AppBackend.BusinessObjects.Dtos;
 using AppBackend.Services;
 using AppBackend.Services.ApiModels;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.UserServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,8 +19,13 @@ namespace AppBackend.Api.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _service;
-        public UserController(IUserService service)
-            => _service = service;
+        private readonly IActivityLogService _actLog;
+
+        public UserController(IUserService service, IActivityLogService actLog)
+        {
+            _service = service;
+            _actLog  = actLog;
+        }
 
         // Lấy userId của người đang gọi từ JWT
         private string CurrentUserId =>
@@ -83,6 +89,10 @@ namespace AppBackend.Api.Controllers
                 });
 
             var result = await _service.CreateUserAsync(request, CurrentUserId);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(CurrentUserId, "TAO_TAI_KHOAN",
+                    $"Admin tạo tài khoản mới: {request.FullName} ({request.Email}) - Vai trò: {request.RoleId}",
+                    ActivityModule.User);
             return StatusCode(result.StatusCode, result);
         }
 

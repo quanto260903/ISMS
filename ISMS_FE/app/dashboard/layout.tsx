@@ -28,7 +28,8 @@ import {
   Truck,
   Network,
   Wallet,
-  FileBarChart2
+  FileBarChart2,
+  ScrollText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -110,6 +111,12 @@ const navGroups = [
         href: '/dashboard/inventory-report',
         icon: FileBarChart2,
         label: 'Báo cáo tồn kho',
+        requiredRole: [UserRole.Admin, UserRole.Manager],
+      },
+      {
+        href: '/dashboard/activity-log',
+        icon: ScrollText,
+        label: 'Nhật ký hoạt động',
         requiredRole: [UserRole.Admin, UserRole.Manager],
       },
     ]
