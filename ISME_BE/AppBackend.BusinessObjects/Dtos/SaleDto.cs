@@ -67,6 +67,15 @@ namespace AppBackend.BusinessObjects.Dtos
         public DateTime? CreatedDateTime { get; set; }
     }
 
+    public class SaleSearchResult
+    {
+        public string VoucherId { get; set; } = null!;
+        public string? VoucherDate { get; set; }
+        public string? CustomerName { get; set; }
+        public decimal TotalAmount { get; set; }
+        public int ItemCount { get; set; }
+    }
+
     public class SaleVoucherLookupDto
     {
         public string VoucherId { get; set; } = null!;

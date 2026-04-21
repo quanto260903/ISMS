@@ -21,14 +21,14 @@ import InwardItemTable          from "./InwardItemTable";
 import { useAuthStore }         from "@/store/authStore";
 import type { InwardReason, InwardItem, GoodsSearchResult } from "../types/import.types";
 
-interface Props { voucherId: string }
+interface Props { voucherId: string; viewOnly?: boolean }
 
 function detectReason(code?: string): InwardReason {
   if (code === "NK2") return "SALES_RETURN";
   return "PURCHASE"; // NK1 + NK3 đều fallback về PURCHASE (NK3 hiển thị read-only, không dùng reason)
 }
 
-export default function EditInwardForm({ voucherId }: Props) {
+export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
   const router = useRouter();
   const { user } = useAuthStore();
   const currentUserId   = String(user?.userId ?? "");
@@ -132,17 +132,24 @@ export default function EditInwardForm({ voucherId }: Props) {
         <button style={{ ...styles.btnSecondary, padding: "6px 16px" }}
           onClick={() => router.push("/dashboard/import")}>← Quay lại</button>
         <h2 style={{ ...styles.title, margin: 0 }}>
-          Sửa phiếu nhập kho <span style={s.voucherIdBadge}>{voucherId}</span>
+          {viewOnly ? "Xem phiếu nhập kho" : "Sửa phiếu nhập kho"}{" "}
+          <span style={s.voucherIdBadge}>{voucherId}</span>
         </h2>
       </div>
+
+      {viewOnly && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 12, background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, fontSize: 13, color: "#92400e", fontWeight: 600 }}>
+          👁 Chế độ xem — không thể chỉnh sửa phiếu này
+        </div>
+      )}
 
       {/* Lý do nhập kho */}
       <section style={{ ...styles.section, maxWidth: 860 }}>
         <h3 style={styles.sectionTitle}>Lý do nhập kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {isAutoVoucher ? (
+          {isAutoVoucher || viewOnly ? (
             <span style={{ ...s.voucherCodeBadge, background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "6px 14px", borderRadius: 8, fontWeight: 600 }}>
-              🔄 {autoVoucherLabel}
+              🔄 {autoVoucherLabel ?? INWARD_REASON_LABELS[reason]}
             </span>
           ) : (
             <select value={reason} onChange={(e) => onReasonChange(e.target.value as InwardReason)} style={s.reasonSelect}>
@@ -209,7 +216,7 @@ export default function EditInwardForm({ voucherId }: Props) {
           </div>
           <div style={{ ...styles.fieldGroup, flex: 1 }}>
             <label style={styles.label}>Ngày nhập kho *</label>
-            <input type="date" style={styles.input} value={voucher.voucherDate} onChange={(e) => setField("voucherDate", e.target.value)} />
+            <input type="date" style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} value={voucher.voucherDate} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("voucherDate", e.target.value)} />
           </div>
         </div>
         <div style={styles.fieldGroup}>
@@ -220,27 +227,27 @@ export default function EditInwardForm({ voucherId }: Props) {
           <label style={styles.label}>{isSalesReturn ? "Mã khách hàng" : "Mã nhà cung cấp"}</label>
           <input style={{ ...styles.input, background: isSalesReturn ? "#f5f5f5" : "#fff", color: isSalesReturn ? "#555" : undefined }}
             placeholder={isSalesReturn ? "Tự điền từ phiếu bán" : "Nhập mã NCC"}
-            value={voucher.customerId ?? ""} readOnly={isSalesReturn}
-            onChange={(e) => !isSalesReturn && setField("customerId", e.target.value)} />
+            value={voucher.customerId ?? ""} readOnly={isSalesReturn || viewOnly}
+            onChange={(e) => !isSalesReturn && !viewOnly && setField("customerId", e.target.value)} />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>{isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *"}</label>
-          <input style={{ ...styles.input, background: isSalesReturn ? "#f5f5f5" : "#fff", color: isSalesReturn ? "#555" : undefined }}
+          <input style={{ ...styles.input, background: (isSalesReturn || viewOnly) ? "#f5f5f5" : "#fff", color: (isSalesReturn || viewOnly) ? "#555" : undefined }}
             placeholder={isSalesReturn ? "Tự điền từ phiếu bán" : "Nhập tên NCC"}
-            value={voucher.customerName ?? ""} readOnly={isSalesReturn}
-            onChange={(e) => !isSalesReturn && setField("customerName", e.target.value)} />
+            value={voucher.customerName ?? ""} readOnly={isSalesReturn || viewOnly}
+            onChange={(e) => !isSalesReturn && !viewOnly && setField("customerName", e.target.value)} />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Mã số thuế</label>
-          <input style={styles.input} placeholder="Nhập MST" value={voucher.taxCode ?? ""} onChange={(e) => setField("taxCode", e.target.value)} />
+          <input style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} placeholder="Nhập MST" value={voucher.taxCode ?? ""} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("taxCode", e.target.value)} />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Địa chỉ</label>
-          <input style={styles.input} placeholder="Nhập địa chỉ" value={voucher.address ?? ""} onChange={(e) => setField("address", e.target.value)} />
+          <input style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} placeholder="Nhập địa chỉ" value={voucher.address ?? ""} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("address", e.target.value)} />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Diễn giải</label>
-          <input style={styles.input} placeholder="Nhập diễn giải" value={voucher.voucherDescription ?? ""} onChange={(e) => setField("voucherDescription", e.target.value)} />
+          <input style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} placeholder="Nhập diễn giải" value={voucher.voucherDescription ?? ""} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("voucherDescription", e.target.value)} />
         </div>
       </section>
 
@@ -267,6 +274,7 @@ export default function EditInwardForm({ voucherId }: Props) {
             onInputFocus={goodsSearch.handleInputFocus}
             onSelectGoods={(index, goods, totalItems) => goodsSearch.handleSelectGoods(index, goods, totalItems)}
             onSetDropdownPos={goodsSearch.setDropdownPos}
+            viewOnly={viewOnly}
           />
         )}
         {voucher.items.length > 0 && (
@@ -282,10 +290,14 @@ export default function EditInwardForm({ voucherId }: Props) {
       <hr style={styles.hr} />
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <button style={{ ...styles.btnPrimary, opacity: loading ? 0.6 : 1 }} onClick={handleSubmit} disabled={loading}>
-          {loading ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+        {!viewOnly && (
+          <button style={{ ...styles.btnPrimary, opacity: loading ? 0.6 : 1 }} onClick={handleSubmit} disabled={loading}>
+            {loading ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+          </button>
+        )}
+        <button style={styles.btnSecondary} onClick={() => router.push("/dashboard/import")}>
+          {viewOnly ? "← Quay lại" : "Hủy"}
         </button>
-        <button style={styles.btnSecondary} onClick={() => router.push("/dashboard/import")}>Hủy</button>
       </div>
 
       {message && (

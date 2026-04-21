@@ -30,6 +30,9 @@ export function useExportForm({
 
   const isEditMode = !!initialData;
 
+  // Ref để ngăn getNextExportId ghi đè voucherId sau khi initialData đã sync
+  const isEditModeRef = useRef(isEditMode);
+
   const [reason,  setReason]  = useState<ExportReason>(
     isEditMode ? detectReasonFromCode(initialData?.voucherCode) : "IMPORT_RETURN"
   );
@@ -50,20 +53,26 @@ export function useExportForm({
     }
   );
 
-  // Lấy mã phiếu xuất kho tiếp theo từ server (chỉ khi tạo mới)
-  useEffect(() => {
-    if (initialData) return;
-    getNextExportId()
-      .then((id) => setVoucher((prev) => ({ ...prev, voucherId: id })))
-      .catch(() => {/* giữ rỗng nếu lỗi */ });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Khi initialData fetch xong (trang edit) → sync lại state
   useEffect(() => {
     if (!initialData) return;
+    isEditModeRef.current = true; // đánh dấu edit mode trước khi set state
     setVoucher(initialData);
     setReason(detectReasonFromCode(initialData.voucherCode));
   }, [initialData?.voucherId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lấy mã phiếu xuất kho tiếp theo từ server (chỉ khi tạo mới)
+  useEffect(() => {
+    if (isEditModeRef.current) return;
+    getNextExportId()
+      .then((id) => {
+        // Chỉ set nếu vẫn ở create mode — tránh ghi đè voucherId sau khi initialData sync
+        if (!isEditModeRef.current) {
+          setVoucher((prev) => ({ ...prev, voucherId: id }));
+        }
+      })
+      .catch(() => {/* giữ rỗng nếu lỗi */ });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Field helpers ─────────────────────────────────────────
   const setField = <K extends keyof ExportVoucher>(field: K, value: ExportVoucher[K]) =>

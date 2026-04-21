@@ -27,7 +27,8 @@ import {
   UsersRound,
   Truck,
   Network,
-  Wallet
+  Wallet,
+  FileBarChart2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useState } from 'react'
-import { HeaderSearch } from '@/components/header-search'
 import { UserRole, getRoleName } from '@/lib/types/user.types'
 import { Toaster } from '@/components/ui/sonner'
 import { useAutoLogout } from '@/hooks/useAutoLogout'
@@ -103,6 +103,17 @@ const navGroups = [
     }
   ]
 },
+  {
+    title: 'Báo cáo',
+    items: [
+      {
+        href: '/dashboard/inventory-report',
+        icon: FileBarChart2,
+        label: 'Báo cáo tồn kho',
+        requiredRole: [UserRole.Admin, UserRole.Manager],
+      },
+    ]
+  },
   {
     title: 'Khác',
     items: [
@@ -244,10 +255,7 @@ useAutoLogout()
         <header className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
           {/* Subtle purple tint stripe */}
           <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-purple-300/40 to-transparent" />
-          <div className="flex h-16 items-center justify-between px-6">
-            {/* Search */}
-            <HeaderSearch />
-
+          <div className="flex h-16 items-center justify-end px-6">
             {/* Right Section */}
             <div className="flex items-center gap-3">
               {/* Notifications with ping animation */}

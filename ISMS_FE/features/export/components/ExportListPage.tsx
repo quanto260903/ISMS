@@ -138,6 +138,7 @@ export default function ExportListPage() {
                 key={row.voucherId}
                 row={row}
                 i={i}
+                onView={() => router.push(`/dashboard/export/${row.voucherId}?mode=view`)}
                 onEdit={() => router.push(`/dashboard/export/${row.voucherId}`)}
               />
             ))}
@@ -171,8 +172,8 @@ export default function ExportListPage() {
 
 // ── Row component ────────────────────────────────────────────
 function ExportRow({
-  row, i, onEdit,
-}: { row: ExportListItem; i: number; onEdit: () => void }) {
+  row, i, onView, onEdit,
+}: { row: ExportListItem; i: number; onView: () => void; onEdit: () => void }) {
   const [hover, setHover] = React.useState(false);
 
   const code       = row.voucherCode;
@@ -220,16 +221,12 @@ function ExportRow({
         {fmtMoney(row.totalAmount)} ₫
       </td>
       <td style={{ ...s.td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-        {isAutoGen ? (
-          // XK3/XK4: chỉ xem, không sửa thủ công
-          <button style={s.btnView} onClick={onEdit} title="Phiếu tự động — chỉ xem">
-            👁 Xem
-          </button>
-        ) : (
-          <button style={s.btnEdit} onClick={onEdit}>
-            ✏️ Sửa
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          <button style={s.btnView} onClick={onView}>👁 Xem</button>
+          {!isAutoGen && (
+            <button style={s.btnEdit} onClick={onEdit}>✏️ Sửa</button>
+          )}
+        </div>
       </td>
     </tr>
   );

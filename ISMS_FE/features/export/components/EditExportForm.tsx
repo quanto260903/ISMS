@@ -28,9 +28,9 @@ interface PendingGoodsState {
   loading:    boolean;
 }
 
-interface Props { voucherId: string }
+interface Props { voucherId: string; viewOnly?: boolean }
 
-export default function EditExportForm({ voucherId }: Props) {
+export default function EditExportForm({ voucherId, viewOnly = false }: Props) {
   const router = useRouter();
   const { user } = useAuthStore();
   const currentUserId   = user?.userId   ?? "";
@@ -203,18 +203,24 @@ export default function EditExportForm({ voucherId }: Props) {
       <div style={s.heroBanner}>
         <div style={s.heroOrb} /><div style={s.heroOrb2} />
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={s.heroEyebrow}>Xuất kho · Chỉnh sửa</div>
-          <h1 style={s.heroTitle}>Sửa phiếu xuất kho</h1>
+          <div style={s.heroEyebrow}>{viewOnly ? "Xuất kho · Chỉ xem" : "Xuất kho · Chỉnh sửa"}</div>
+          <h1 style={s.heroTitle}>{viewOnly ? "Xem phiếu xuất kho" : "Sửa phiếu xuất kho"}</h1>
         </div>
       </div>
+
+      {viewOnly && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 12, background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, fontSize: 13, color: "#92400e", fontWeight: 600 }}>
+          👁 Chế độ xem — không thể chỉnh sửa phiếu này
+        </div>
+      )}
 
       {/* ── Lý do xuất kho ── */}
       <section style={s.card}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Lý do xuất kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {isAutoVoucher ? (
+          {isAutoVoucher || viewOnly ? (
             <span style={{ background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "6px 14px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
-              🔄 {autoVoucherLabel}
+              🔄 {autoVoucherLabel ?? EXPORT_REASON_LABELS[reason as keyof typeof EXPORT_REASON_LABELS]}
             </span>
           ) : (
             <select value={reason}
@@ -238,8 +244,8 @@ export default function EditExportForm({ voucherId }: Props) {
 
       <hr style={styles.hr} />
 
-      {/* ── Tra cứu phiếu nhập (chỉ khi IMPORT_RETURN) ── */}
-      {isImportReturn && (
+      {/* ── Tra cứu phiếu nhập (chỉ khi IMPORT_RETURN và không ở chế độ xem) ── */}
+      {isImportReturn && !viewOnly && (
         <>
           <section style={s.card}>
             <h3 style={s.cardTitle}><span style={s.titleDot} />Số phiếu nhập kho gốc</h3>
@@ -300,8 +306,8 @@ export default function EditExportForm({ voucherId }: Props) {
           </div>
           <div style={{ ...styles.fieldGroup, flex: 1 }}>
             <label style={styles.label}>Ngày xuất kho *</label>
-            <input type="date" style={styles.input} value={voucher.voucherDate}
-              onChange={(e) => setField("voucherDate", e.target.value)} />
+            <input type="date" style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} value={voucher.voucherDate}
+              readOnly={viewOnly} onChange={(e) => !viewOnly && setField("voucherDate", e.target.value)} />
           </div>
         </div>
 
@@ -320,9 +326,13 @@ export default function EditExportForm({ voucherId }: Props) {
         ] as const).map(({ label, field, placeholder }) => (
           <div key={field} style={styles.fieldGroup}>
             <label style={styles.label}>{label}</label>
-            <input style={styles.input} placeholder={placeholder}
+            <input
+              style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
+              placeholder={placeholder}
               value={voucher[field] as string}
-              onChange={(e) => setField(field, e.target.value)} />
+              readOnly={viewOnly}
+              onChange={(e) => !viewOnly && setField(field, e.target.value)}
+            />
           </div>
         ))}
       </section>
@@ -355,6 +365,7 @@ export default function EditExportForm({ voucherId }: Props) {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
+            viewOnly={viewOnly}
           />
         )}
 
@@ -371,10 +382,15 @@ export default function EditExportForm({ voucherId }: Props) {
       <hr style={styles.hr} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <button style={styles.btnPrimary} onClick={handleSubmit} disabled={loading}>
-          {loading ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+        {!viewOnly && (
+          <button style={styles.btnPrimary} onClick={handleSubmit} disabled={loading}>
+            {loading ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+          </button>
+        )}
+        <button style={styles.btnSecondary} onClick={() => router.push("/dashboard/export")}>
+          {viewOnly ? "← Quay lại" : "Hủy"}
         </button>
-        {message && (
+        {!viewOnly && message && (
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             padding: "10px 16px", borderRadius: 8, fontWeight: 600, fontSize: 13,

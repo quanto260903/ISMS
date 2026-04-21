@@ -56,6 +56,24 @@ export interface DropdownPos {
   index: number;
 }
 
+// ── Tìm kiếm phiếu nhập kho ──────────────────────────────────
+export interface InwardSearchResult {
+  voucherId:    string;
+  voucherDate:  string | null;
+  customerName: string | null;
+  totalAmount:  number;
+  itemCount:    number;
+}
+
+// ── Tìm kiếm phiếu bán hàng ──────────────────────────────────
+export interface SaleSearchResult {
+  voucherId:    string;
+  voucherDate:  string | null;
+  customerName: string | null;
+  totalAmount:  number;
+  itemCount:    number;
+}
+
 // ── Lookup phiếu bán ─────────────────────────────────────────
 export interface SaleVoucherLookupItem {
   goodsId:         string;

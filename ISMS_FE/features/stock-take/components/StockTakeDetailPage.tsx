@@ -4,12 +4,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getStockTakeById, updateStockTake, processStockTake, deleteStockTake,
+  getStockTakeById, updateStockTake, deleteStockTake,
 } from "../stockTake.api";
 import type {
-  StockTakeFullDto, StockTakeDetailDto,
+  StockTakeFullDto,
   UpdateStockTakeHeaderRequest, CreateStockTakeDetailRequest,
-  ProcessStockTakeResultDto,
 } from "../types/stockTake.types";
 
 // Lỗi 5: thêm T00:00:00 tránh lệch timezone với DateOnly từ C#
@@ -194,53 +193,6 @@ function EditModal({ voucher, onClose, onSave }: {
   );
 }
 
-// ── Modal xác nhận xử lý phiếu ───────────────────────────────
-function ProcessModal({ lines, busy, onClose, onConfirm }: {
-  lines:     import("../types/stockTake.types").StockTakeDetailDto[];
-  busy:      boolean;
-  onClose:   () => void;
-  onConfirm: () => void;
-}) {
-  const surplus  = lines.filter((l) => l.differenceQuantity > 0).length;
-  const shortage = lines.filter((l) => l.differenceQuantity < 0).length;
-  return (
-    <div style={m.overlay} onClick={onClose}>
-      <div style={{ ...m.box, width: 440 }} onClick={(e) => e.stopPropagation()}>
-        <div style={m.head}>
-          <span style={m.title}>Xác nhận hoàn thành kiểm kê</span>
-          <button style={m.close} onClick={onClose}>✕</button>
-        </div>
-        <div style={{ padding: "16px 22px 20px" }}>
-          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, marginBottom: 14 }}>
-            Phiếu sẽ được <strong>khoá</strong> và không thể chỉnh sửa sau khi xác nhận.
-          </p>
-          {(surplus > 0 || shortage > 0) && (
-            <div style={m.infoBox}>
-              {surplus > 0 && <div>• <strong>{surplus}</strong> mặt hàng thừa → cần lập phiếu <strong>Nhập NK3</strong></div>}
-              {shortage > 0 && <div>• <strong>{shortage}</strong> mặt hàng thiếu → cần lập phiếu <strong>Xuất XK3</strong> (chọn chứng từ nhập nguồn)</div>}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button style={m.btnSec} onClick={onClose} disabled={busy}>Huỷ</button>
-            <button style={m.btnProcess} onClick={onConfirm} disabled={busy}>
-              {busy ? "⏳ Đang xử lý..." : "✔ Xác nhận hoàn thành"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Banner kết quả (giữ placeholder — hiện không dùng) ───────
-function ProcessResultBanner({ result }: { result: import("../types/stockTake.types").ProcessStockTakeResultDto }) {
-  if (!result.message) return null;
-  return (
-    <div style={{ margin: "10px 24px 0", padding: "10px 14px", background: result.success ? "#f0fdf4" : "#fff1f2", border: `1px solid ${result.success ? "#bbf7d0" : "#fca5a5"}`, borderRadius: 8, fontSize: 13, color: result.success ? "#15803d" : "#b91c1c" }}>
-      {result.success ? "✅" : "⚠️"} {result.message}
-    </div>
-  );
-}
 
 // ══════════════════════════════════════════════════════════════
 // MAIN
@@ -250,12 +202,28 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
 
   const [voucher,       setVoucher]       = useState<StockTakeFullDto | null>(null);
   const [loading,       setLoading]       = useState(true);
-  const [busy,          setBusy]          = useState(false);
   const [showEdit,      setShowEdit]      = useState(false);
-  const [showProcess,   setShowProcess]   = useState(false);
   const [toast,         setToast]         = useState<{ msg: string; ok: boolean } | null>(null);
   const [keyword,       setKeyword]       = useState("");
   const [filterTab,     setFilterTab]     = useState<"all" | "surplus" | "shortage">("all");
+  const [nk3Done,       setNk3Done]       = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem(`nk3_done_${voucherId}`) === "true"
+  );
+  const [xk3Done,       setXk3Done]       = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem(`xk3_done_${voucherId}`) === "true"
+  );
+
+  // Khi tab được focus lại (người dùng quay về từ trang tạo phiếu), cập nhật trạng thái
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        setNk3Done(localStorage.getItem(`nk3_done_${voucherId}`) === "true");
+        setXk3Done(localStorage.getItem(`xk3_done_${voucherId}`) === "true");
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [voucherId]);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok }); setTimeout(() => setToast(null), 3000);
@@ -270,27 +238,11 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
 
   useEffect(() => { fetchVoucher(); }, [fetchVoucher]);
 
-  const isCompleted = voucher?.isCompleted === true;
-
   const handleSave = async (req: UpdateStockTakeHeaderRequest) => {
     const updated = await updateStockTake(voucherId, req);
     setVoucher(updated);
     showToast("Đã lưu phiếu kiểm kê");
   };
-
- const handleProcess = async () => {
-  setBusy(true);
-  setShowProcess(false);
-  try {
-    await processStockTake(voucherId);
-    await fetchVoucher();
-    showToast("Phiếu kiểm kê đã hoàn thành ✅");
-  } catch (e: unknown) {
-    showToast(e instanceof Error ? e.message : "Lỗi xử lý", false);
-  } finally {
-    setBusy(false);
-  }
-};
 
   const handleDelete = async () => {
     if (!confirm("Xóa phiếu kiểm kê này?")) return;
@@ -333,11 +285,11 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
             <h1 style={s.pageTitle}>{voucher.stockTakeVoucherId}</h1>
             <span style={{
               display: "inline-block", padding: "2px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-              background: isCompleted ? "#f0fdf4" : "#fffbeb",
-              color:      isCompleted ? "#15803d" : "#d97706",
-              border:     `1px solid ${isCompleted ? "#bbf7d0" : "#fde68a"}`,
+              background: (nk3Done || xk3Done) ? "#f0fdf4" : "#eff6ff",
+              color:      (nk3Done || xk3Done) ? "#15803d" : "#1d4ed8",
+              border:     `1px solid ${(nk3Done || xk3Done) ? "#bbf7d0" : "#bfdbfe"}`,
             }}>
-              {isCompleted ? "✓ Hoàn thành" : "◑ Đang kiểm"}
+              {(nk3Done || xk3Done) ? "✓ Đã xử lý" : "◑ Chưa xử lý"}
             </span>
           </div>
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
@@ -349,31 +301,48 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {!isCompleted && (
-            <>
-              <button style={s.btnEdit}    onClick={() => setShowEdit(true)}>✏️ Sửa</button>
-              <button style={s.btnDel}     onClick={handleDelete}>🗑 Xóa</button>
-              <button style={s.btnProcess} onClick={() => setShowProcess(true)} disabled={busy}>⚙️ Xử lý</button>
-            </>
-          )}
-          {isCompleted && <span style={{ fontSize: 12, color: "#64748b" }}>Phiếu đã hoàn thành — chỉ đọc</span>}
+          <button style={s.btnEdit} onClick={() => setShowEdit(true)}>✏️ Sửa</button>
+          <button style={s.btnDel}  onClick={handleDelete}>🗑 Xóa</button>
         </div>
       </div>
 
+      {/* Thành phần chứng kiến kiểm kê */}
       {(voucher.member1 || voucher.member2 || voucher.member3) && (
-        <div style={{ padding: "8px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontSize: 12, color: "#475569" }}>
-          🧑‍💼 Thành phần:&nbsp;
-          {[
-            voucher.member1 && `${voucher.member1}${voucher.position1 ? ` (${voucher.position1})` : ""}`,
-            voucher.member2 && `${voucher.member2}${voucher.position2 ? ` (${voucher.position2})` : ""}`,
-            voucher.member3 && `${voucher.member3}${voucher.position3 ? ` (${voucher.position3})` : ""}`,
-          ].filter(Boolean).join(" · ")}
+        <div style={{ padding: "12px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#6d28d9", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            🧑‍💼 Thành phần chứng kiến kiểm kê
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px 16px" }}>
+            {([
+              { name: voucher.member1, pos: voucher.position1, idx: 1 },
+              { name: voucher.member2, pos: voucher.position2, idx: 2 },
+              { name: voucher.member3, pos: voucher.position3, idx: 3 },
+            ] as const).filter((m) => m.name).map(({ name, pos, idx }) => (
+              <div key={idx} style={{
+                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
+                padding: "10px 14px", display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                  background: "linear-gradient(135deg,#6d28d9,#4f46e5)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontWeight: 700, fontSize: 14,
+                }}>
+                  {idx}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{name}</div>
+                  {pos && <div style={{ fontSize: 12, color: "#64748b", marginTop: 1 }}>{pos}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
 
-     {/* Hiển thị khi phiếu ĐÃ hoàn thành và có chênh lệch */}
-{isCompleted && (surplusCount > 0 || shortageCount > 0) && (
+     {/* Hiển thị khi phiếu có chênh lệch */}
+{(surplusCount > 0 || shortageCount > 0) && (
   <div style={{
     margin: "12px 24px 0", padding: "16px 20px",
     background: "#f8faff", border: "1px solid #ddd6fe",
@@ -388,32 +357,48 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
     </div>
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
       {surplusCount > 0 && (
-        <button
-          style={{
-            height: 36, padding: "0 18px", borderRadius: 8,
-            border: "none", background: "linear-gradient(135deg,#15803d,#16a34a)",
-            color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-          }}
-          onClick={() => router.push(
-            `/dashboard/import/new?fromStockTake=${voucherId}&reason=NK3`
-          )}
-        >
-          📥 Lập phiếu nhập NK3 ({surplusCount} mặt hàng thừa)
-        </button>
+        nk3Done ? (
+          <div style={{
+            height: 36, padding: "0 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
+            border: "1.5px solid #bbf7d0", background: "#f0fdf4",
+            color: "#15803d", fontWeight: 700, fontSize: 13,
+          }}>
+            ✅ Đã lập phiếu nhập NK3
+          </div>
+        ) : (
+          <button
+            style={{
+              height: 36, padding: "0 18px", borderRadius: 8,
+              border: "none", background: "linear-gradient(135deg,#15803d,#16a34a)",
+              color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
+            }}
+            onClick={() => router.push(`/dashboard/import/new?fromStockTake=${voucherId}&reason=NK3`)}
+          >
+            📥 Lập phiếu nhập NK3 ({surplusCount} mặt hàng thừa)
+          </button>
+        )
       )}
       {shortageCount > 0 && (
-        <button
-          style={{
-            height: 36, padding: "0 18px", borderRadius: 8,
-            border: "none", background: "linear-gradient(135deg,#b91c1c,#dc2626)",
-            color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-          }}
-          onClick={() => router.push(
-            `/dashboard/export/new?fromStockTake=${voucherId}&reason=XK3`
-          )}
-        >
-          📤 Lập phiếu xuất XK3 ({shortageCount} mặt hàng thiếu)
-        </button>
+        xk3Done ? (
+          <div style={{
+            height: 36, padding: "0 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
+            border: "1.5px solid #fca5a5", background: "#fff1f2",
+            color: "#b91c1c", fontWeight: 700, fontSize: 13,
+          }}>
+            ✅ Đã lập phiếu xuất XK3
+          </div>
+        ) : (
+          <button
+            style={{
+              height: 36, padding: "0 18px", borderRadius: 8,
+              border: "none", background: "linear-gradient(135deg,#b91c1c,#dc2626)",
+              color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
+            }}
+            onClick={() => router.push(`/dashboard/export/new?fromStockTake=${voucherId}&reason=XK3`)}
+          >
+            📤 Lập phiếu xuất XK3 ({shortageCount} mặt hàng thiếu)
+          </button>
+        )
       )}
     </div>
     <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
@@ -422,21 +407,6 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
   </div>
 )}
 
-{/* Banner cũ khi chưa hoàn thành — giữ nút Xử lý */}
-{!isCompleted && (surplusCount > 0 || shortageCount > 0) && (
-  <div style={{
-    margin: "12px 24px 0", padding: "10px 16px",
-    background: "#fffbeb", border: "1px solid #fde68a",
-    borderRadius: 8, fontSize: 13, color: "#92400e",
-    display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12
-  }}>
-    <span>
-      Phiếu có <strong>{surplusCount} mặt hàng thừa</strong> và{" "}
-      <strong>{shortageCount} mặt hàng thiếu</strong>.
-      Nhấn <strong>"Hoàn thành"</strong> để khoá phiếu trước khi lập phiếu điều chỉnh.
-    </span>
-  </div>
-)}
 
       {/* Summary cards */}
       <div style={{ padding: "12px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -550,14 +520,7 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         </table>
       </div>
 
-      {!isCompleted && (
-        <div style={{ margin: "12px 24px", padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, color: "#64748b" }}>
-          Bấm <strong>"Xử lý"</strong> để khoá phiếu kiểm kê. Sau đó dùng nút <strong>"Lập phiếu nhập / xuất"</strong> để tạo phiếu điều chỉnh tồn kho.
-        </div>
-      )}
-
-      {showEdit    && <EditModal voucher={voucher} onClose={() => setShowEdit(false)} onSave={handleSave} />}
-      {showProcess && <ProcessModal lines={voucher.lines} busy={busy} onClose={() => setShowProcess(false)} onConfirm={handleProcess} />}
+      {showEdit && <EditModal voucher={voucher} onClose={() => setShowEdit(false)} onSave={handleSave} />}
     </div>
   );
 }
@@ -570,7 +533,6 @@ const s: Record<string, React.CSSProperties> = {
   pageTitle:  { fontSize: 17, fontWeight: 700, margin: 0 },
   btnEdit:    { height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
   btnDel:     { height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  btnProcess: { height: 34, padding: "0 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#d97706,#f59e0b)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   table:      { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
   th:         { padding: "9px 14px", background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 12, borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" as const },
   td:         { padding: "8px 14px", verticalAlign: "middle" as const },
@@ -591,7 +553,6 @@ const m: Record<string, React.CSSProperties> = {
   addBtn:     { height: 28, padding: "0 10px", border: "1.5px solid #3b82f6", borderRadius: 6, background: "#eff6ff", color: "#2563eb", fontWeight: 600, fontSize: 12, cursor: "pointer" },
   btnPri:     { height: 34, padding: "0 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#2563eb,#3b82f6)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   btnSec:     { height: 34, padding: "0 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  btnProcess: { height: 34, padding: "0 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#d97706,#f59e0b)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   successBox: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 10 },
   dangerBox:  { background: "#fff1f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 10 },
   infoBox:    { background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "10px 14px", marginBottom: 10, color: "#0369a1", fontSize: 13 },

@@ -60,5 +60,29 @@ namespace AppBackend.ApiCore.Controllers
             var result = await _saleService.GetByVoucherIdAsync(voucherId);
             return StatusCode(result.StatusCode, result);
         }
+
+        /// <summary>
+        /// Tìm kiếm phiếu bán theo từ khóa (dùng cho dropdown gợi ý)
+        /// GET /api/SaleGoods/search?keyword=BH&amp;limit=10
+        /// </summary>
+        [HttpGet("search")]
+        public async Task<IActionResult> Search(
+            [FromQuery] string keyword = "",
+            [FromQuery] int limit = 10)
+        {
+            var result = await _saleService.SearchSaleVouchersAsync(keyword, limit);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Kiểm tra phiếu bán đã được nhập kho trả lại (NK2) chưa
+        /// GET /api/SaleGoods/check-return/{saleVoucherId}
+        /// </summary>
+        [HttpGet("check-return/{saleVoucherId}")]
+        public async Task<IActionResult> CheckReturn(string saleVoucherId)
+        {
+            var isUsed = await _saleService.CheckSaleUsedForReturnAsync(saleVoucherId);
+            return Ok(new { isUsed });
+        }
     }
 }

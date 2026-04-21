@@ -21,12 +21,13 @@ interface Props {
   onInputFocus: (index: number, e: React.FocusEvent<HTMLInputElement>) => void;
   onSelectGoods: (index: number, goods: GoodsSearchResult, totalItems: number) => void;
   onSetDropdownPos: (pos: DropdownPos | null) => void;
+  viewOnly?: boolean;
 }
 
 export default function InwardItemTable({
   items, dropdowns, dropdownPos, dropdownRefs, inputRefs,
   onUpdateItem, onRemoveItem, onGoodsIdChange, onInputFocus,
-  onSelectGoods, onSetDropdownPos,
+  onSelectGoods, onSetDropdownPos, viewOnly = false,
 }: Props) {
   const setPromotion = (index: number, val: number) => {
   const clamped = Math.max(0, Math.min(val, 100));
@@ -46,7 +47,7 @@ export default function InwardItemTable({
             </tr>
           </thead>
           <tbody>
-            {items.map((item, index) => {
+            {(viewOnly ? items.filter((it) => it.goodsId.trim() !== "") : items).map((item, index) => {
               const dd = dropdowns[index] ?? { suggestions: [], loading: false, open: false };
               // Highlight dòng trống cuối để user biết đây là dòng placeholder
               const isEmpty = item.goodsId.trim() === "";

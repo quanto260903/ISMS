@@ -145,9 +145,10 @@ export default function InwardListPage() {
               </tr>
             )}
             {!loading && result?.items.map((row, i) => (
-              <InwardRow key={row.voucherId} row={row} i={i} onEdit={() =>
-                router.push(`/dashboard/import/${row.voucherId}`)
-              } />
+              <InwardRow key={row.voucherId} row={row} i={i}
+                onView={() => router.push(`/dashboard/import/${row.voucherId}?mode=view`)}
+                onEdit={() => router.push(`/dashboard/import/${row.voucherId}`)}
+              />
             ))}
           </tbody>
         </table>
@@ -180,8 +181,8 @@ export default function InwardListPage() {
 
 /* ── Row component ── */
 function InwardRow({
-  row, i, onEdit
-}: { row: InwardListItem; i: number; onEdit: () => void }) {
+  row, i, onView, onEdit
+}: { row: InwardListItem; i: number; onView: () => void; onEdit: () => void }) {
   const [hover, setHover] = React.useState(false);
   const codeStyle = VOUCHER_CODE_COLORS[row.voucherCode ?? "DEFAULT"] ?? VOUCHER_CODE_COLORS.DEFAULT;
 
@@ -224,12 +225,10 @@ function InwardRow({
         {fmtMoney(row.totalAmount)} ₫
       </td>
       <td style={{ ...s.td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-        <button
-          style={s.btnEdit}
-          onClick={onEdit}
-        >
-          ✏️ Sửa
-        </button>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          <button style={s.btnView} onClick={onView}>👁 Xem</button>
+          <button style={s.btnEdit} onClick={onEdit}>✏️ Sửa</button>
+        </div>
       </td>
     </tr>
   );
@@ -510,6 +509,17 @@ const s: Record<string, React.CSSProperties> = {
     flexShrink: 0,
     transition: "background 0.15s",
     letterSpacing: "0.02em",
+  },
+  btnView: {
+    padding: "5px 14px",
+    border: "1.5px solid #bae6fd",
+    borderRadius: 7,
+    background: "#f0f9ff",
+    color: "#0369a1",
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: "pointer",
+    transition: "all 0.12s",
   },
   btnEdit: {
     padding: "5px 14px",

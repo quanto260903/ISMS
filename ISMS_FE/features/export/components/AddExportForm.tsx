@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styles from "@/shared/styles/sale.styles";
 import {
   EXPORT_REASON_LABELS,
@@ -13,7 +14,7 @@ import {
   getDebitAccountByReason,
 } from "../constants/export.constants";
 import { useExportForm }           from "../hooks/useExportForm";
-import { useInwardVoucherLookup }  from "../hooks/useInwardVoucherLookup";
+import { useInwardVoucherSearch }  from "../hooks/useInwardVoucherSearch";
 import { useGoodsSearch }          from "../hooks/useGoodsSearch";
 import { getWarehouseReport }      from "../export.api";
 import { getShortageItems }        from "@/features/stock-take/stockTake.api";
@@ -27,6 +28,9 @@ import { useSupplierSearch }       from "@/shared/hooks/supplier/useSupplierSear
 import { useAuthStore }            from "@/store/authStore";
 import type { ExportReason, ExportItem, GoodsSearchResult } from "../types/export.types";
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
+import type { InwardVoucher, InwardSearchResult } from "@/features/import/types/import.types";
+import ReactDOM from "react-dom";
+
 
 // 2 lý do tạo thủ công thông thường (XK3 từ kiểm kê có flow riêng)
 const MANUAL_REASONS: ExportReason[] = ["IMPORT_RETURN", "DESTROY"];
@@ -40,6 +44,7 @@ interface PendingGoodsState {
 }
 
 export default function AddExportForm() {
+  const router          = useRouter();
   const searchParams    = useSearchParams();
   const fromStockTakeId = searchParams.get("fromStockTake");
   const isFromStockTake = !!fromStockTakeId && searchParams.get("reason") === "XK3";
@@ -54,10 +59,21 @@ export default function AddExportForm() {
     setField, handleReasonChange,
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
-  } = useExportForm({ userId: currentUserId, userFullName: currentUserName });
+  } = useExportForm({
+    userId: currentUserId,
+    userFullName: currentUserName,
+    onSuccess: () => {
+      if (fromStockTakeId) {
+        localStorage.setItem(`xk3_done_${fromStockTakeId}`, "true");
+      }
+      setTimeout(() => router.push("/dashboard/export"), 1500);
+    },
+  });
 
-  const inwardLookup   = useInwardVoucherLookup();
   const isImportReturn = reason === "IMPORT_RETURN";
+
+  const [selectedInward, setSelectedInward] = useState<InwardVoucher | null>(null);
+  const inwardReturnSearch = useInwardVoucherSearch({ onSelect: setSelectedInward });
 
   const reasonRef = useRef(reason);
   reasonRef.current = reason;
@@ -86,8 +102,8 @@ export default function AddExportForm() {
   // ── Đổi lý do xuất ──────────────────────────────────────
   const onReasonChange = (r: ExportReason) => {
     handleReasonChange(r);
-    inwardLookup.clearLookup();
-    // Reset đối tượng và items khi đổi lý do
+    inwardReturnSearch.clearSearch();
+    setSelectedInward(null);
     setField("customerId",   "");
     setField("customerName", "");
     setSupplierQuery("");
@@ -96,7 +112,7 @@ export default function AddExportForm() {
 
   // ── Auto-fill từ phiếu nhập (IMPORT_RETURN) ─────────────
   useEffect(() => {
-    const result = inwardLookup.lookupResult;
+    const result = selectedInward;
     if (!result || reasonRef.current !== "IMPORT_RETURN") return;
 
     setField("customerId",         result.customerId    ?? "");
@@ -124,7 +140,7 @@ export default function AddExportForm() {
     }));
 
     replaceAllItems([...newItems, createEmptyExportItemShim()]);
-  }, [inwardLookup.lookupResult]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedInward]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-fill từ phiếu kiểm kê (STOCK_TAKE / XK3) ─────────
   useEffect(() => {
@@ -183,6 +199,21 @@ export default function AddExportForm() {
       setPendingGoods((prev) => prev ? { ...prev, inbounds: [], loading: false } : null);
     }
   }, []);
+
+  // Mở lại modal chứng từ đối trừ khi người dùng click vào dòng đã có hàng hóa
+  const handleRowClick = useCallback((index: number) => {
+    const item = voucher.items[index];
+    if (!item?.goodsId) return;
+    const goods: GoodsSearchResult = {
+      goodsId:   item.goodsId,
+      goodsName: item.goodsName,
+      unit:      item.unit,
+      salePrice:  0,
+      vatrate:    "",
+      itemOnHand: 0,
+    };
+    handleGoodsSelected(index, goods, voucher.items.length);
+  }, [voucher.items, handleGoodsSelected]);
 
   // Xác nhận chọn phiếu nhập — xử lý toàn bộ trong 1 lần setVoucher tránh race condition
   const handleConfirmInbound = useCallback((selections: InboundSelection[]) => {
@@ -314,47 +345,46 @@ export default function AddExportForm() {
 
       <hr style={styles.hr} />
 
-      {/* ── Tra cứu phiếu nhập (chỉ khi IMPORT_RETURN) ── */}
+      {/* ── Tra cứu phiếu nhập (chỉ khi IMPORT_RETURN) — dropdown gợi ý ── */}
       {isImportReturn && (
         <>
           <section style={s.card}>
             <h3 style={s.cardTitle}><span style={s.titleDot} />Số phiếu nhập kho gốc</h3>
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <div style={{ ...styles.fieldGroup, flex: 1, marginBottom: 0 }}>
+              <div style={{ ...styles.fieldGroup, flex: 1, marginBottom: 0, position: "relative" }}>
                 <label style={styles.label}>Số phiếu nhập kho *</label>
                 <input
+                  ref={inwardReturnSearch.inputRef}
                   style={styles.input}
-                  placeholder="Nhập số phiếu nhập, VD: NK12345678"
-                  value={inwardLookup.inwardVoucherId}
-                  onChange={(e) => inwardLookup.setInwardVoucherId(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && inwardLookup.handleLookup()}
+                  placeholder="Nhập số phiếu hoặc tên NCC để tìm kiếm..."
+                  value={inwardReturnSearch.query}
+                  onChange={(e) => inwardReturnSearch.handleChange(e.target.value)}
+                  onFocus={inwardReturnSearch.handleFocus}
+                  autoComplete="off"
                 />
               </div>
-              <button
-                style={{ ...styles.btnPrimary, padding: "8px 20px", minWidth: 110,
-                  opacity: inwardLookup.lookupLoading ? 0.6 : 1 }}
-                onClick={inwardLookup.handleLookup}
-                disabled={inwardLookup.lookupLoading}
-              >
-                {inwardLookup.lookupLoading ? "⏳ Đang tìm..." : "🔍 Tra cứu"}
-              </button>
-              {inwardLookup.lookupResult && (
+              {selectedInward && (
                 <button style={{ ...styles.btnDanger, padding: "8px 14px" }}
-                  onClick={inwardLookup.clearLookup}>✕ Xóa</button>
+                  onClick={() => { inwardReturnSearch.clearSearch(); setSelectedInward(null); }}>
+                  ✕ Xóa
+                </button>
               )}
             </div>
-            {inwardLookup.lookupError && (
+            {inwardReturnSearch.fetchLoading && (
+              <p style={{ color: "#2255cc", fontSize: 13, marginTop: 6 }}>⏳ Đang tải chi tiết phiếu nhập...</p>
+            )}
+            {inwardReturnSearch.error && (
               <p style={{ color: "#cc2222", fontSize: 13, marginTop: 6 }}>
-                ⚠️ {inwardLookup.lookupError}
+                ⚠️ {inwardReturnSearch.error}
               </p>
             )}
-            {inwardLookup.lookupResult && (
+            {selectedInward && (
               <div style={s.lookupResult}>
                 <span style={s.lookupBadge}>✅ Đã tìm thấy</span>
                 <span style={{ color: "#166534", fontSize: 13 }}>
-                  Phiếu <strong>{inwardLookup.lookupResult.voucherId}</strong>
-                  {" · "}NCC: <strong>{inwardLookup.lookupResult.customerName}</strong>
-                  {" · "}{inwardLookup.lookupResult.items.length} sản phẩm
+                  Phiếu <strong>{selectedInward.voucherId}</strong>
+                  {" · "}NCC: <strong>{selectedInward.customerName}</strong>
+                  {" · "}{selectedInward.items.length} sản phẩm
                   {" → "}đã tự động điền vào bảng bên dưới
                 </span>
               </div>
@@ -463,7 +493,7 @@ export default function AddExportForm() {
       <section style={{ ...s.card, maxWidth: "100%" }}>
         <h3 style={s.cardTitle}>
           <span style={s.titleDot} />Chi tiết hàng hóa
-          {isImportReturn && inwardLookup.lookupResult && (
+          {isImportReturn && selectedInward && (
             <span style={s.autoFilledBadge}>✨ Tự động điền từ phiếu nhập</span>
           )}
         </h3>
@@ -490,6 +520,7 @@ export default function AddExportForm() {
               goodsSearch.handleSelectGoods(index, goods, totalItems)
             }
             onSetDropdownPos={goodsSearch.setDropdownPos}
+            onRowClick={handleRowClick}
           />
         )}
 
@@ -521,6 +552,56 @@ export default function AddExportForm() {
           </div>
         )}
       </div>
+
+      {/* ── Portal dropdown tra cứu phiếu nhập (IMPORT_RETURN) ── */}
+      {inwardReturnSearch.dropdownPos && inwardReturnSearch.dropdown.open && typeof window !== "undefined" && ReactDOM.createPortal(
+        <div
+          ref={inwardReturnSearch.dropdownRef}
+          style={{
+            position: "fixed",
+            top:   inwardReturnSearch.dropdownPos.top,
+            left:  inwardReturnSearch.dropdownPos.left,
+            width: inwardReturnSearch.dropdownPos.width,
+            zIndex: 99999,
+            background: "#fff",
+            border: "1px solid #c7d7ff",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.16)",
+          }}
+        >
+          {inwardReturnSearch.dropdown.suggestions.length > 0 ? (
+            <ul style={{ listStyle: "none", margin: 0, padding: "4px 0", maxHeight: 300, overflowY: "auto" }}>
+              <li style={{ padding: "6px 14px", fontSize: 11, color: "#94a3b8", fontWeight: 600, borderBottom: "1px solid #f1f5f9" }}>
+                📋 {inwardReturnSearch.dropdown.suggestions.length} phiếu nhập phù hợp
+              </li>
+              {inwardReturnSearch.dropdown.suggestions.map((v: InwardSearchResult) => (
+                <li
+                  key={v.voucherId}
+                  style={{ padding: "9px 14px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2, borderBottom: "1px solid #f8fafc" }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLLIElement).style.background = "#f0f4ff")}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLLIElement).style.background = "transparent")}
+                  onMouseDown={() => inwardReturnSearch.handleSelect(v)}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ padding: "2px 8px", background: "#dbeafe", color: "#1d4ed8", borderRadius: 4, fontSize: 11, fontWeight: 700, fontFamily: "monospace" }}>
+                      {v.voucherId}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>{v.customerName ?? "—"}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b", paddingLeft: 2 }}>
+                    {v.voucherDate ?? "—"} · {v.itemCount} mặt hàng · {v.totalAmount.toLocaleString("vi-VN")} ₫
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !inwardReturnSearch.dropdown.loading && (
+              <div style={{ padding: "12px 14px", fontSize: 13, color: "#94a3b8" }}>Không tìm thấy phiếu nhập</div>
+            )
+          )}
+        </div>,
+        document.body
+      )}
 
       {/* ── Portals ── */}
       <SupplierDropdown
