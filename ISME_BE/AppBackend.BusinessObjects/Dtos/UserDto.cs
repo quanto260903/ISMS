@@ -12,7 +12,8 @@ namespace AppBackend.BusinessObjects.Dtos
         public int Role { get; set; }
         public string RoleName { get; set; } = string.Empty;
     }
-    // ── Constants ──
+
+    // ── Constants ─────────────────────────────────────────────
     public static class RoleConstants
     {
         public const int Admin = 1;
@@ -26,17 +27,26 @@ namespace AppBackend.BusinessObjects.Dtos
             { Staff,   "Staff"   },
         };
 
+        // IsValid chỉ cho phép Manager và Staff (Admin không được tạo/gán từ UI)
         public static bool IsValid(int roleId) =>
-            roleId == Admin || roleId == Manager || roleId == Staff;
+            roleId == Manager || roleId == Staff;
     }
 
-    // ── Request: tạo tài khoản mới ──
+    // ── Request: tạo tài khoản mới ────────────────────────────
     public class CreateUserRequest
     {
+        [Required]
         public string FullName { get; set; } = null!;
+
+        [Required]
         public string Email { get; set; } = null!;
+
+        [Required]
         public string Password { get; set; } = null!;
-        public int RoleId { get; set; } = RoleConstants.Staff;
+
+        // ✅ multi-role: thay RoleId: int → RoleIds: List<int>
+        [Required, MinLength(1, ErrorMessage = "Phải chọn ít nhất một quyền")]
+        public List<int> RoleIds { get; set; } = new() { RoleConstants.Staff };
 
         // Thông tin nhân viên (tuỳ chọn)
         public string? IdcardNumber { get; set; }
@@ -48,7 +58,7 @@ namespace AppBackend.BusinessObjects.Dtos
         public int NumberOfDependent { get; set; } = 0;
     }
 
-    // ── Request: cập nhật thông tin ──
+    // ── Request: cập nhật thông tin ───────────────────────────
     public class UpdateUserRequest
     {
         public string? FullName { get; set; }
@@ -62,43 +72,48 @@ namespace AppBackend.BusinessObjects.Dtos
         public int? NumberOfDependent { get; set; }
     }
 
-    // ── Request: đổi role ──
+    // ── Request: đổi role (multi-role) ────────────────────────
     public class UpdateRoleRequest
     {
-        public int RoleId { get; set; }   // 2 = Manager, 3 = Staff
+        [Required, MinLength(1, ErrorMessage = "Phải có ít nhất một quyền")]
+        public List<int> RoleIds { get; set; } = new();
     }
 
-    // ── Request: reset mật khẩu ──
+    // ── Request: reset mật khẩu ───────────────────────────────
     public class ResetPasswordRequest
     {
+        [Required, MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
         public string NewPassword { get; set; } = null!;
     }
 
-    // ── Request: đổi trạng thái ──
+    // ── Request: đổi trạng thái ───────────────────────────────
     public class UpdateStatusRequest
     {
         public bool IsActive { get; set; }
     }
 
-    // ── Request: lọc danh sách ──
+    // ── Request: lọc danh sách ────────────────────────────────
     public class GetUserListRequest
     {
         public string? Keyword { get; set; }
-        public int? RoleId { get; set; }
+        public int? RoleId { get; set; }   // lọc theo 1 role (optional)
         public bool? IsActive { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 50;
     }
 
-    // ── Response: thông tin user ──
+    // ── Response: chi tiết 1 user ─────────────────────────────
     public class UserDetailDto
     {
         public string UserId { get; set; } = null!;
         public string Username { get; set; } = null!;
         public string? FullName { get; set; }
         public string? Email { get; set; }
-        public int RoleId { get; set; }
-        public string RoleLabel { get; set; } = null!;
+
+        // ✅ multi-role
+        public List<int> RoleIds { get; set; } = new();
+        public List<string> RoleLabels { get; set; } = new();
+
         public bool IsActive { get; set; }
 
         // Thông tin nhân viên
@@ -111,15 +126,19 @@ namespace AppBackend.BusinessObjects.Dtos
         public int NumberOfDependent { get; set; }
     }
 
-    // ── Response: dòng trong danh sách ──
+    // ── Response: dòng trong danh sách ───────────────────────
     public class UserListDto
     {
         public string UserId { get; set; } = null!;
         public string? FullName { get; set; }
         public string? Email { get; set; }
-        public int RoleId { get; set; }
-        public string RoleLabel { get; set; } = null!;
+
+        // ✅ multi-role
+        public List<int> RoleIds { get; set; } = new();
+        public List<string> RoleLabels { get; set; } = new();
+
         public bool IsActive { get; set; }
         public string? ContractType { get; set; }
     }
+
 }

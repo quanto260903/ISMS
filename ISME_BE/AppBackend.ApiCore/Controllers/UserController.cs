@@ -91,7 +91,7 @@ namespace AppBackend.Api.Controllers
             var result = await _service.CreateUserAsync(request, CurrentUserId);
             if (result.IsSuccess)
                 await _actLog.LogAsync(CurrentUserId, "TAO_TAI_KHOAN",
-                    $"Admin tạo tài khoản mới: {request.FullName} ({request.Email}) - Vai trò: {request.RoleId}",
+                   $"Admin tạo tài khoản mới: {request.FullName} ({request.Email}) - Vai trò: {string.Join(", ", request.RoleIds.Select(id => RoleConstants.Labels.GetValueOrDefault(id, id.ToString())))}",
                     ActivityModule.User);
             return StatusCode(result.StatusCode, result);
         }

@@ -17,7 +17,7 @@ namespace AppBackend.Services.Mappings
             //#region Google Authentication
             //// Map từ GoogleUserInfo (ApiModel) sang GoogleUserInfoDto (DTO)
             //CreateMap<GoogleUserInfo, GoogleUserInfoDto>();
-            
+
             //// Map từ User entity sang GoogleLoginResponseDto
             //CreateMap<User, GoogleLoginResponseDto>()
             //    .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
@@ -31,15 +31,18 @@ namespace AppBackend.Services.Mappings
             //#endregion
 
             #region User Management
-            // Map User entity to UserDto
             CreateMap<User, UserDto>()
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId))
-                .ForMember(dest => dest.RoleName, opt => opt.Ignore());
+                   .ForMember(dest => dest.Role,
+                       opt => opt.MapFrom(src => src.UserRoles.Select(r => r.RoleId).FirstOrDefault()))
+                   .ForMember(dest => dest.RoleName,
+                       opt => opt.MapFrom(src => src.UserRoles
+                           .Select(r => RoleConstants.Labels.GetValueOrDefault(r.RoleId, "Unknown"))
+                           .FirstOrDefault() ?? "Unknown"));
 
             // Map CreateUserRequest to User entity
             CreateMap<CreateUserRequest, User>()
-                .ForMember(dest => dest.RoleId, opt => opt.MapFrom(src => src.RoleId))
-                .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password will be hashed separately
+               .ForMember(dest => dest.UserRoles, opt => opt.Ignore()) // gán thủ công trong service
+               .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // hash thủ công trong service
 
             // Map UpdateUserRequest to User entity
             CreateMap<UpdateUserRequest, User>()

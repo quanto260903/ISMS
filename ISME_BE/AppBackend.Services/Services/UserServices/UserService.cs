@@ -1,10 +1,7 @@
 ﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
 using AppBackend.Repositories.Repositories.UserRepo;
-using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services.ApiModels;
-using AutoMapper;
-using System.Security.Cryptography;
 
 namespace AppBackend.Services.Services.UserServices
 {
@@ -16,14 +13,19 @@ namespace AppBackend.Services.Services.UserServices
             => _repo = repo;
 
         // ── Map entity → DTO ──────────────────────────────────
+        // ✅ User.UserRoles phải được Include trước khi gọi hàm này
         private static UserDetailDto MapToDetail(User u) => new()
         {
             UserId = u.UserId,
             Username = u.Username,
             FullName = u.FullName,
             Email = u.Email,
-            RoleId = u.RoleId,
-            RoleLabel = RoleConstants.Labels.GetValueOrDefault(u.RoleId, "Unknown"),
+            // ✅ multi-role: lấy từ collection UserRoles
+            RoleIds = u.UserRoles.Select(r => r.RoleId).ToList(),
+            RoleLabels = u.UserRoles
+                                 .Select(r => RoleConstants.Labels
+                                     .GetValueOrDefault(r.RoleId, "Unknown"))
+                                 .ToList(),
             IsActive = u.IsActive ?? false,
             IdcardNumber = u.IdcardNumber,
             IssuedDate = u.IssuedDate,
@@ -39,11 +41,20 @@ namespace AppBackend.Services.Services.UserServices
             UserId = u.UserId,
             FullName = u.FullName,
             Email = u.Email,
-            RoleId = u.RoleId,
-            RoleLabel = RoleConstants.Labels.GetValueOrDefault(u.RoleId, "Unknown"),
+            // ✅ multi-role
+            RoleIds = u.UserRoles.Select(r => r.RoleId).ToList(),
+            RoleLabels = u.UserRoles
+                            .Select(r => RoleConstants.Labels
+                                .GetValueOrDefault(r.RoleId, "Unknown"))
+                            .ToList(),
             IsActive = u.IsActive ?? false,
             ContractType = u.ContractType,
         };
+
+        // ── Helper: kiểm tra user có quyền Admin không ────────
+        // ✅ Thay vì user.RoleId == Admin, giờ kiểm tra trong collection
+        private static bool HasAdminRole(User u)
+            => u.UserRoles.Any(r => r.RoleId == RoleConstants.Admin);
 
         // ── Danh sách người dùng ──────────────────────────────
         public async Task<ResultModel<PagedResult<UserListDto>>> GetListAsync(
@@ -51,6 +62,7 @@ namespace AppBackend.Services.Services.UserServices
         {
             try
             {
+                // _repo.GetListAsync phải Include(u => u.UserRoles)
                 var (items, total) = await _repo.GetListAsync(request);
                 var dtos = items.Select(MapToList).ToList();
 
@@ -70,6 +82,7 @@ namespace AppBackend.Services.Services.UserServices
         {
             try
             {
+                // _repo.GetByIdAsync phải Include(u => u.UserRoles)
                 var user = await _repo.GetByIdAsync(userId);
                 if (user == null)
                     return Fail<UserDetailDto>(404, "NOT_FOUND",
@@ -86,7 +99,7 @@ namespace AppBackend.Services.Services.UserServices
         {
             try
             {
-                // Validate
+                // Validate thông tin cơ bản
                 if (string.IsNullOrWhiteSpace(request.FullName))
                     return Fail<UserDetailDto>(400, "MISSING_FULLNAME",
                         "Họ tên không được để trống");
@@ -99,14 +112,18 @@ namespace AppBackend.Services.Services.UserServices
                     return Fail<UserDetailDto>(400, "WEAK_PASSWORD",
                         "Mật khẩu phải có ít nhất 6 ký tự");
 
-                // Admin chỉ được tạo Manager hoặc Staff, không được tạo Admin khác
-                if (request.RoleId == RoleConstants.Admin)
+                // ✅ Validate từng roleId trong danh sách
+                if (request.RoleIds == null || request.RoleIds.Count == 0)
+                    return Fail<UserDetailDto>(400, "MISSING_ROLE",
+                        "Phải chọn ít nhất một quyền");
+
+                if (request.RoleIds.Any(id => id == RoleConstants.Admin))
                     return Fail<UserDetailDto>(403, "FORBIDDEN_ROLE",
                         "Không thể tạo tài khoản Admin");
 
-                if (!RoleConstants.IsValid(request.RoleId))
+                if (request.RoleIds.Any(id => !RoleConstants.IsValid(id)))
                     return Fail<UserDetailDto>(400, "INVALID_ROLE",
-                        $"RoleId không hợp lệ. Chấp nhận: 2 (Manager), 3 (Staff)");
+                        "RoleId không hợp lệ. Chấp nhận: 2 (Manager), 3 (Staff)");
 
                 // Kiểm tra email trùng
                 var existing = await _repo.GetByEmailAsync(request.Email);
@@ -123,7 +140,6 @@ namespace AppBackend.Services.Services.UserServices
                     Email = request.Email.Trim().ToLower(),
                     FullName = request.FullName.Trim(),
                     PasswordHash = HashPassword(request.Password),
-                    RoleId = request.RoleId,
                     IsActive = true,
                     IdcardNumber = request.IdcardNumber,
                     IssuedDate = request.IssuedDate,
@@ -132,6 +148,11 @@ namespace AppBackend.Services.Services.UserServices
                     NegotiatedSalary = request.NegotiatedSalary,
                     InssuranceSalary = request.InsuranceSalary,
                     NumberOfDependent = request.NumberOfDependent,
+                    // ✅ Gán nhiều roles ngay khi tạo
+                    UserRoles = request.RoleIds
+                        .Distinct()
+                        .Select(rid => new UserRole { UserId = userId, RoleId = rid })
+                        .ToList(),
                 };
 
                 await _repo.AddAsync(user);
@@ -160,18 +181,16 @@ namespace AppBackend.Services.Services.UserServices
                     return Fail<UserDetailDto>(404, "NOT_FOUND",
                         $"Không tìm thấy người dùng: {userId}");
 
-                // Admin không được chỉnh sửa Admin khác
-                if (user.RoleId == RoleConstants.Admin && user.UserId != adminId)
+                // ✅ Dùng helper HasAdminRole thay vì user.RoleId == Admin
+                if (HasAdminRole(user) && user.UserId != adminId)
                     return Fail<UserDetailDto>(403, "FORBIDDEN",
                         "Không có quyền chỉnh sửa tài khoản Admin khác");
 
-                // Cập nhật các field nếu có truyền lên
                 if (!string.IsNullOrWhiteSpace(request.FullName))
                     user.FullName = request.FullName.Trim();
 
                 if (!string.IsNullOrWhiteSpace(request.Email))
                 {
-                    // Kiểm tra email mới có bị trùng không
                     var emailOwner = await _repo.GetByEmailAsync(request.Email);
                     if (emailOwner != null && emailOwner.UserId != userId)
                         return Fail<UserDetailDto>(409, "EMAIL_TAKEN",
@@ -195,38 +214,55 @@ namespace AppBackend.Services.Services.UserServices
             catch (Exception ex) { return Error<UserDetailDto>(ex); }
         }
 
-        // ── Đổi phân quyền ───────────────────────────────────
+        // ── Đổi phân quyền (multi-role) ───────────────────────
         public async Task<ResultModel<int>> UpdateRoleAsync(
             string userId, UpdateRoleRequest request, string adminId)
         {
             try
             {
-                // Chỉ Manager hoặc Staff mới được đổi role
-                if (request.RoleId == RoleConstants.Admin)
+                // ✅ Validate danh sách roleIds
+                if (request.RoleIds == null || request.RoleIds.Count == 0)
+                    return Fail<int>(400, "MISSING_ROLE",
+                        "Phải chọn ít nhất một quyền");
+
+                if (request.RoleIds.Any(id => id == RoleConstants.Admin))
                     return Fail<int>(403, "FORBIDDEN_ROLE",
                         "Không thể gán quyền Admin");
 
-                if (!RoleConstants.IsValid(request.RoleId))
+                if (request.RoleIds.Any(id => !RoleConstants.IsValid(id)))
                     return Fail<int>(400, "INVALID_ROLE",
                         "RoleId không hợp lệ. Chấp nhận: 2 (Manager), 3 (Staff)");
 
+                // ✅ GetByIdAsync phải Include(u => u.UserRoles)
                 var user = await _repo.GetByIdAsync(userId);
                 if (user == null)
                     return Fail<int>(404, "NOT_FOUND",
                         $"Không tìm thấy người dùng: {userId}");
 
-                if (user.RoleId == RoleConstants.Admin)
+                if (HasAdminRole(user))
                     return Fail<int>(403, "FORBIDDEN",
                         "Không thể thay đổi quyền của Admin");
 
-                var oldRole = RoleConstants.Labels.GetValueOrDefault(user.RoleId, "?");
-                var newRole = RoleConstants.Labels.GetValueOrDefault(request.RoleId, "?");
+                // Ghi log quyền cũ → mới để trả về message
+                var oldLabels = user.UserRoles
+                    .Select(r => RoleConstants.Labels.GetValueOrDefault(r.RoleId, "?"))
+                    .ToList();
+                var newLabels = request.RoleIds
+                    .Select(id => RoleConstants.Labels.GetValueOrDefault(id, "?"))
+                    .ToList();
 
-                user.RoleId = request.RoleId;
+                // ✅ Xóa toàn bộ roles cũ, gán lại roles mới
+                await _repo.RemoveUserRolesAsync(userId);
+                user.UserRoles = request.RoleIds
+                    .Distinct()
+                    .Select(rid => new UserRole { UserId = userId, RoleId = rid })
+                    .ToList();
+
                 var rows = await _repo.SaveChangesAsync();
 
                 return Ok(rows,
-                    $"Đã đổi quyền {user.FullName} từ {oldRole} → {newRole}");
+                    $"Đã đổi quyền {user.FullName}: " +
+                    $"[{string.Join(", ", oldLabels)}] → [{string.Join(", ", newLabels)}]");
             }
             catch (Exception ex) { return Error<int>(ex); }
         }
@@ -247,7 +283,8 @@ namespace AppBackend.Services.Services.UserServices
                     return Fail<int>(404, "NOT_FOUND",
                         $"Không tìm thấy người dùng: {userId}");
 
-                if (user.RoleId == RoleConstants.Admin && user.UserId != adminId)
+                // ✅ dùng HasAdminRole
+                if (HasAdminRole(user) && user.UserId != adminId)
                     return Fail<int>(403, "FORBIDDEN",
                         "Không thể reset mật khẩu Admin khác");
 
@@ -270,11 +307,11 @@ namespace AppBackend.Services.Services.UserServices
                     return Fail<int>(404, "NOT_FOUND",
                         $"Không tìm thấy người dùng: {userId}");
 
-                if (user.RoleId == RoleConstants.Admin)
+                // ✅ dùng HasAdminRole
+                if (HasAdminRole(user))
                     return Fail<int>(403, "FORBIDDEN",
                         "Không thể khóa tài khoản Admin");
 
-                // Không cho tự khóa chính mình
                 if (user.UserId == adminId && !request.IsActive)
                     return Fail<int>(400, "SELF_LOCK",
                         "Không thể tự khóa tài khoản của chính mình");
@@ -289,11 +326,8 @@ namespace AppBackend.Services.Services.UserServices
         }
 
         // ── Password helpers ──────────────────────────────────
-        // ✅ Thống nhất dùng BCrypt như AuthService
         private static string HashPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password);
-        }
+            => BCrypt.Net.BCrypt.HashPassword(password);
 
         // ── Result helpers ────────────────────────────────────
         private static ResultModel<T> Ok<T>(T data, string msg) => new()

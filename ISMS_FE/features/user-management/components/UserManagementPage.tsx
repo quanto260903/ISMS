@@ -5,15 +5,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { useUserManagement }  from "../hooks/useUserManagement";
+import { useUserManagement } from "../hooks/useUserManagement";
 import {
   ROLE_OPTIONS, CONTRACT_OPTIONS,
   type UserListDto, type CreateUserRequest, type UpdateUserRequest,
 } from "../types/userManagement.types";
 
-// ── Role badge helper ────────────────────────────────────────
+// ── Single role badge ────────────────────────────────────────
 function RoleBadge({ roleId, label }: { roleId: number; label: string }) {
-  const opt = ROLE_OPTIONS.find((r) => r.value === roleId);
+  const opt    = ROLE_OPTIONS.find((r) => r.value === roleId);
   const color  = opt?.color  ?? "#64748b";
   const bg     = opt?.bg     ?? "#f8fafc";
   const border = opt?.border ?? "#e2e8f0";
@@ -26,6 +26,23 @@ function RoleBadge({ roleId, label }: { roleId: number; label: string }) {
     }}>
       {label}
     </span>
+  );
+}
+
+// ✅ Multi-role badge list — hiện nhiều badge cạnh nhau
+function RoleBadgeList({ roleIds, roleLabels }: {
+  roleIds:    number[];
+  roleLabels: string[];
+}) {
+  if (!roleIds || roleIds.length === 0) {
+    return <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>;
+  }
+  return (
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+      {roleIds.map((id, idx) => (
+        <RoleBadge key={id} roleId={id} label={roleLabels[idx] ?? String(id)} />
+      ))}
+    </div>
   );
 }
 
@@ -139,14 +156,28 @@ export default function UserManagementPage() {
       {/* ── Summary chips ── */}
       <div style={s.chipRow}>
         {[
-          { label: "Tổng nhân viên", value: total,
-            bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
-          { label: "Đang hoạt động", value: items.filter((i) => i.isActive).length,
-            bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
-          { label: "Manager", value: items.filter((i) => i.roleId === 2).length,
-            bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe" },
-          { label: "Staff", value: items.filter((i) => i.roleId === 3).length,
-            bg: "#f0f9ff", color: "#0369a1", border: "#bae6fd" },
+          {
+            label: "Tổng nhân viên",
+            value: total,
+            bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe",
+          },
+          {
+            label: "Đang hoạt động",
+            value: items.filter((i) => i.isActive).length,
+            bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0",
+          },
+          {
+            label: "Manager",
+            // ✅ đếm user có chứa roleId 2 trong mảng roleIds
+            value: items.filter((i) => i.roleIds?.includes(2)).length,
+            bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe",
+          },
+          {
+            label: "Staff",
+            // ✅ đếm user có chứa roleId 3 trong mảng roleIds
+            value: items.filter((i) => i.roleIds?.includes(3)).length,
+            bg: "#f0f9ff", color: "#0369a1", border: "#bae6fd",
+          },
         ].map(({ label, value, bg, color, border }) => (
           <div key={label} style={{ ...s.chip, background: bg, color, border: `1.5px solid ${border}` }}>
             <span style={s.chipNum}>{value}</span>
@@ -277,7 +308,8 @@ export default function UserManagementPage() {
           user={selected}
           loading={detailLoading || submitLoading}
           onClose={closeModal}
-          onSubmit={(roleId) => handleUpdateRole(selected!.userId, roleId)}
+          // ✅ nhận roleIds: number[] thay vì roleId: number
+          onSubmit={(roleIds) => handleUpdateRole(selected!.userId, roleIds)}
         />
       )}
       {modalMode === "password" && (
@@ -304,17 +336,16 @@ function UserRow({ user, i, onEdit, onRole, onPassword, onToggleStatus }: {
   onToggleStatus: () => void;
 }) {
   const [hover, setHover] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <tr
       style={{
-        background:  hover ? "#f0f4ff" : i % 2 === 0 ? "#fff" : "#fafbff",
-        transition:  "background 0.1s",
-        opacity:     user.isActive ? 1 : 0.6,
+        background: hover ? "#f0f4ff" : i % 2 === 0 ? "#fff" : "#fafbff",
+        transition: "background 0.1s",
+        opacity:    user.isActive ? 1 : 0.6,
       }}
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => { setHover(false); setMenuOpen(false); }}
+      onMouseLeave={() => setHover(false)}
     >
       <td style={{ ...s.td, fontFamily: "monospace", color: "#64748b", fontSize: 12 }}>
         {user.userId}
@@ -325,8 +356,9 @@ function UserRow({ user, i, onEdit, onRole, onPassword, onToggleStatus }: {
       <td style={{ ...s.td, color: "#475569" }}>
         {user.email ?? "—"}
       </td>
+      {/* ✅ dùng RoleBadgeList thay RoleBadge */}
       <td style={s.td}>
-        <RoleBadge roleId={user.roleId} label={user.roleLabel} />
+        <RoleBadgeList roleIds={user.roleIds} roleLabels={user.roleLabels} />
       </td>
       <td style={{ ...s.td, color: "#64748b", fontSize: 12 }}>
         {user.contractType ?? "—"}
@@ -336,8 +368,8 @@ function UserRow({ user, i, onEdit, onRole, onPassword, onToggleStatus }: {
       </td>
       <td style={{ ...s.td, textAlign: "center" }}>
         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-          <button style={s.btnAction} onClick={onEdit} title="Chỉnh sửa">✏️</button>
-          <button style={s.btnAction} onClick={onRole} title="Đổi quyền">🔑</button>
+          <button style={s.btnAction} onClick={onEdit}     title="Chỉnh sửa">✏️</button>
+          <button style={s.btnAction} onClick={onRole}     title="Đổi quyền">🔑</button>
           <button style={s.btnAction} onClick={onPassword} title="Reset mật khẩu">🔒</button>
           <button
             style={{
@@ -367,33 +399,86 @@ function CreateModal({ loading, onClose, onSubmit }: {
 }) {
   const [form, setForm] = useState<CreateUserRequest>({
     fullName: "", email: "", password: "",
-    roleId: 3, numberOfDependent: 0,
+    roleIds: [3],   // ✅ default: Staff
+    numberOfDependent: 0,
   });
   const [showPw, setShowPw] = useState(false);
+
   const set = (k: keyof CreateUserRequest, v: unknown) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
+  // ✅ Toggle role trong mảng roleIds
+  const toggleRole = (roleId: number) => {
+    setForm((prev) => {
+      const exists = prev.roleIds.includes(roleId);
+      if (exists) {
+        // Không cho phép bỏ chọn nếu chỉ còn 1 quyền
+        if (prev.roleIds.length <= 1) return prev;
+        return { ...prev, roleIds: prev.roleIds.filter((id) => id !== roleId) };
+      }
+      return { ...prev, roleIds: [...prev.roleIds, roleId] };
+    });
+  };
+
   return (
     <Modal title="✨ Tạo tài khoản nhân viên" onClose={onClose} width={580}>
-      {/* Role selector cards */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        {ROLE_OPTIONS.map((r) => (
-          <div
-            key={r.value}
-            style={{
-              flex: 1, padding: "12px 14px", borderRadius: 10,
-              border: `2px solid ${form.roleId === r.value ? r.color : "#e2e8f0"}`,
-              background: form.roleId === r.value ? r.bg : "#fafbff",
-              cursor: "pointer", transition: "all 0.15s",
-            }}
-            onClick={() => set("roleId", r.value)}
-          >
-            <div style={{ fontWeight: 700, color: form.roleId === r.value ? r.color : "#1e293b", fontSize: 13 }}>
-              {r.label}
-            </div>
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>{r.desc}</div>
-          </div>
-        ))}
+
+      {/* ✅ Role selector — checkbox (chọn nhiều) */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 8 }}>
+          Phân quyền
+          <span style={{ color: "#ef4444", marginLeft: 3 }}>*</span>
+          <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 6 }}>
+            (có thể chọn nhiều quyền)
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {ROLE_OPTIONS.map((r) => {
+            const checked = form.roleIds.includes(r.value);
+            return (
+              <div
+                key={r.value}
+                style={{
+                  flex: 1, padding: "12px 14px", borderRadius: 10,
+                  border: `2px solid ${checked ? r.color : "#e2e8f0"}`,
+                  background: checked ? r.bg : "#fafbff",
+                  cursor: "pointer", transition: "all 0.15s",
+                  position: "relative" as const,
+                }}
+                onClick={() => toggleRole(r.value)}
+              >
+                {/* Checkmark góc trên phải */}
+                {checked && (
+                  <span style={{
+                    position: "absolute", top: 8, right: 10,
+                    width: 18, height: 18, borderRadius: "50%",
+                    background: r.color, color: "#fff",
+                    fontSize: 11, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    ✓
+                  </span>
+                )}
+                <div style={{ fontWeight: 700, color: checked ? r.color : "#1e293b", fontSize: 13 }}>
+                  {r.label}
+                </div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>{r.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Preview badges đã chọn */}
+        <div style={{
+          marginTop: 8, padding: "7px 10px", borderRadius: 7,
+          background: "#f8fafc", border: "1px solid #e2e8f0",
+          display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const,
+        }}>
+          <span style={{ fontSize: 11, color: "#64748b" }}>Quyền đã chọn:</span>
+          {form.roleIds.map((id) => {
+            const opt = ROLE_OPTIONS.find((r) => r.value === id);
+            return opt ? <RoleBadge key={id} roleId={id} label={opt.label} /> : null;
+          })}
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
@@ -412,8 +497,10 @@ function CreateModal({ loading, onClose, onSubmit }: {
             <input style={inp} type={showPw ? "text" : "password"} placeholder="Tối thiểu 6 ký tự"
               value={form.password} onChange={(e) => set("password", e.target.value)} />
             <button
-              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-                background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#64748b" }}
+              style={{
+                position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#64748b",
+              }}
               onClick={() => setShowPw(!showPw)} type="button"
             >{showPw ? "🙈" : "👁️"}</button>
           </div>
@@ -472,7 +559,7 @@ function CreateModal({ loading, onClose, onSubmit }: {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  EDIT MODAL
+//  EDIT MODAL  (không liên quan đến role — giữ nguyên)
 // ─────────────────────────────────────────────────────────────
 function EditModal({ user, loading, onClose, onSubmit }: {
   user:     import("../types/userManagement.types").UserDetailDto | null;
@@ -564,62 +651,146 @@ function EditModal({ user, loading, onClose, onSubmit }: {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ROLE MODAL
+//  ROLE MODAL  ✅ MULTI-ROLE: checkbox thay radio
 // ─────────────────────────────────────────────────────────────
 function RoleModal({ user, loading, onClose, onSubmit }: {
   user:     import("../types/userManagement.types").UserDetailDto | null;
   loading:  boolean;
   onClose:  () => void;
-  onSubmit: (roleId: number) => void;
+  onSubmit: (roleIds: number[]) => void;   // ✅ array thay vì number
 }) {
-  const [roleId, setRoleId] = useState<number>(3);
-  React.useEffect(() => { if (user) setRoleId(user.roleId); }, [user]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Khởi tạo từ dữ liệu user hiện tại
+  React.useEffect(() => {
+    if (user) setSelectedIds(user.roleIds ?? []);
+  }, [user]);
+
+  // Toggle thêm/bỏ một quyền
+  const toggleRole = (id: number) => {
+    setSelectedIds((prev) => {
+      const exists = prev.includes(id);
+      if (exists) {
+        // Không cho bỏ nếu chỉ còn 1 quyền
+        if (prev.length <= 1) return prev;
+        return prev.filter((x) => x !== id);
+      }
+      return [...prev, id];
+    });
+  };
+
+  // Kiểm tra có thay đổi gì không
+  const unchanged =
+    JSON.stringify([...selectedIds].sort()) ===
+    JSON.stringify([...(user?.roleIds ?? [])].sort());
 
   if (loading && !user) return (
-    <Modal title="Đổi phân quyền" onClose={onClose} width={420}>
+    <Modal title="Đổi phân quyền" onClose={onClose} width={440}>
       <div style={s.statusCell}>⏳ Đang tải...</div>
     </Modal>
   );
 
   return (
-    <Modal title={`🔑 Đổi quyền — ${user?.fullName ?? ""}`} onClose={onClose} width={420}>
-      <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+    <Modal title={`🔑 Đổi quyền — ${user?.fullName ?? ""}`} onClose={onClose} width={440}>
+
+      {/* Mô tả */}
+      <p style={{ color: "#64748b", fontSize: 13, marginBottom: 4 }}>
         Quyền hiện tại:{" "}
-        <strong>{user?.roleLabel}</strong>
+        <RoleBadgeList
+          roleIds={user?.roleIds ?? []}
+          roleLabels={user?.roleLabels ?? []}
+        />
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        {ROLE_OPTIONS.map((r) => (
-          <label
-            key={r.value}
-            style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "14px 16px", borderRadius: 10,
-              border: `2px solid ${roleId === r.value ? r.color : "#e2e8f0"}`,
-              background: roleId === r.value ? r.bg : "#fafbff",
-              cursor: "pointer", transition: "all 0.15s",
-            }}
-          >
-            <input
-              type="radio" value={r.value}
-              checked={roleId === r.value}
-              onChange={() => setRoleId(r.value)}
-              style={{ accentColor: r.color, width: 16, height: 16 }}
-            />
-            <div>
-              <div style={{ fontWeight: 700, color: roleId === r.value ? r.color : "#1e293b" }}>
-                {r.label}
+      <p style={{ color: "#94a3b8", fontSize: 12, marginBottom: 16 }}>
+        Tích chọn một hoặc nhiều quyền. Tài khoản sẽ có đầy đủ chức năng của các quyền đã chọn.
+      </p>
+
+      {/* Warning nếu bỏ chọn hết */}
+      {selectedIds.length === 0 && (
+        <div style={{
+          padding: "10px 14px", borderRadius: 8, marginBottom: 12,
+          background: "#fff7ed", border: "1.5px solid #fed7aa",
+          color: "#c2410c", fontSize: 12, fontWeight: 600,
+        }}>
+          ⚠️ Phải giữ ít nhất một quyền
+        </div>
+      )}
+
+      {/* ✅ Checkbox cards thay radio */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+        {ROLE_OPTIONS.map((r) => {
+          const checked = selectedIds.includes(r.value);
+          const isOnlyOne = selectedIds.length === 1 && checked;
+          return (
+            <label
+              key={r.value}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px", borderRadius: 10,
+                border: `2px solid ${checked ? r.color : "#e2e8f0"}`,
+                background: checked ? r.bg : "#fafbff",
+                cursor: isOnlyOne ? "not-allowed" : "pointer",
+                transition: "all 0.15s",
+                opacity: isOnlyOne ? 0.75 : 1,
+              }}
+              title={isOnlyOne ? "Phải có ít nhất một quyền" : undefined}
+            >
+              {/* ✅ checkbox input */}
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={isOnlyOne}
+                onChange={() => toggleRole(r.value)}
+                style={{ accentColor: r.color, width: 16, height: 16, cursor: isOnlyOne ? "not-allowed" : "pointer" }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: checked ? r.color : "#1e293b" }}>
+                  {r.label}
+                </div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{r.desc}</div>
               </div>
-              <div style={{ fontSize: 11, color: "#64748b" }}>{r.desc}</div>
-            </div>
-          </label>
-        ))}
+              {checked && (
+                <span style={{
+                  width: 20, height: 20, borderRadius: "50%",
+                  background: r.color, color: "#fff",
+                  fontSize: 11, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  ✓
+                </span>
+              )}
+            </label>
+          );
+        })}
       </div>
+
+      {/* Preview quyền sau khi lưu */}
+      <div style={{
+        padding: "10px 14px", borderRadius: 8,
+        background: "#f8fafc", border: "1px solid #e2e8f0",
+        display: "flex", alignItems: "center", gap: 8,
+        flexWrap: "wrap" as const, marginBottom: 4,
+      }}>
+        <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0 }}>Sau khi lưu:</span>
+        {selectedIds.length > 0
+          ? selectedIds.map((id) => {
+              const opt = ROLE_OPTIONS.find((r) => r.value === id);
+              return opt ? <RoleBadge key={id} roleId={id} label={opt.label} /> : null;
+            })
+          : <span style={{ fontSize: 12, color: "#ef4444" }}>Chưa chọn quyền nào</span>
+        }
+      </div>
+
       <div style={modalFooter}>
         <button style={btnCancel} onClick={onClose}>Hủy</button>
         <button
-          style={{ ...btnSave, opacity: loading ? 0.7 : 1 }}
-          disabled={loading || roleId === user?.roleId}
-          onClick={() => onSubmit(roleId)}
+          style={{
+            ...btnSave,
+            opacity: (loading || unchanged || selectedIds.length === 0) ? 0.5 : 1,
+          }}
+          disabled={loading || unchanged || selectedIds.length === 0}
+          onClick={() => onSubmit(selectedIds)}
         >
           {loading ? "⏳ Đang lưu..." : "🔑 Xác nhận đổi quyền"}
         </button>
@@ -629,7 +800,7 @@ function RoleModal({ user, loading, onClose, onSubmit }: {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  PASSWORD MODAL
+//  PASSWORD MODAL  (không thay đổi)
 // ─────────────────────────────────────────────────────────────
 function PasswordModal({ userName, loading, onClose, onSubmit }: {
   userName: string;
@@ -655,8 +826,10 @@ function PasswordModal({ userName, loading, onClose, onSubmit }: {
             onChange={(e) => setPw(e.target.value)}
           />
           <button
-            style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-              background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
+            style={{
+              position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+              background: "none", border: "none", cursor: "pointer", fontSize: 14,
+            }}
             onClick={() => setShowPw(!showPw)} type="button"
           >{showPw ? "🙈" : "👁️"}</button>
         </div>
@@ -699,7 +872,6 @@ const s: Record<string, React.CSSProperties> = {
     padding: "12px 20px", borderRadius: 10,
     fontWeight: 600, fontSize: 13,
     boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-    animation: "fadeIn 0.2s ease",
   },
   hero: {
     position: "relative", overflow: "hidden",
@@ -729,8 +901,10 @@ const s: Record<string, React.CSSProperties> = {
     color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
   },
   chipRow:   { display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" as const },
-  chip:      { display: "flex", flexDirection: "column" as const, alignItems: "center",
-    gap: 3, padding: "12px 20px", borderRadius: 10, minWidth: 110 },
+  chip:      {
+    display: "flex", flexDirection: "column" as const, alignItems: "center",
+    gap: 3, padding: "12px 20px", borderRadius: 10, minWidth: 110,
+  },
   chipNum:   { fontSize: 22, fontWeight: 800 },
   chipLabel: { fontSize: 11, fontWeight: 600 },
   filterBar: {
@@ -762,14 +936,18 @@ const s: Record<string, React.CSSProperties> = {
   },
   td:         { padding: "10px 14px", borderBottom: "1px solid #f1f5f9" },
   statusCell: { padding: "48px 0", textAlign: "center" as const, color: "#94a3b8" },
-  footer:     { display: "flex", justifyContent: "space-between", alignItems: "center",
+  footer:     {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
     padding: "12px 16px", background: "#fff",
-    borderRadius: 10, border: "1px solid #e2e8f0" },
+    borderRadius: 10, border: "1px solid #e2e8f0",
+  },
   totalText:  { fontSize: 13, color: "#64748b" },
   pagination: { display: "flex", alignItems: "center", gap: 6 },
   pageInfo:   { fontSize: 13, color: "#64748b", marginRight: 6 },
-  pageBtn:    { width: 30, height: 30, border: "1.5px solid #e2e8f0",
-    borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 14 },
+  pageBtn:    {
+    width: 30, height: 30, border: "1.5px solid #e2e8f0",
+    borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 14,
+  },
   btnAction: {
     width: 32, height: 32, border: "1px solid #e2e8f0",
     borderRadius: 7, background: "#f8fafc", cursor: "pointer",

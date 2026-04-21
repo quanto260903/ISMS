@@ -10,6 +10,7 @@ namespace AppBackend.Repositories.Repositories.UserRepo
         Task<User?> GetByIdAsync(string userId);
         Task<User?> GetByEmailAsync(string email);
         Task AddAsync(User user);
+        Task RemoveUserRolesAsync(string userId); 
         Task<int> SaveChangesAsync();
     }
 }

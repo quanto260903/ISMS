@@ -34,11 +34,11 @@ export function useUserManagement() {
 
   // ── Modal / detail state ────────────────────────────────────
   type ModalMode = "create" | "edit" | "role" | "password" | "none";
-  const [modalMode, setModalMode]     = useState<ModalMode>("none");
-  const [selected, setSelected]       = useState<UserDetailDto | null>(null);
-  const [detailLoading, setDetailLoad]= useState(false);
-  const [submitLoading, setSubmitLoad]= useState(false);
-  const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
+  const [modalMode, setModalMode]      = useState<ModalMode>("none");
+  const [selected, setSelected]        = useState<UserDetailDto | null>(null);
+  const [detailLoading, setDetailLoad] = useState(false);
+  const [submitLoading, setSubmitLoad] = useState(false);
+  const [toast, setToast]              = useState<{ msg: string; ok: boolean } | null>(null);
 
   // ── Fetch list ──────────────────────────────────────────────
   const fetchList = useCallback(async (f: Filters, p: number) => {
@@ -47,7 +47,7 @@ export function useUserManagement() {
     try {
       const res = await getUserList({
         keyword:  f.keyword  || undefined,
-        roleId:   f.roleId   ? Number(f.roleId)           : undefined,
+        roleId:   f.roleId   ? Number(f.roleId)            : undefined,
         isActive: f.isActive !== "" ? f.isActive === "true" : undefined,
         page:     p,
         pageSize: PAGE_SIZE,
@@ -140,10 +140,11 @@ export function useUserManagement() {
     }
   };
 
-  const handleUpdateRole = async (userId: string, roleId: number) => {
+  // ✅ Multi-role: nhận roleIds: number[] thay vì roleId: number
+  const handleUpdateRole = async (userId: string, roleIds: number[]) => {
     setSubmitLoad(true);
     try {
-      const msg = await updateRole(userId, roleId);
+      const msg = await updateRole(userId, { roleIds });
       showToast(msg);
       closeModal();
       fetchList(filters, page);

@@ -1,6 +1,5 @@
-using AppBackend.BusinessObjects.Dtos;
+﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
-using AppBackend.Repositories.Generic;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppBackend.Repositories.Repositories.UserRepo
@@ -8,14 +7,19 @@ namespace AppBackend.Repositories.Repositories.UserRepo
     public class UserRepository : IUserRepository
     {
         private readonly IndividualBusinessContext _context;
+
         public UserRepository(IndividualBusinessContext context)
             => _context = context;
 
+        // ── Danh sách user ────────────────────────────────────
         public async Task<(IEnumerable<User> Items, int Total)> GetListAsync(
             GetUserListRequest request)
         {
+            // ✅ Include UserRoles để MapToList dùng được u.UserRoles
             var query = _context.Users
-                .Where(u => u.RoleId != RoleConstants.Admin)
+                .Include(u => u.UserRoles)
+                // ✅ Lọc bỏ Admin: kiểm tra trong bảng UserRoles thay vì u.RoleId
+                .Where(u => !u.UserRoles.Any(r => r.RoleId == RoleConstants.Admin))
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Keyword))
@@ -27,13 +31,16 @@ namespace AppBackend.Repositories.Repositories.UserRepo
                     u.UserId.ToLower().Contains(kw));
             }
 
+            // ✅ Lọc theo role: kiểm tra trong UserRoles thay vì u.RoleId
             if (request.RoleId.HasValue)
-                query = query.Where(u => u.RoleId == request.RoleId.Value);
+                query = query.Where(u =>
+                    u.UserRoles.Any(r => r.RoleId == request.RoleId.Value));
 
             if (request.IsActive.HasValue)
                 query = query.Where(u => u.IsActive == request.IsActive.Value);
 
             var total = await query.CountAsync();
+
             var items = await query
                 .OrderByDescending(u => u.IsActive)
                 .ThenBy(u => u.FullName)
@@ -44,16 +51,35 @@ namespace AppBackend.Repositories.Repositories.UserRepo
             return (items, total);
         }
 
+        // ── Chi tiết 1 user ───────────────────────────────────
         public async Task<User?> GetByIdAsync(string userId)
-            => await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            // ✅ Include UserRoles để service dùng được u.UserRoles
+            => await _context.Users
+                .Include(u => u.UserRoles)
+                .FirstOrDefaultAsync(u => u.UserId == userId);
 
+        // ── Tìm theo email ────────────────────────────────────
         public async Task<User?> GetByEmailAsync(string email)
             => await _context.Users
+                .Include(u => u.UserRoles)
                 .FirstOrDefaultAsync(u => u.Email == email.Trim().ToLower());
 
+        // ── Thêm user mới ─────────────────────────────────────
         public async Task AddAsync(User user)
             => await _context.Users.AddAsync(user);
 
+        // ✅ Xóa toàn bộ UserRoles của 1 user (dùng trước khi gán roles mới)
+        // Không gọi SaveChanges ở đây — để service gọi sau cùng 1 lần
+        public async Task RemoveUserRolesAsync(string userId)
+        {
+            var roles = await _context.UserRoles
+                .Where(r => r.UserId == userId)
+                .ToListAsync();
+
+            _context.UserRoles.RemoveRange(roles);
+        }
+
+        // ── Lưu thay đổi ─────────────────────────────────────
         public async Task<int> SaveChangesAsync()
             => await _context.SaveChangesAsync();
     }

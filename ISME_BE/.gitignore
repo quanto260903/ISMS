@@ -401,3 +401,6 @@ FodyWeavers.xsd
 *.sln.iml
 *.xml
 */.idea/*
+# Custom ignore
+appsettings.json
+IndividualBusinessContext.cs

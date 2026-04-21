@@ -2,13 +2,11 @@
 using AppBackend.BusinessObjects.Models;
 using AppBackend.Services.ApiModels;
 using AppBackend.Services.ApiModels.Auth;
-using CloudinaryDotNet.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace AppBackend.Services.Services.AuthServices
@@ -24,12 +22,14 @@ namespace AppBackend.Services.Services.AuthServices
             _config = config;
         }
 
-        // ── Login ──────────────────────────────────────────────────────────
+        // ── Login ──────────────────────────────────────────────
         public async Task<ResultModel<AuthData>> LoginAsync(AuthLoginRequest request)
         {
             try
             {
+                // ✅ Include UserRoles để dùng trong MapToDto và GenerateToken
                 var user = await _context.Users
+                    .Include(u => u.UserRoles)
                     .FirstOrDefaultAsync(u =>
                         u.Email == request.Email.Trim().ToLower() &&
                         u.IsActive == true);
@@ -46,7 +46,7 @@ namespace AppBackend.Services.Services.AuthServices
             catch (Exception ex) { return Error<AuthData>(ex); }
         }
 
-        // ── Register ───────────────────────────────────────────────────────
+        // ── Register ───────────────────────────────────────────
         public async Task<ResultModel<AuthData>> RegisterAsync(AuthRegisterRequest request)
         {
             try
@@ -67,8 +67,12 @@ namespace AppBackend.Services.Services.AuthServices
                     Email = request.Email.Trim().ToLower(),
                     FullName = request.FullName.Trim(),
                     PasswordHash = HashPassword(request.Password),
-                    RoleId = 1, // Tài khoản đăng ký luôn là Admin
                     IsActive = true,
+                    // ✅ Gán Admin role qua UserRoles thay vì RoleId
+                    UserRoles = new List<UserRole>
+                    {
+                        new UserRole { UserId = userId, RoleId = RoleConstants.Admin }
+                    },
                 };
 
                 await _context.Users.AddAsync(user);
@@ -83,18 +87,20 @@ namespace AppBackend.Services.Services.AuthServices
                     ResponseCode = "SUCCESS",
                     StatusCode = 201,
                     Data = new AuthData { User = dto, Token = token },
-                    Message = "Đăng ký thành công"
+                    Message = "Đăng ký thành công",
                 };
             }
             catch (Exception ex) { return Error<AuthData>(ex); }
         }
 
-        // ── GetMe ──────────────────────────────────────────────────────────
+        // ── GetMe ──────────────────────────────────────────────
         public async Task<ResultModel<UserDto>> GetMeAsync(string userId)
         {
             try
             {
+                // ✅ Include UserRoles
                 var user = await _context.Users
+                    .Include(u => u.UserRoles)
                     .FirstOrDefaultAsync(u => u.UserId == userId && u.IsActive == true);
 
                 if (user == null)
@@ -105,32 +111,37 @@ namespace AppBackend.Services.Services.AuthServices
             catch (Exception ex) { return Error<UserDto>(ex); }
         }
 
-        // ── Helpers ────────────────────────────────────────────────────────
+        // ── Helpers ────────────────────────────────────────────
+
+        // ✅ Lấy roleId đầu tiên (ưu tiên Admin > Manager > Staff) để điền UserDto.Role
+        private static int PrimaryRoleId(User user)
+        {
+            var ids = user.UserRoles.Select(r => r.RoleId).ToHashSet();
+            if (ids.Contains(RoleConstants.Admin)) return RoleConstants.Admin;
+            if (ids.Contains(RoleConstants.Manager)) return RoleConstants.Manager;
+            if (ids.Contains(RoleConstants.Staff)) return RoleConstants.Staff;
+            return 0;
+        }
 
         private static UserDto MapToDto(User user)
         {
-            var roleName = user.RoleId switch
-            {
-                1 => "Admin",
-                2 => "Manager",
-                3 => "Staff",
-                _ => "User"
-            };
+            // ✅ Dùng PrimaryRoleId thay vì user.RoleId
+            var primaryRoleId = PrimaryRoleId(user);
+            var roleName = RoleConstants.Labels.GetValueOrDefault(primaryRoleId, "Unknown");
 
             return new UserDto
             {
                 UserId = user.UserId,
                 FullName = user.FullName ?? user.Username ?? "",
                 Email = user.Email ?? user.Username ?? "",
-                Role = user.RoleId,
+                Role = primaryRoleId,
                 RoleName = roleName,
             };
         }
 
         private string GenerateToken(User user, UserDto dto)
         {
-            var key = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var issuer = _config["Jwt:Issuer"];
@@ -138,14 +149,30 @@ namespace AppBackend.Services.Services.AuthServices
             var expMins = int.TryParse(
                 _config["Jwt:AccessTokenExpirationMinutes"], out var m) ? m : 30;
 
-            var claims = new[]
+            // ✅ Thêm 1 claim Role cho mỗi roleId user có
+            // Frontend/middleware dùng ClaimTypes.Role để kiểm tra quyền
+            var claims = new List<Claim>
             {
                 new Claim("userId",   user.UserId),
                 new Claim("username", user.Username ?? ""),
                 new Claim("email",    user.Email    ?? ""),
-                new Claim("fullName",                dto.FullName),
+                new Claim("fullName", dto.FullName),
+                // claim role chính (dùng cho các guard cũ)
                 new Claim(ClaimTypes.Role, dto.Role.ToString()),
             };
+
+            // ✅ Thêm claim cho từng role phụ nếu user có nhiều quyền
+            foreach (var ur in user.UserRoles)
+            {
+                var label = RoleConstants.Labels.GetValueOrDefault(ur.RoleId, ur.RoleId.ToString());
+                // Tránh thêm trùng claim đã có ở trên
+                if (ur.RoleId != dto.Role)
+                    claims.Add(new Claim(ClaimTypes.Role, ur.RoleId.ToString()));
+
+                // Thêm claim theo tên role để policy-based auth dễ dùng
+                // Ví dụ: [Authorize(Policy = "ManagerOrStaff")]
+                claims.Add(new Claim("role_name", label));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: issuer,
@@ -159,9 +186,7 @@ namespace AppBackend.Services.Services.AuthServices
         }
 
         private static string HashPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password);
-        }
+            => BCrypt.Net.BCrypt.HashPassword(password);
 
         private static bool VerifyPassword(string password, string stored)
         {
@@ -169,8 +194,7 @@ namespace AppBackend.Services.Services.AuthServices
             return BCrypt.Net.BCrypt.Verify(password, stored);
         }
 
-        // ── Result helpers ─────────────────────────────────────────────────
-
+        // ── Result helpers ─────────────────────────────────────
         private static ResultModel<T> Ok<T>(T data, string msg) => new()
         { IsSuccess = true, ResponseCode = "SUCCESS", StatusCode = 200, Data = data, Message = msg };
 
