@@ -334,12 +334,67 @@ export default function InventoryReportPage() {
       {/* Print CSS */}
       <style>{`
         @media print {
-          body * { visibility: hidden; }
-          #inv-print, #inv-print * { visibility: visible; }
-          #inv-print { position: absolute; inset: 0; padding: 16px; }
-          .no-print { display: none !important; }
+
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          body * {
+            visibility: hidden;
+          }
+
+          #inv-print, #inv-print * {
+            visibility: visible;
+          }
+
+          #inv-print {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .no-print {
+            display: none !important;
+          }
+
+          .table-container {
+            overflow: visible !important;
+            max-height: none !important;
+            width: 100% !important;
+          }
+
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+          }
+
+          th, td {
+            border: 1px solid #000 !important;
+            font-size: 11px;
+            padding: 6px !important;
+            word-break: break-word !important;
+          }
+
+          th {
+            position: static !important;
+          }
+
+          * {
+            background: #fff !important;
+            color: #000 !important;
+            box-shadow: none !important;
+          }
         }
-        .hover-row:hover { background: #f5f3ff !important; }
       `}</style>
 
       {/* ── Page Header ─────────────────────────────────────── */}
@@ -477,7 +532,7 @@ export default function InventoryReportPage() {
           </div>
 
           {/* Summary strip */}
-          <div style={{
+          <div className="no-print" style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))",
             gap: 10,
@@ -531,7 +586,10 @@ export default function InventoryReportPage() {
             borderRadius: 12,
             overflow: "hidden",
           }}>
-            <div style={{ overflowX: "auto", maxHeight: 600, overflowY: "auto" }}>
+            <div
+              className="table-container"
+              style={{ overflowX: "auto", maxHeight: 600, overflowY: "auto" }}
+            >
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr>
