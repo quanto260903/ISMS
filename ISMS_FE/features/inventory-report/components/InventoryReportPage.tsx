@@ -38,18 +38,18 @@ function exportCsv(report: InventorySummaryDto) {
     `Kỳ báo cáo: ${fmtDate(report.fromDate)} - ${fmtDate(report.toDate)}`,
     `Xuất lúc: ${fmtDateTime(report.generatedAt)}`,
     ``,
-    `Mã hàng,Tên hàng hóa,Đơn vị,Đầu kỳ,Nhập kỳ,Xuất kỳ,Cuối kỳ`,
+    `Mã hàng;Tên hàng hóa;Đơn vị;Đầu kỳ;Nhập kỳ;Xuất kỳ;Cuối kỳ`,
   ];
 
   for (const group of report.groups) {
-    rows.push(`"[${group.groupName}]",,,${group.subOpening},${group.subInbound},${group.subOutbound},${group.subClosing}`);
+    rows.push(`"[${group.groupName}]";;;${group.subOpening};${group.subInbound};${group.subOutbound};${group.subClosing}`);
     for (const item of group.items) {
-      rows.push(`"${item.goodsId}","${item.goodsName}","${item.unit}",${item.opening},${item.inbound},${item.outbound},${item.closing}`);
+      rows.push(`"${item.goodsId}";"${item.goodsName}";"${item.unit}";${item.opening};${item.inbound};${item.outbound},${item.closing}`);
     }
   }
 
   const { totals: t } = report;
-  rows.push(`TỔNG CỘNG,,,${t.totalOpening},${t.totalInbound},${t.totalOutbound},${t.totalClosing}`);
+  rows.push(`TỔNG CỘNG;;;${t.totalOpening};${t.totalInbound};${t.totalOutbound};${t.totalClosing}`);
 
   const blob = new Blob([BOM + rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
   const url  = URL.createObjectURL(blob);
@@ -60,6 +60,153 @@ function exportCsv(report: InventorySummaryDto) {
   URL.revokeObjectURL(url);
 }
 
+// ── xlsx export ─────────────────────────────────────────────────
+import * as XLSX from "xlsx-js-style";
+
+function exportExcel(report: InventorySummaryDto) {
+  const wb = XLSX.utils.book_new();
+
+  const data: any[][] = [];
+
+  // Title
+  data.push(["SỔ TỔNG HỢP TỒN KHO"]);
+  data.push([`Kỳ: ${fmtDate(report.fromDate)} - ${fmtDate(report.toDate)}`]);
+  data.push([`Xuất lúc: ${fmtDateTime(report.generatedAt)}`]);
+  data.push([]);
+
+  // Header
+  data.push([
+    "Mã hàng",
+    "Tên hàng hóa",
+    "Đơn vị",
+    "Đầu kỳ",
+    "Nhập kỳ",
+    "Xuất kỳ",
+    "Cuối kỳ",
+  ]);
+
+  // Data
+  for (const group of report.groups) {
+    // Group row
+    data.push([
+      `[${group.groupName}]`,
+      "",
+      "",
+      group.subOpening,
+      group.subInbound,
+      group.subOutbound,
+      group.subClosing,
+    ]);
+
+    for (const item of group.items) {
+      data.push([
+        item.goodsId,
+        item.goodsName,
+        item.unit,
+        item.opening,
+        item.inbound,
+        item.outbound,
+        item.closing,
+      ]);
+    }
+  }
+
+  // Total row
+  const t = report.totals;
+  data.push([
+    "TỔNG CỘNG",
+    "",
+    "",
+    t.totalOpening,
+    t.totalInbound,
+    t.totalOutbound,
+    t.totalClosing,
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // ===== STYLE SECTION =====
+
+  const range = XLSX.utils.decode_range(ws["!ref"] || "");
+  const totalRowIndex = data.length - 1;
+  for (let R = 0; R <= range.e.r; ++R) {
+    for (let C = 0; C <= range.e.c; ++C) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell) continue;
+
+      // Header row
+      if (R === 4) {
+        cell.s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "6D28D9" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: borderStyle(),
+        };
+      }
+
+      // Group row
+      else if (typeof cell.v === "string" && cell.v.startsWith("[")) {
+        cell.s = {
+          font: { bold: true, color: { rgb: "4C1D95" } },
+          fill: { fgColor: { rgb: "EDE9FE" } },
+          alignment: getAlignment(C),
+          border: borderStyle(),
+        };
+      }
+
+      // Total row
+      else if (R === totalRowIndex) {
+        cell.s = {
+          font: { bold: true, color: { rgb: "6D28D9" } },
+          fill: { fgColor: { rgb: "F1F5F9" } },
+          alignment: getAlignment(C),
+          border: borderStyle(),
+        };
+      }
+
+      // Normal cells
+      else {
+        cell.s = {
+          border: borderStyle(),
+          alignment: getAlignment(C),
+        };
+      }
+    }
+  }
+
+  // Column width
+  ws["!cols"] = [
+    { wch: 15 },
+    { wch: 30 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+
+  XLSX.writeFile(wb, `TonKho_${report.fromDate}_${report.toDate}.xlsx`);
+}
+
+// helper border
+function borderStyle() {
+  return {
+    top:    { style: "thin", color: { rgb: "D1D5DB" } },
+    bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+    left:   { style: "thin", color: { rgb: "D1D5DB" } },
+    right:  { style: "thin", color: { rgb: "D1D5DB" } },
+  };
+}
+
+// get Aliment(per column)
+function getAlignment(col: number) {
+  // 0: code | 1: name | 2: unit | 3-6: numbers
+  if (col === 2) return { horizontal: "center" }; // unit
+  if (col >= 3) return { horizontal: "right" };  // numbers
+  return { horizontal: "left" };                 // text
+}
 // ── Flat row types for pagination ─────────────────────────────
 type FlatRow =
   | { kind: "group"; group: InventorySummaryGroupDto }
@@ -238,7 +385,8 @@ export default function InventoryReportPage() {
             <button onClick={handleRefresh} disabled={loading} style={btnStyle(false)}>
               🔄 Refresh
             </button>
-            <button onClick={() => exportCsv(report)} style={btnStyle(false)}>
+              {/* <button onClick={() => exportCsv(report)} style={btnStyle(false)}> */}
+              <button onClick={() => exportExcel(report)} style={btnStyle(false)}>
               📥 Export Excel
             </button>
             <button onClick={() => window.print()} style={btnStyle(false)}>

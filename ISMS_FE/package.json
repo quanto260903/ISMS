@@ -36,6 +36,9 @@
     "recharts": "^3.3.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.1.0",
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0",
+    "xlsx-style": "^0.8.13",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
