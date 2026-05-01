@@ -13,14 +13,14 @@ interface AuthState {
   isLoading:       boolean
   error:           string | null
 
-  login:               (credentials: LoginRequest) => Promise<void>
-  register:            (data: RegisterRequest) => Promise<void>
-  logout:              () => void
-  checkAndAutoLogout:  () => void
-  setUser:             (user: User | null) => void
-  setToken:            (token: string | null) => void
-  clearError:          () => void
-  fetchMe:             () => Promise<void>
+  login:              (credentials: LoginRequest) => Promise<void>
+  register:           (data: RegisterRequest) => Promise<void>
+  logout:             () => void
+  checkAndAutoLogout: () => void
+  setUser:            (user: User | null) => void
+  setToken:           (token: string | null) => void
+  clearError:         () => void
+  fetchMe:            () => Promise<void>
 }
 
 // Helper xóa toàn bộ auth data
@@ -28,12 +28,35 @@ function clearAuthData() {
   localStorage.removeItem('token')
   localStorage.removeItem('user')
   document.cookie = 'token=; path=/; max-age=0'
+  // ✅ Xóa cả 2 cookie (mới + cũ) để đảm bảo sạch hoàn toàn
+  document.cookie = 'userRoles=; path=/; max-age=0'
   document.cookie = 'userRole=; path=/; max-age=0'
 }
 
 function redirectToLogin(reason: string) {
   if (typeof window !== 'undefined') {
     window.location.href = `/login?reason=${reason}`
+  }
+}
+
+// ✅ Helper set cookie userRoles từ user object
+// Lưu mảng roles dưới dạng JSON để middleware đọc được đầy đủ
+// Ví dụ: userRoles=[1,2,3]
+function setRolesCookie(user: User) {
+  const COOKIE_MAX_AGE = 'max-age=604800; SameSite=Lax'
+
+  // Ưu tiên mảng roles (multi-role), fallback về role đơn (tương thích ngược)
+  const roles: number[] = Array.isArray(user.roles) && user.roles.length > 0
+    ? user.roles
+    : typeof user.role === 'number'
+      ? [user.role]
+      : []
+
+  document.cookie = `userRoles=${JSON.stringify(roles)}; path=/; ${COOKIE_MAX_AGE}`
+
+  // Giữ cookie cũ để tương thích ngược với code chưa migrate
+  if (typeof user.role === 'number') {
+    document.cookie = `userRole=${user.role}; path=/; ${COOKIE_MAX_AGE}`
   }
 }
 
@@ -53,10 +76,16 @@ export const useAuthStore = create<AuthState>()(
 
           if (response.isSuccess && response.data) {
             const { user, token } = response.data
+
             localStorage.setItem('token', token)
             localStorage.setItem('user', JSON.stringify(user))
+
+            // Token cookie
             document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
-            document.cookie = `userRole=${String(user.role)}; path=/; max-age=604800; SameSite=Lax`
+
+            // ✅ Lưu mảng roles — middleware đọc từ đây để kiểm tra quyền
+            setRolesCookie(user)
+
             set({ user, token, isAuthenticated: true, isLoading: false, error: null })
           } else {
             throw new Error(response.message || 'Đăng nhập thất bại')
@@ -75,10 +104,15 @@ export const useAuthStore = create<AuthState>()(
 
           if (response.isSuccess && response.data) {
             const { user, token } = response.data
+
             localStorage.setItem('token', token)
             localStorage.setItem('user', JSON.stringify(user))
+
             document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
-            document.cookie = `userRole=${String(user.role)}; path=/; max-age=604800; SameSite=Lax`
+
+            // ✅ Lưu mảng roles
+            setRolesCookie(user)
+
             set({ user, token, isAuthenticated: true, isLoading: false, error: null })
           } else {
             throw new Error(response.message || 'Đăng ký thất bại')
@@ -91,9 +125,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        clearAuthData()
-        set({ user: null, token: null, isAuthenticated: false, error: null })
-      },
+  clearAuthData()
+  set({ user: null, token: null, isAuthenticated: false, error: null })
+  redirectToLogin('logout') // ✅ Thêm dòng này
+},
 
       // ── Auto logout khi token hết hạn ──────────────────────
       checkAndAutoLogout: () => {
@@ -108,7 +143,6 @@ export const useAuthStore = create<AuthState>()(
             redirectToLogin('expired')
           }
         } catch {
-          // Token không đọc được → logout luôn
           get().logout()
           redirectToLogin('expired')
         }
@@ -138,7 +172,10 @@ export const useAuthStore = create<AuthState>()(
           const response = await authService.getMe()
 
           if (response.isSuccess && response.data) {
-            set({ user: response.data, isAuthenticated: true, isLoading: false })
+            const user = response.data
+            // ✅ Cập nhật lại roles cookie khi refresh user data
+            setRolesCookie(user)
+            set({ user, isAuthenticated: true, isLoading: false })
           } else {
             throw new Error(response.message || 'Failed to fetch user')
           }

@@ -27,7 +27,6 @@ namespace AppBackend.Services.Services.AuthServices
         {
             try
             {
-                // ✅ Include UserRoles để dùng trong MapToDto và GenerateToken
                 var user = await _context.Users
                     .Include(u => u.UserRoles)
                     .FirstOrDefaultAsync(u =>
@@ -68,7 +67,6 @@ namespace AppBackend.Services.Services.AuthServices
                     FullName = request.FullName.Trim(),
                     PasswordHash = HashPassword(request.Password),
                     IsActive = true,
-                    // ✅ Gán Admin role qua UserRoles thay vì RoleId
                     UserRoles = new List<UserRole>
                     {
                         new UserRole { UserId = userId, RoleId = RoleConstants.Admin }
@@ -98,7 +96,6 @@ namespace AppBackend.Services.Services.AuthServices
         {
             try
             {
-                // ✅ Include UserRoles
                 var user = await _context.Users
                     .Include(u => u.UserRoles)
                     .FirstOrDefaultAsync(u => u.UserId == userId && u.IsActive == true);
@@ -113,7 +110,7 @@ namespace AppBackend.Services.Services.AuthServices
 
         // ── Helpers ────────────────────────────────────────────
 
-        // ✅ Lấy roleId đầu tiên (ưu tiên Admin > Manager > Staff) để điền UserDto.Role
+        // Role cao nhất — dùng để xác định redirect sau login
         private static int PrimaryRoleId(User user)
         {
             var ids = user.UserRoles.Select(r => r.RoleId).ToHashSet();
@@ -123,19 +120,35 @@ namespace AppBackend.Services.Services.AuthServices
             return 0;
         }
 
+        // ✅ Fix: MapToDto trả về toàn bộ mảng Roles thay vì chỉ 1 role
         private static UserDto MapToDto(User user)
         {
-            // ✅ Dùng PrimaryRoleId thay vì user.RoleId
             var primaryRoleId = PrimaryRoleId(user);
             var roleName = RoleConstants.Labels.GetValueOrDefault(primaryRoleId, "Unknown");
+
+            // Lấy toàn bộ roleId user có, sắp xếp ưu tiên cao → thấp
+            var allRoleIds = user.UserRoles
+                .Select(r => r.RoleId)
+                .OrderBy(id => id)   // 1=Admin < 2=Manager < 3=Staff
+                .ToList();
+
+            var allRoleNames = allRoleIds
+                .Select(id => RoleConstants.Labels.GetValueOrDefault(id, id.ToString()))
+                .ToList();
 
             return new UserDto
             {
                 UserId = user.UserId,
                 FullName = user.FullName ?? user.Username ?? "",
                 Email = user.Email ?? user.Username ?? "",
+
+                // Giữ nguyên Role (role cao nhất) để không break code cũ
                 Role = primaryRoleId,
                 RoleName = roleName,
+
+                // ✅ Thêm mới: toàn bộ roles user có
+                Roles = allRoleIds,
+                RoleNames = allRoleNames,
             };
         }
 
@@ -149,28 +162,24 @@ namespace AppBackend.Services.Services.AuthServices
             var expMins = int.TryParse(
                 _config["Jwt:AccessTokenExpirationMinutes"], out var m) ? m : 30;
 
-            // ✅ Thêm 1 claim Role cho mỗi roleId user có
-            // Frontend/middleware dùng ClaimTypes.Role để kiểm tra quyền
             var claims = new List<Claim>
             {
                 new Claim("userId",   user.UserId),
                 new Claim("username", user.Username ?? ""),
                 new Claim("email",    user.Email    ?? ""),
                 new Claim("fullName", dto.FullName),
-                // claim role chính (dùng cho các guard cũ)
+                // Claim role chính (tương thích ngược với code cũ)
                 new Claim(ClaimTypes.Role, dto.Role.ToString()),
             };
 
-            // ✅ Thêm claim cho từng role phụ nếu user có nhiều quyền
-            foreach (var ur in user.UserRoles)
+            // ✅ Thêm claim cho từng role trong mảng Roles
+            foreach (var roleId in dto.Roles)
             {
-                var label = RoleConstants.Labels.GetValueOrDefault(ur.RoleId, ur.RoleId.ToString());
-                // Tránh thêm trùng claim đã có ở trên
-                if (ur.RoleId != dto.Role)
-                    claims.Add(new Claim(ClaimTypes.Role, ur.RoleId.ToString()));
+                // Tránh thêm trùng role chính đã có ở trên
+                if (roleId != dto.Role)
+                    claims.Add(new Claim(ClaimTypes.Role, roleId.ToString()));
 
-                // Thêm claim theo tên role để policy-based auth dễ dùng
-                // Ví dụ: [Authorize(Policy = "ManagerOrStaff")]
+                var label = RoleConstants.Labels.GetValueOrDefault(roleId, roleId.ToString());
                 claims.Add(new Claim("role_name", label));
             }
 

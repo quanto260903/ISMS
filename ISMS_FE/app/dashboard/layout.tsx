@@ -52,58 +52,34 @@ const navGroups = [
   {
     title: 'Tổng quan',
     items: [
-      { href: '/dashboard', icon: Home, label: 'Dashboard', requiredRole: UserRole.Admin },
+      { href: '/dashboard', icon: Home, label: 'Dashboard', requiredRole: [UserRole.Admin] },
     ]
   },
   {
     title: 'Quản lý sản phẩm',
     items: [
-     
+
     ]
   },
   {
     title: 'Quản lý đơn hàng',
     items: [
-      { href: '/dashboard/import', icon: ArrowDownToLine, label: 'Nhập kho' },
-      { href: '/dashboard/export', icon: ArrowUpFromLine, label: 'Xuất kho' },
-      { href: '/dashboard/stock-take', icon: ClipboardCheck, label: 'Kiểm kê kho' },
-      { href: '/dashboard/sale', icon: RotateCcw, label: 'Bán hàng' },
+      { href: '/dashboard/import',     icon: ArrowDownToLine, label: 'Nhập kho',     requiredRole: [UserRole.Staff] },
+      { href: '/dashboard/export',     icon: ArrowUpFromLine, label: 'Xuất kho',     requiredRole: [UserRole.Staff] },
+      { href: '/dashboard/stock-take', icon: ClipboardCheck,  label: 'Kiểm kê kho', requiredRole: [UserRole.Staff] },
+      { href: '/dashboard/sale',       icon: RotateCcw,       label: 'Bán hàng',    requiredRole: [UserRole.Staff] },
     ]
   },
- {
-  title: 'Quản lý Hệ thống',
-  items: [
-    {
-      href: '/dashboard/user-management',
-      icon: Users,
-      label: 'Quản lý Người dùng',
-      requiredRole: [UserRole.Admin, UserRole.Manager]
-    },
-    {
-      href: '/dashboard/goods-category',
-      icon: Layers,
-      label: 'Quản lý nhóm hàng hóa'
-    },
-    {
-      href: '/dashboard/goods',
-      icon: Package,
-      label: 'Quản lý hàng hóa',
-      requiredRole: [UserRole.Admin]
-    },
-    {
-      href: '/dashboard/customers',
-      icon: User,
-      label: 'Quản lý khách hàng',
-      requiredRole: [UserRole.Admin, UserRole.Manager]
-    },
-    {
-      href: '/dashboard/suppliers',
-      icon: Truck,
-      label: 'Quản lý nhà cung cấp',
-      requiredRole: [UserRole.Admin, UserRole.Manager]
-    }
-  ]
-},
+  {
+    title: 'Quản lý Hệ thống',
+    items: [
+      { href: '/dashboard/user-management',  icon: Users,   label: 'Quản lý Người dùng',      requiredRole: [UserRole.Admin] },
+      { href: '/dashboard/goods-category',   icon: Layers,  label: 'Quản lý nhóm hàng hóa',   requiredRole: [UserRole.Admin] },
+      { href: '/dashboard/goods',            icon: Package, label: 'Quản lý hàng hóa',         requiredRole: [UserRole.Admin] },
+      { href: '/dashboard/customers',        icon: User,    label: 'Quản lý khách hàng',       requiredRole: [UserRole.Admin] },
+      { href: '/dashboard/suppliers',        icon: Truck,   label: 'Quản lý nhà cung cấp',     requiredRole: [UserRole.Admin] },
+    ]
+  },
   {
     title: 'Báo cáo',
     items: [
@@ -111,7 +87,7 @@ const navGroups = [
         href: '/dashboard/inventory-report',
         icon: FileBarChart2,
         label: 'Báo cáo tồn kho',
-        requiredRole: [UserRole.Admin, UserRole.Manager],
+        requiredRole: [UserRole.Manager],
       },
       {
         href: '/dashboard/activity-log',
@@ -124,7 +100,7 @@ const navGroups = [
   {
     title: 'Khác',
     items: [
-      { href: '/ui-showcase', icon: Palette, label: 'Thư viện UI' },
+      // Không có requiredRole → hiện với mọi user đã login
       { href: '/dashboard/open-inventory', icon: Wallet, label: 'Nhập số dư đầu' },
     ]
   },
@@ -136,10 +112,32 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
-  const router = useRouter()
+  const router   = useRouter()
   const { user, logout } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-useAutoLogout() 
+  useAutoLogout()
+
+  // ✅ Lấy mảng roles của user — hỗ trợ cả multi-role lẫn single role cũ
+  // Ưu tiên user.roles (mảng), fallback về [user.role] nếu chưa migrate
+  const userRoles: number[] = Array.isArray(user?.roles) && user.roles.length > 0
+    ? user.roles
+    : typeof user?.role === 'number'
+      ? [user.role]
+      : []
+
+  // ✅ Kiểm tra quyền: user thấy item nếu có BẤT KỲ role nào trong requiredRole
+  const hasAccess = (requiredRole?: number | number[]): boolean => {
+    if (!requiredRole) return true  // không yêu cầu role → hiện với mọi người
+    const required = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+    return required.some((r) => userRoles.includes(r))
+  }
+
+  // ✅ Hiển thị tên các role user có (VD: "Admin · Manager · Staff")
+  const roleDisplay = userRoles
+    .map((r) => getRoleName(r))
+    .filter(Boolean)
+    .join(' · ') || 'User'
+
   const handleLogout = () => {
     logout()
   }
@@ -183,13 +181,10 @@ useAutoLogout()
         <nav className="flex-1 overflow-y-auto px-2 py-4 custom-scrollbar">
           <div className="space-y-5">
             {navGroups.map((group) => {
-              const visibleItems = group.items.filter((item: any) => {
-                if (!item.requiredRole) return true
-                if (Array.isArray(item.requiredRole)) {
-                  return item.requiredRole.includes(user?.role)
-                }
-                return user?.role === item.requiredRole
-              })
+              // ✅ Filter dùng hasAccess — kiểm tra toàn bộ mảng roles
+              const visibleItems = group.items.filter((item: any) =>
+                hasAccess(item.requiredRole)
+              )
 
               if (visibleItems.length === 0) return null
 
@@ -260,12 +255,10 @@ useAutoLogout()
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
         {/* Header */}
         <header className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
-          {/* Subtle purple tint stripe */}
           <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-purple-300/40 to-transparent" />
           <div className="flex h-16 items-center justify-end px-6">
-            {/* Right Section */}
             <div className="flex items-center gap-3">
-              {/* Notifications with ping animation */}
+              {/* Notifications */}
               <Button variant="ghost" size="sm" className="relative h-9 w-9 p-0 hover:bg-gray-100">
                 <Bell className="h-5 w-5 text-gray-500" />
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center">
@@ -287,9 +280,8 @@ useAutoLogout()
                       <p className="text-sm font-semibold text-gray-800">
                         {user?.fullName || 'User'}
                       </p>
-                      <p className="text-xs text-gray-400">
-                        {user?.role !== undefined ? getRoleName(user.role) : 'User'}
-                      </p>
+                      {/* ✅ Hiển thị tất cả roles user có */}
+                      <p className="text-xs text-gray-400">{roleDisplay}</p>
                     </div>
                   </Button>
                 </DropdownMenuTrigger>

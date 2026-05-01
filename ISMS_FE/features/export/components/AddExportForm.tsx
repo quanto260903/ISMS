@@ -514,12 +514,6 @@ export default function AddExportForm() {
             <span style={s.autoFilledBadge}>✨ Tự động điền từ phiếu nhập</span>
           )}
         </h3>
-
-        <div style={s.infoNote}>
-          💡 Sau khi chọn mã hàng, hệ thống sẽ yêu cầu chọn <strong>phiếu nhập đối trừ</strong> và
-          số lượng xuất từ mỗi phiếu theo nguyên tắc FIFO.
-        </div>
-
         {voucher.items.length > 0 && (
           <ExportItemTable
             items={voucher.items}

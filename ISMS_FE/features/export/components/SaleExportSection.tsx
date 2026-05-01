@@ -11,14 +11,19 @@ import styles from "@/shared/styles/sale.styles";
 import { PAYMENT_LABELS, getDebitAccountByPayment } from "@/features/sale/constants/sale.constants";
 import { useSaleForm }     from "@/features/sale/hooks/useSaleForm";
 import { useGoodsSearch }  from "../hooks/useGoodsSearch";
+import { useSupplierSearch }       from "@/shared/hooks/supplier/useSupplierSearch";
 import { getWarehouseReport } from "../export.api";
+import { useAuthStore }            from "@/store/authStore";
 import ExportItemTable     from "./ExportItemTable";
 import SelectInboundModal  from "./SelectInboundModal";
+import SupplierDropdown            from "@/shared/components/supplier/SupplierDropdown";
+import CreateSupplierModal         from "@/shared/components/supplier/CreateSupplierModal";
 import type { InboundSelection } from "./SelectInboundModal";
 import type { GoodsSearchResult as ExportGoodsResult } from "../types/export.types";
 import type { PaymentOption, VoucherItem } from "@/features/sale/types/sale.types";
 import type { ExportItem } from "../types/export.types";
-
+import SupplierSearchInput         from "@/shared/components/supplier/SupplierSearchInput";
+import { SupplierSearchResult } from "@/shared/types/supplier.types";
 interface Props {
   userId:    string;
   userName:  string;
@@ -41,7 +46,8 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit: submitSale,
   } = useSaleForm(userId);
-
+  const { user } = useAuthStore();
+const currentUserName = user?.fullName ?? "";
   // Ref luôn trỏ đúng giá trị mới nhất để tránh stale closure
   const paymentOptionRef = useRef(paymentOption);
   paymentOptionRef.current = paymentOption;
@@ -99,6 +105,17 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
     }
   }, []);
 
+  const handleSelectSupplier = (supplier: SupplierSearchResult) => {
+      setField("customerId",   supplier.supplierId);
+      setField("customerName", supplier.supplierName);
+      if (supplier.taxId)   setField("taxCode",  supplier.taxId);
+      if (supplier.address) setField("address",  supplier.address);
+      setSupplierQuery(supplier.supplierId);
+    };
+ // ── Supplier search + modal ──────────────────────────────
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [supplierQuery,     setSupplierQuery]     = useState("");
+   const supplierSearch = useSupplierSearch({ onSelect: handleSelectSupplier });
   // Mở lại modal khi click vào dòng đã có hàng
   const handleRowClick = useCallback((index: number) => {
     const item = voucher.items[index];
@@ -220,47 +237,62 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
 
       {/* ── Thông tin chứng từ ── */}
       <section style={{ ...s.card, maxWidth: "100%" }}>
-        <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin chứng từ</h3>
+        <h3 style={s.cardTitle}><span style={s.titleDot} />Thông tin phiếu xuất</h3>
         <div style={s.twoCol}>
 
           {/* Cột trái */}
           <div style={s.colLeft}>
-            {([
-              { label: "Mã khách hàng *",  field: "customerId"         as const, placeholder: "Nhập mã khách hàng"   },
-              { label: "Tên khách hàng *", field: "customerName"       as const, placeholder: "Nhập tên khách hàng"  },
-              { label: "Mã số thuế",       field: "taxCode"            as const, placeholder: "Nhập mã số thuế"      },
-              { label: "Địa chỉ *",        field: "address"            as const, placeholder: "Nhập địa chỉ"         },
-              { label: "Diễn giải *",      field: "voucherDescription" as const, placeholder: "Nhập diễn giải"       },
-            ] as const).map(({ label, field, placeholder }) => (
-              <div key={field} style={styles.fieldGroup}>
-                <label style={styles.label}>{label}</label>
-                <input
-                  style={styles.input}
-                  placeholder={placeholder}
-                  value={voucher[field] as string}
-                  onChange={(e) => setField(field, e.target.value)}
-                />
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Mã đối tượng</label>
+              <SupplierSearchInput
+                value={supplierQuery}
+                loading={supplierSearch.dropdown.loading}
+                inputRef={supplierSearch.inputRef}
+                onChange={(val) => {
+                  setSupplierQuery(val);
+                  setField("customerId", val);
+                  supplierSearch.handleChange(val);
+                }}
+                onFocus={supplierSearch.handleFocus}
+                onAddNew={() => setShowSupplierModal(true)}
+                placeholder="Nhập mã đối tượng để tìm kiếm..."
+              />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Tên đối tượng *</label>
+              <input
+                style={{
+                  ...styles.input,
+                  background:  voucher.customerName ? "#f0fdf4" : "#fff",
+                  color:       voucher.customerName ? "#15803d" : "#64748b",
+                  fontWeight:  voucher.customerName ? 600 : 400,
+                  borderColor: !voucher.customerName ? "#fca5a5" : "#e2e8f0",
+                }}
+                placeholder="Tự điền khi chọn đối tượng, hoặc nhập tay"
+                value={voucher.customerName ?? ""}
+                onChange={(e) => setField("customerName", e.target.value)}
+              />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Diễn giải</label>
+              <input style={styles.input} placeholder="Nhập diễn giải"
+                value={voucher.voucherDescription ?? ""}
+                onChange={(e) => setField("voucherDescription", e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ ...styles.fieldGroup, flex: 1 }}>
+                <label style={styles.label}>Mã số thuế</label>
+                <input style={styles.input} placeholder="Nhập MST"
+                  value={voucher.taxCode ?? ""}
+                  onChange={(e) => setField("taxCode", e.target.value)} />
               </div>
-            ))}
-
-            {paymentOption === "BANK" && (
-              <>
-                {([
-                  { label: "Số tài khoản ngân hàng *", field: "bankAccountNumber" as const, placeholder: "Nhập số tài khoản"  },
-                  { label: "Tên tài khoản ngân hàng *", field: "bankName"         as const, placeholder: "Nhập tên tài khoản" },
-                ] as const).map(({ label, field, placeholder }) => (
-                  <div key={field} style={styles.fieldGroup}>
-                    <label style={styles.label}>{label}</label>
-                    <input
-                      style={styles.input}
-                      placeholder={placeholder}
-                      value={(voucher[field] as string) ?? ""}
-                      onChange={(e) => setField(field, e.target.value)}
-                    />
-                  </div>
-                ))}
-              </>
-            )}
+              <div style={{ ...styles.fieldGroup, flex: 2 }}>
+                <label style={styles.label}>Địa chỉ</label>
+                <input style={styles.input} placeholder="Nhập địa chỉ"
+                  value={voucher.address ?? ""}
+                  onChange={(e) => setField("address", e.target.value)} />
+              </div>
+            </div>
           </div>
 
           <div style={s.divider} />
@@ -268,16 +300,16 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
           {/* Cột phải */}
           <div style={s.colRight}>
             <div style={s.rightRow}>
-              <label style={s.rightLabel}>Số chứng từ *</label>
+              <label style={s.rightLabel}>Số phiếu *</label>
               <input
-                style={{ ...styles.input, ...s.rightInput, fontWeight: 700, color: "#6d28d9", fontFamily: "monospace", background: "#f5f3ff", cursor: "default" }}
+                style={{ ...styles.input, ...s.rightInput, fontWeight: 700, color: "#1d4ed8", fontFamily: "monospace", background: "#f0f4ff", cursor: "default" }}
                 value={voucher.voucherId}
-                onChange={(e) => setField("voucherId", e.target.value)}
-                placeholder="Tự sinh, có thể sửa"
+                readOnly
+                placeholder="Đang tạo số phiếu..."
               />
             </div>
             <div style={s.rightRow}>
-              <label style={s.rightLabel}>Ngày chứng từ *</label>
+              <label style={s.rightLabel}>Ngày xuất kho *</label>
               <input type="date"
                 style={{ ...styles.input, ...s.rightInput }}
                 value={voucher.voucherDate}
@@ -288,7 +320,7 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
               <label style={s.rightLabel}>Người lập phiếu</label>
               <input
                 style={{ ...styles.input, ...s.rightInput, background: "#f5f5f5", color: "#555" }}
-                value={userName}
+                value={currentUserName}
                 readOnly
               />
             </div>
@@ -301,12 +333,6 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
       {/* ── Chi tiết hàng hóa ── */}
       <section style={{ ...s.card, maxWidth: "100%" }}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Chi tiết hàng hóa</h3>
-
-        <div style={s.infoNote}>
-          💡 Sau khi chọn mã hàng, hệ thống sẽ yêu cầu chọn <strong>phiếu nhập đối trừ</strong> và
-          số lượng xuất từ mỗi phiếu theo nguyên tắc FIFO.
-        </div>
-
         {voucher.items.length > 0 && (
           <ExportItemTable
             items={voucher.items as unknown as import("./ExportItemTable").ExportItemWithLot[]}
@@ -366,7 +392,23 @@ export default function SaleExportSection({ userId, userName, onSuccess }: Props
           </div>
         )}
       </div>
+  {/* ── Portals ── */}
+      <SupplierDropdown
+        dropdown={supplierSearch.dropdown}
+        dropdownPos={supplierSearch.dropdownPos}
+        dropdownRef={supplierSearch.dropdownRef}
+        onSelect={(sup) => { handleSelectSupplier(sup); supplierSearch.handleSelect(sup); }}
+        onAddNew={() => setShowSupplierModal(true)}
+        query={supplierQuery}
+      />
 
+      {showSupplierModal && (
+        <CreateSupplierModal
+          initialId={supplierQuery}
+          onClose={() => setShowSupplierModal(false)}
+          onCreated={(sup) => { handleSelectSupplier(sup); setShowSupplierModal(false); }}
+        />
+      )}
       {/* ── Modal chọn phiếu nhập FIFO ── */}
       {pendingGoods && (
         <SelectInboundModal

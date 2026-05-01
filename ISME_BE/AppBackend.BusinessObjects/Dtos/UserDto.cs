@@ -11,6 +11,8 @@ namespace AppBackend.BusinessObjects.Dtos
         public string? Address { get; set; }
         public int Role { get; set; }
         public string RoleName { get; set; } = string.Empty;
+        public List<int> Roles { get; set; } = new();
+        public List<string> RoleNames { get; set; } = new();
     }
 
     // ── Constants ─────────────────────────────────────────────
