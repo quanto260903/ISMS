@@ -16,7 +16,7 @@ function authHeader(): Record<string, string> {
 export async function searchGoods(keyword: string, limit = 10): Promise<GoodsSearchResult[]> {
   const res = await fetch(
     `${BASE}/Items/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`,
-    { cache: "no-store" }
+    { cache: "no-store" } 
   );
   if (!res.ok) throw new Error("Lỗi tìm kiếm hàng hóa");
   const json = await res.json();

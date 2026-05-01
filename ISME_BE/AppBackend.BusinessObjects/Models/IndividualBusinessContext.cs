@@ -61,8 +61,6 @@ public partial class IndividualBusinessContext : DbContext
         }
     }
 
-
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ActivityLog>(entity =>

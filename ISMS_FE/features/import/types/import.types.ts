@@ -12,12 +12,12 @@ export interface InwardItem {
   quantity:        number;
   unitPrice:       number;
   amount1:         number;
-  promotion:       number;   // % khuyến mãi (0–100)
-  debitAccount1:   string;   // 156 (Hàng tồn kho)
-  creditAccount1:  string;   // 111 (Tiền mặt) — mặc định
-  debitAccount2:   string;   // 1331 (Thuế GTGT được khấu trừ) — để trống nếu không dùng
+  promotion:       number;   
+  debitAccount1:   string;   
+  creditAccount1:  string;   
+  debitAccount2:   string;   
   creditAccount2:  string;
-  offsetVoucher?:  string;   // Liên kết phiếu bán gốc (chỉ có khi SALES_RETURN)
+  offsetVoucher?:  string;   
   userId:          string;
   createdDateTime: string;
 }

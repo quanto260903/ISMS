@@ -99,8 +99,8 @@ export default function AddInwardForm() {
     promotion:       0,
     debitAccount1:   "156",
     creditAccount1:  DEFAULT_CREDIT_ACCOUNT,
-    debitAccount2:   "1331",
-    creditAccount2:  DEFAULT_CREDIT_ACCOUNT,
+    debitAccount2:   "",
+    creditAccount2:  "",
     userId:          currentUserId,
     createdDateTime: new Date().toISOString(),
   });

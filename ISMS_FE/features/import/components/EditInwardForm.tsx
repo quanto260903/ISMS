@@ -52,6 +52,7 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
   } = useInwardForm({
     userId:      currentUserId,
     initialData: initialData ?? undefined,
+    editVoucherId: voucherId,
     onSuccess:   () => setTimeout(() => router.push("/dashboard/import"), 1200),
   });
 
