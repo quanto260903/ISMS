@@ -17,6 +17,8 @@ export interface StockTakeListDto {
   stockTakeDate:      string;
   purpose:            string | null;
   isCompleted:        boolean;
+  nk3Created:         boolean;
+  xk3Created:         boolean;
   createdBy:          string | null;
   createdDate:        string | null;
 }
@@ -34,6 +36,8 @@ export interface StockTakeFullDto {
   member3:            string | null;
   position3:          string | null;
   isCompleted:        boolean | null;
+  nk3Created:         boolean;  // Đã lập phiếu nhập NK3 — lưu trong DB
+  xk3Created:         boolean;  // Đã lập phiếu xuất XK3 — lưu trong DB
   createdBy:          string | null;
   createdDate:        string | null;
   lines:              StockTakeDetailDto[];
@@ -47,8 +51,6 @@ export interface GoodsDto {
 }
 
 export interface CreateStockTakeRequest {
-  // Lỗi 1: xóa voucherCode — backend tự sinh, không để frontend gửi lên
-  // tránh race condition khi 2 user tạo cùng lúc
   voucherDate:      string;
   stockTakeDate:    string;
   purpose?:         string;
@@ -63,8 +65,6 @@ export interface CreateStockTakeDetailRequest {
   goodsId:        string;
   goodsName:      string;
   unit?:          string | null;
-  // Lỗi 2: xóa bookQuantity — backend tự lấy từ Goods.ItemOnHand
-  // tránh client gửi sai làm DifferenceQuantity tính lệch
   actualQuantity: number;
 }
 
@@ -79,8 +79,8 @@ export interface UpdateStockTakeHeaderRequest {
 }
 
 export interface ProcessStockTakeResultDto {
-  success:           boolean;
-  message:           string;
+  success: boolean;
+  message: string;
 }
 
 // ── Raw backend shapes ─────────────────────────────────────────
@@ -94,6 +94,8 @@ export interface BackendVoucherDetailRaw {
   member2:            string | null; position2: string | null;
   member3:            string | null; position3: string | null;
   isCompleted:        boolean | null;
+  nk3Created:         boolean;
+  xk3Created:         boolean;
   createdBy:          string | null;
   createdDate:        string | null;
   stockTakeDetails:   BackendDetailRaw[];
@@ -116,20 +118,22 @@ export interface BackendListRaw {
   stockTakeDate:      string;
   purpose:            string | null;
   isCompleted:        boolean | null;
+  nk3Created:         boolean;
+  xk3Created:         boolean;
   createdBy:          string | null;
   createdDate:        string | null;
 }
-// Thêm vào cuối file
+
 export interface SurplusItemDto {
   goodsId:   string;
   goodsName: string;
   unit:      string | null;
-  quantity:  number;   // = Math.round(differenceQuantity)
+  quantity:  number;
 }
 
 export interface ShortageItemDto {
   goodsId:   string;
   goodsName: string;
   unit:      string | null;
-  quantity:  number;   // = Math.round(Math.abs(differenceQuantity))
+  quantity:  number;
 }

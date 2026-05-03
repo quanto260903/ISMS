@@ -86,10 +86,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     const isManager = roles.includes(2)
     const isStaff = roles.includes(3)
 
-    // DEBUG
-    console.log('Current User:', currentUser)
-    console.log('Roles:', roles)
-
     // =============================
     // ROLE-BASED REDIRECT MỚI
     // =============================

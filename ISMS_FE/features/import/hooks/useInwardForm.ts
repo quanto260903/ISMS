@@ -95,9 +95,9 @@ export function useInwardForm({
     amount1:         0,
     promotion:       0,
     debitAccount1:   "156",
-    creditAccount1:  DEFAULT_CREDIT_ACCOUNT,
-    debitAccount2:   "1331",
-    creditAccount2:  DEFAULT_CREDIT_ACCOUNT,
+    creditAccount1:  "111",
+    debitAccount2:   "",
+    creditAccount2:  "",
     userId:          userId,
     createdDateTime: new Date().toISOString(),
   });

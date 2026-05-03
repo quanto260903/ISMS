@@ -68,13 +68,7 @@ export function middleware(request: NextRequest) {
   const isAdmin   = roles.includes(1)
   const isManager = roles.includes(2)
   const isStaff   = roles.includes(3)
- console.log('Role Flags:', {
-    pathname,
-    isAdmin,
-    isManager,
-    isStaff,
-    isLoggedIn,
-  })
+ 
   // ── 1. Trang root "/" → redirect thẳng vào app ──────────
   if (pathname === '/') {
     if (!isLoggedIn) {

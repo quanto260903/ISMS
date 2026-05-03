@@ -38,10 +38,12 @@ function mapDetail(raw: BackendVoucherDetailRaw): StockTakeFullDto {
     voucherDate:        raw.voucherDate,
     stockTakeDate:      raw.stockTakeDate,
     purpose:            raw.purpose,
-    member1:  raw.member1,  position1: raw.position1,
-    member2:  raw.member2,  position2: raw.position2,
-    member3:  raw.member3,  position3: raw.position3,
+    member1:   raw.member1,  position1: raw.position1,
+    member2:   raw.member2,  position2: raw.position2,
+    member3:   raw.member3,  position3: raw.position3,
     isCompleted: raw.isCompleted,
+    nk3Created:  raw.nk3Created  ?? false,
+    xk3Created:  raw.xk3Created  ?? false,
     createdBy:   raw.createdBy,
     createdDate: raw.createdDate,
     lines: (raw.stockTakeDetails ?? []).map((d) => ({
@@ -64,6 +66,8 @@ function mapListItem(raw: BackendListRaw): StockTakeListDto {
     stockTakeDate:      raw.stockTakeDate,
     purpose:            raw.purpose,
     isCompleted:        raw.isCompleted ?? false,
+    nk3Created:         raw.nk3Created  ?? false,
+    xk3Created:         raw.xk3Created  ?? false,
     createdBy:          raw.createdBy,
     createdDate:        raw.createdDate,
   };
@@ -83,19 +87,16 @@ export async function getAllGoods(): Promise<GoodsDto[]> {
   }));
 }
 
-// Xem trước mã phiếu KK sẽ được sinh (không tạo phiếu)
 export async function previewNextVoucherCode(): Promise<string> {
   const res = await apiFetch<{ voucherId: string }>(`${ENDPOINT}/preview-code`);
   return res.voucherId;
 }
 
-// Lấy danh sách hàng hóa với tồn kho tính đến ngày asOfDate
-// Công thức backend: OpenInventory + Σ nhập (Debit 156) - Σ xuất (Credit 156) đến ngày đó
 export async function getGoodsAsOfDate(asOfDate: string): Promise<GoodsDto[]> {
   const raw = await apiFetch<{ goodsId: string; goodsName: string; unit: string | null; stockQuantity: number }[]>(
     `${ENDPOINT}/goods-stock?asOfDate=${asOfDate}`
   );
-  return (raw ?? []).map(g => ({
+  return (raw ?? []).map((g) => ({
     goodsId:       g.goodsId,
     goodsName:     g.goodsName,
     unit:          g.unit ?? null,
@@ -141,37 +142,42 @@ export async function updateStockTake(id: string, req: UpdateStockTakeHeaderRequ
   return mapDetail(raw);
 }
 
-// Lỗi 6 đã sửa: chỉ trả về ProcessStockTakeResultDto từ API process
-// Không gọi thêm getStockTakeById — component sẽ tự gọi fetchVoucher() sau khi process xong
-// Tránh 1 request thừa và tách rõ trách nhiệm: API layer chỉ gọi đúng 1 endpoint
+export async function deleteStockTake(id: string): Promise<void> {
+  await apiFetch<void>(`${ENDPOINT}/${id}`, { method: "DELETE" });
+}
+
 export async function processStockTake(id: string): Promise<ProcessStockTakeResultDto> {
   const res = await fetch(`${ENDPOINT}/${id}/process`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
     cache: "no-store",
   });
-
   const body = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(body?.message ?? body?.title ?? `HTTP ${res.status}: Xử lý thất bại`);
-  }
-  if (body && body.success === false) {
-    throw new Error(body.message ?? "Xử lý thất bại");
-  }
-
-  return {
-    success:           body?.success          ?? true,
-    message:           body?.message          ?? "Xử lý thành công",
-  };
+  if (!res.ok) throw new Error(body?.message ?? body?.title ?? `HTTP ${res.status}`);
+  if (body?.success === false) throw new Error(body.message ?? "Xử lý thất bại");
+  return { success: body?.success ?? true, message: body?.message ?? "Xử lý thành công" };
 }
+
+// Đánh dấu đã lập phiếu nhập NK3 — backend tự set IsCompleted nếu đủ điều kiện
+export async function markNk3Created(id: string): Promise<StockTakeFullDto> {
+  const raw = await apiFetch<BackendVoucherDetailRaw>(`${ENDPOINT}/${id}/mark-nk3-created`, {
+    method: "PATCH",
+  });
+  return mapDetail(raw);
+}
+
+// Đánh dấu đã lập phiếu xuất XK3 — backend tự set IsCompleted nếu đủ điều kiện
+export async function markXk3Created(id: string): Promise<StockTakeFullDto> {
+  const raw = await apiFetch<BackendVoucherDetailRaw>(`${ENDPOINT}/${id}/mark-xk3-created`, {
+    method: "PATCH",
+  });
+  return mapDetail(raw);
+}
+
 export async function getSurplusItems(id: string): Promise<SurplusItemDto[]> {
   return apiFetch<SurplusItemDto[]>(`${ENDPOINT}/${id}/surplus-items`);
 }
 
 export async function getShortageItems(id: string): Promise<ShortageItemDto[]> {
   return apiFetch<ShortageItemDto[]>(`${ENDPOINT}/${id}/shortage-items`);
-}
-export async function deleteStockTake(id: string): Promise<void> {
-  await apiFetch<void>(`${ENDPOINT}/${id}`, { method: "DELETE" });
 }

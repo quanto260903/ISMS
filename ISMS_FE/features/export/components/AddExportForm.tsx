@@ -12,6 +12,7 @@ import {
   EXPORT_REASON_LABELS,
   getVoucherCodeByReason,
   getDebitAccountByReason,
+  getCreditAccountByReason
 } from "../constants/export.constants";
 import { useExportForm }           from "../hooks/useExportForm";
 import { useInwardVoucherSearch }  from "../hooks/useInwardVoucherSearch";
@@ -92,7 +93,7 @@ export default function AddExportForm() {
     unitPrice:       0,
     amount1:         0,
     debitAccount1:   getDebitAccountByReason(reasonRef.current),
-    creditAccount1:  "156",
+    creditAccount1:  getCreditAccountByReason(reasonRef.current),
     debitAccount2:   "",
     creditAccount2:  "",
     costPerUnit:     0,
@@ -132,7 +133,7 @@ export default function AddExportForm() {
       unitPrice:       d.unitPrice,
       amount1:         d.amount1,
       debitAccount1:   getDebitAccountByReason("IMPORT_RETURN"),
-      creditAccount1:  "156",
+      creditAccount1:  getCreditAccountByReason("IMPORT_RETURN"),
       debitAccount2:   "",
       creditAccount2:  "",
       costPerUnit:     d.quantity > 0 ? d.amount1 / d.quantity : d.unitPrice,
@@ -159,8 +160,8 @@ export default function AddExportForm() {
         quantity:        it.quantity,
         unitPrice:       0,
         amount1:         0,
-        debitAccount1:   "1381",   // Tài sản thiếu chờ xử lý
-        creditAccount1:  "156",
+        debitAccount1:   "111",   // Tài sản thiếu chờ xử lý
+        creditAccount1:  "511",
         debitAccount2:   "",
         creditAccount2:  "",
         costPerUnit:     0,

@@ -13,6 +13,9 @@
         public string? Purpose { get; set; }
         public bool? IsCompleted { get; set; }
         public string? CreatedBy { get; set; }
+        public bool Nk3Created { get; set; }
+
+        public bool Xk3Created { get; set; }
         public DateTime? CreatedDate { get; set; }  // giữ DateTime vì có giờ phút giây
     }
 
@@ -33,6 +36,9 @@
         public bool? IsCompleted { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
+        public bool Nk3Created { get; set; }
+
+        public bool Xk3Created { get; set; }
         public List<StockTakeDetailDto> StockTakeDetails { get; set; } = new();
     }
 

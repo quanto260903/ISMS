@@ -25,13 +25,20 @@ export const detectReasonFromCode = (code?: string): ExportReason => {
 // ── TK Nợ theo lý do xuất ────────────────────────────────────
 export const getDebitAccountByReason = (reason: ExportReason): string => {
   switch (reason) {
-    case "IMPORT_RETURN": return "331";   // Phải trả nhà cung cấp
+    case "IMPORT_RETURN": return "111";   // Phải trả nhà cung cấp
     case "DESTROY":       return "632";   // Chi phí hủy hàng
-    case "STOCK_TAKE":    return "1381";  // Tài sản thiếu chờ xử lý
-    case "SALE":          return "131";   // Phải thu khách hàng (override theo hình thức TT)
+    case "STOCK_TAKE":    return "111";  // Tài sản thiếu chờ xử lý
+    case "SALE":          return "111";   // Phải thu khách hàng (override theo hình thức TT)
   }
 };
-
+export const getCreditAccountByReason = (reason: ExportReason): string => {
+  switch (reason) {
+    case "IMPORT_RETURN": return "156";   // Phải trả nhà cung cấp
+    case "DESTROY":       return "156";   // Chi phí hủy hàng
+    case "STOCK_TAKE":    return "511";  // Tài sản thiếu chờ xử lý
+    case "SALE":          return "511";   // Phải thu khách hàng (override theo hình thức TT)
+  }
+};
 
 // ── Tính thành tiền xuất kho ──────────────────────────────────
 // Ưu tiên costPerUnit (giá vốn FIFO từ phiếu nhập)

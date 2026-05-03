@@ -26,7 +26,7 @@ function getNameFromToken(): string {
     );
   } catch { return ""; }
 }
-
+//từng dòng hàng hóa trong phiếu kiểm kê
 interface LineRow {
   _id:            number;
   _touched:       boolean;
