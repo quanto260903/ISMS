@@ -25,7 +25,17 @@ interface Props { voucherId: string; viewOnly?: boolean }
 
 function detectReason(code?: string): InwardReason {
   if (code === "NK2") return "SALES_RETURN";
-  return "PURCHASE"; // NK1 + NK3 đều fallback về PURCHASE (NK3 hiển thị read-only, không dùng reason)
+  return "PURCHASE";
+}
+
+// ── Helper: so sánh 2 chuỗi "YYYY-MM-DD" ────────────────────
+function isDateLocked(voucherDate: string, lockedUntilDate: string): boolean {
+  return voucherDate <= lockedUntilDate;
+}
+
+function formatLockedDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
@@ -39,6 +49,30 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
 
   const [reason, setReason] = useState<InwardReason>("PURCHASE");
 
+  // ── [MỚI] Trạng thái khóa sổ ────────────────────────────
+  const [lockedUntilDate, setLockedUntilDate] = useState<string | null>(null);
+
+  // Fetch trạng thái khóa sổ INVENTORY một lần khi mount
+  useEffect(() => {
+    fetch("/api/data-locks/INVENTORY")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.isLocked && res.data?.lockedUntilDate)
+          setLockedUntilDate(res.data.lockedUntilDate); // "YYYY-MM-DD"
+      })
+      .catch(() => {/* không block UI nếu API lỗi */});
+  }, []);
+
+  // Tính toán: phiếu này có đang bị khóa sổ không?
+  const isDataLocked =
+    !!lockedUntilDate &&
+    !!initialData?.voucherDate &&
+    isDateLocked(initialData.voucherDate, lockedUntilDate);
+
+  // Nếu bị khóa sổ → ép toàn bộ form sang chế độ chỉ xem
+  const effectiveViewOnly = viewOnly || isDataLocked;
+  // ─────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (initialData) setReason(detectReason(initialData.voucherCode));
   }, [initialData?.voucherId]);
@@ -50,10 +84,10 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
     addItem, removeItem, updateItem, replaceAllItems,
     handleSubmit,
   } = useInwardForm({
-    userId:      currentUserId,
-    initialData: initialData ?? undefined,
+    userId:        currentUserId,
+    initialData:   initialData ?? undefined,
     editVoucherId: voucherId,
-    onSuccess:   () => setTimeout(() => router.push("/dashboard/import"), 1200),
+    onSuccess:     () => setTimeout(() => router.push("/dashboard/import"), 1200),
   });
 
   const saleVoucherLookup = useSaleVoucherLookup();
@@ -113,12 +147,16 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
     prevLengthRef.current = cur;
   }, [voucher.items.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isSalesReturn     = reason === "SALES_RETURN";
-  const isAutoVoucher     = initialData?.voucherCode === "NK3";
-  const autoVoucherLabel  = INWARD_VOUCHER_CODE_LABELS[initialData?.voucherCode ?? ""] ?? initialData?.voucherCode;
+  const isSalesReturn    = reason === "SALES_RETURN";
+  const isAutoVoucher    = initialData?.voucherCode === "NK3";
+  const autoVoucherLabel = INWARD_VOUCHER_CODE_LABELS[initialData?.voucherCode ?? ""] ?? initialData?.voucherCode;
 
-  if (fetchLoading) return <div style={{ padding: 40, textAlign: "center", color: "#555" }}>⏳ Đang tải phiếu nhập kho...</div>;
-  if (fetchError)   return (
+  if (fetchLoading) return (
+    <div style={{ padding: 40, textAlign: "center", color: "#555" }}>
+      ⏳ Đang tải phiếu nhập kho...
+    </div>
+  );
+  if (fetchError) return (
     <div style={{ padding: 40, textAlign: "center", color: "#cc2222" }}>
       ⚠️ {fetchError}<br />
       <button style={{ marginTop: 12, padding: "8px 20px", cursor: "pointer" }}
@@ -129,17 +167,27 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
   return (
     <div style={styles.container}>
 
+      {/* Tiêu đề */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
         <button style={{ ...styles.btnSecondary, padding: "6px 16px" }}
           onClick={() => router.push("/dashboard/import")}>← Quay lại</button>
         <h2 style={{ ...styles.title, margin: 0 }}>
-          {viewOnly ? "Xem phiếu nhập kho" : "Sửa phiếu nhập kho"}{" "}
+          {effectiveViewOnly ? "Xem phiếu nhập kho" : "Sửa phiếu nhập kho"}{" "}
           <span style={s.voucherIdBadge}>{voucherId}</span>
         </h2>
       </div>
 
-      {viewOnly && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 12, background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, fontSize: 13, color: "#92400e", fontWeight: 600 }}>
+      {/* ── [MỚI] Banner khóa sổ — ưu tiên hiển thị trước banner viewOnly ── */}
+      {isDataLocked && (
+        <div style={s.lockedBanner}>
+          🔒 Phiếu này đã bị <strong>khóa sổ</strong> đến ngày{" "}
+          <strong>{formatLockedDate(lockedUntilDate!)}</strong> — không thể chỉnh sửa.
+        </div>
+      )}
+
+      {/* Banner chế độ xem thông thường (chỉ hiện khi không bị khóa sổ) */}
+      {viewOnly && !isDataLocked && (
+        <div style={s.viewOnlyBanner}>
           👁 Chế độ xem — không thể chỉnh sửa phiếu này
         </div>
       )}
@@ -148,12 +196,16 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
       <section style={{ ...styles.section, maxWidth: 860 }}>
         <h3 style={styles.sectionTitle}>Lý do nhập kho</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {isAutoVoucher || viewOnly ? (
+          {isAutoVoucher || effectiveViewOnly ? (
             <span style={{ ...s.voucherCodeBadge, background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "6px 14px", borderRadius: 8, fontWeight: 600 }}>
               🔄 {autoVoucherLabel ?? INWARD_REASON_LABELS[reason]}
             </span>
           ) : (
-            <select value={reason} onChange={(e) => onReasonChange(e.target.value as InwardReason)} style={s.reasonSelect}>
+            <select
+              value={reason}
+              onChange={(e) => onReasonChange(e.target.value as InwardReason)}
+              style={s.reasonSelect}
+            >
               {(["PURCHASE", "SALES_RETURN"] as InwardReason[]).map((r) => (
                 <option key={r} value={r}>
                   {r === "PURCHASE" ? "🛒 " : "↩️ "}
@@ -163,7 +215,9 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
             </select>
           )}
           <span style={s.voucherCodeBadge}>
-            Mã CT: <strong style={{ color: "#2255cc" }}>{isAutoVoucher ? initialData?.voucherCode : getVoucherCodeByReason(reason)}</strong>
+            Mã CT: <strong style={{ color: "#2255cc" }}>
+              {isAutoVoucher ? initialData?.voucherCode : getVoucherCodeByReason(reason)}
+            </strong>
           </span>
         </div>
       </section>
@@ -178,20 +232,32 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
               <div style={{ ...styles.fieldGroup, flex: 1, marginBottom: 0 }}>
                 <label style={styles.label}>Số hóa đơn bán hàng *</label>
-                <input style={styles.input} placeholder="Nhập số phiếu bán, VD: BH12345678"
+                <input
+                  style={styles.input}
+                  placeholder="Nhập số phiếu bán, VD: BH12345678"
                   value={saleVoucherLookup.saleVoucherId}
                   onChange={(e) => saleVoucherLookup.setSaleVoucherId(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && saleVoucherLookup.handleLookup()} />
+                  onKeyDown={(e) => e.key === "Enter" && saleVoucherLookup.handleLookup()}
+                />
               </div>
-              <button style={{ ...styles.btnPrimary, padding: "8px 20px", minWidth: 110, opacity: saleVoucherLookup.lookupLoading ? 0.6 : 1 }}
-                onClick={saleVoucherLookup.handleLookup} disabled={saleVoucherLookup.lookupLoading}>
+              <button
+                style={{ ...styles.btnPrimary, padding: "8px 20px", minWidth: 110, opacity: saleVoucherLookup.lookupLoading ? 0.6 : 1 }}
+                onClick={saleVoucherLookup.handleLookup}
+                disabled={saleVoucherLookup.lookupLoading}
+              >
                 {saleVoucherLookup.lookupLoading ? "⏳ Đang tìm..." : "🔍 Tra cứu"}
               </button>
               {saleVoucherLookup.lookupResult && (
-                <button style={{ ...styles.btnDanger, padding: "8px 14px" }} onClick={saleVoucherLookup.clearLookup}>✕ Xóa</button>
+                <button style={{ ...styles.btnDanger, padding: "8px 14px" }} onClick={saleVoucherLookup.clearLookup}>
+                  ✕ Xóa
+                </button>
               )}
             </div>
-            {saleVoucherLookup.lookupError && <p style={{ color: "#cc2222", fontSize: 13, marginTop: 6 }}>⚠️ {saleVoucherLookup.lookupError}</p>}
+            {saleVoucherLookup.lookupError && (
+              <p style={{ color: "#cc2222", fontSize: 13, marginTop: 6 }}>
+                ⚠️ {saleVoucherLookup.lookupError}
+              </p>
+            )}
             {saleVoucherLookup.lookupResult && (
               <div style={s.lookupResult}>
                 <span style={s.lookupBadge}>✅ Đã tìm thấy</span>
@@ -217,7 +283,13 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
           </div>
           <div style={{ ...styles.fieldGroup, flex: 1 }}>
             <label style={styles.label}>Ngày nhập kho *</label>
-            <input type="date" style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} value={voucher.voucherDate} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("voucherDate", e.target.value)} />
+            <input
+              type="date"
+              style={{ ...styles.input, ...(effectiveViewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
+              value={voucher.voucherDate}
+              readOnly={effectiveViewOnly}
+              onChange={(e) => !effectiveViewOnly && setField("voucherDate", e.target.value)}
+            />
           </div>
         </div>
         <div style={styles.fieldGroup}>
@@ -226,29 +298,53 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>{isSalesReturn ? "Mã khách hàng" : "Mã nhà cung cấp"}</label>
-          <input style={{ ...styles.input, background: isSalesReturn ? "#f5f5f5" : "#fff", color: isSalesReturn ? "#555" : undefined }}
+          <input
+            style={{ ...styles.input, background: (isSalesReturn || effectiveViewOnly) ? "#f5f5f5" : "#fff", color: (isSalesReturn || effectiveViewOnly) ? "#555" : undefined }}
             placeholder={isSalesReturn ? "Tự điền từ phiếu bán" : "Nhập mã NCC"}
-            value={voucher.customerId ?? ""} readOnly={isSalesReturn || viewOnly}
-            onChange={(e) => !isSalesReturn && !viewOnly && setField("customerId", e.target.value)} />
+            value={voucher.customerId ?? ""}
+            readOnly={isSalesReturn || effectiveViewOnly}
+            onChange={(e) => !isSalesReturn && !effectiveViewOnly && setField("customerId", e.target.value)}
+          />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>{isSalesReturn ? "Tên khách hàng *" : "Tên nhà cung cấp *"}</label>
-          <input style={{ ...styles.input, background: (isSalesReturn || viewOnly) ? "#f5f5f5" : "#fff", color: (isSalesReturn || viewOnly) ? "#555" : undefined }}
+          <input
+            style={{ ...styles.input, background: (isSalesReturn || effectiveViewOnly) ? "#f5f5f5" : "#fff", color: (isSalesReturn || effectiveViewOnly) ? "#555" : undefined }}
             placeholder={isSalesReturn ? "Tự điền từ phiếu bán" : "Nhập tên NCC"}
-            value={voucher.customerName ?? ""} readOnly={isSalesReturn || viewOnly}
-            onChange={(e) => !isSalesReturn && !viewOnly && setField("customerName", e.target.value)} />
+            value={voucher.customerName ?? ""}
+            readOnly={isSalesReturn || effectiveViewOnly}
+            onChange={(e) => !isSalesReturn && !effectiveViewOnly && setField("customerName", e.target.value)}
+          />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Mã số thuế</label>
-          <input style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} placeholder="Nhập MST" value={voucher.taxCode ?? ""} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("taxCode", e.target.value)} />
+          <input
+            style={{ ...styles.input, ...(effectiveViewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
+            placeholder="Nhập MST"
+            value={voucher.taxCode ?? ""}
+            readOnly={effectiveViewOnly}
+            onChange={(e) => !effectiveViewOnly && setField("taxCode", e.target.value)}
+          />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Địa chỉ</label>
-          <input style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} placeholder="Nhập địa chỉ" value={voucher.address ?? ""} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("address", e.target.value)} />
+          <input
+            style={{ ...styles.input, ...(effectiveViewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
+            placeholder="Nhập địa chỉ"
+            value={voucher.address ?? ""}
+            readOnly={effectiveViewOnly}
+            onChange={(e) => !effectiveViewOnly && setField("address", e.target.value)}
+          />
         </div>
         <div style={styles.fieldGroup}>
           <label style={styles.label}>Diễn giải</label>
-          <input style={{ ...styles.input, ...(viewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }} placeholder="Nhập diễn giải" value={voucher.voucherDescription ?? ""} readOnly={viewOnly} onChange={(e) => !viewOnly && setField("voucherDescription", e.target.value)} />
+          <input
+            style={{ ...styles.input, ...(effectiveViewOnly ? { background: "#f5f5f5", color: "#555" } : {}) }}
+            placeholder="Nhập diễn giải"
+            value={voucher.voucherDescription ?? ""}
+            readOnly={effectiveViewOnly}
+            onChange={(e) => !effectiveViewOnly && setField("voucherDescription", e.target.value)}
+          />
         </div>
       </section>
 
@@ -275,7 +371,7 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
             onInputFocus={goodsSearch.handleInputFocus}
             onSelectGoods={(index, goods, totalItems) => goodsSearch.handleSelectGoods(index, goods, totalItems)}
             onSetDropdownPos={goodsSearch.setDropdownPos}
-            viewOnly={viewOnly}
+            viewOnly={effectiveViewOnly}
           />
         )}
         {voucher.items.length > 0 && (
@@ -290,14 +386,20 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
 
       <hr style={styles.hr} />
 
+      {/* Nút hành động */}
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        {!viewOnly && (
-          <button style={{ ...styles.btnPrimary, opacity: loading ? 0.6 : 1 }} onClick={handleSubmit} disabled={loading}>
+        {/* Ẩn nút Lưu khi đang bị khóa sổ hoặc viewOnly */}
+        {!effectiveViewOnly && (
+          <button
+            style={{ ...styles.btnPrimary, opacity: loading ? 0.6 : 1 }}
+            onClick={handleSubmit}
+            disabled={loading}
+          >
             {loading ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
           </button>
         )}
         <button style={styles.btnSecondary} onClick={() => router.push("/dashboard/import")}>
-          {viewOnly ? "← Quay lại" : "Hủy"}
+          {effectiveViewOnly ? "← Quay lại" : "Hủy"}
         </button>
       </div>
 
@@ -311,10 +413,16 @@ export default function EditInwardForm({ voucherId, viewOnly = false }: Props) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  voucherIdBadge:   { marginLeft: 10, padding: "2px 10px", background: "#f0f4ff", color: "#2255cc", border: "1px solid #c7d7ff", borderRadius: 6, fontSize: 13, fontWeight: 500 },
-  reasonSelect:     { height: 38, padding: "0 36px 0 12px", border: "1.5px solid #c7d7ff", borderRadius: 8, background: "#eff6ff", color: "#2255cc", fontWeight: 600, fontSize: 14, cursor: "pointer", appearance: "none" as const, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232255cc' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", minWidth: 220 },
-  voucherCodeBadge: { padding: "4px 12px", background: "#f0f4ff", color: "#555", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 12 },
-  lookupResult:     { marginTop: 10, padding: "12px 16px", background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, display: "flex", alignItems: "center", gap: 12, fontSize: 13 },
-  lookupBadge:      { padding: "3px 12px", background: "#16a34a", color: "#fff", borderRadius: 20, fontWeight: 700, fontSize: 11, whiteSpace: "nowrap" as const },
-  autoFilledBadge:  { marginLeft: 10, padding: "3px 12px", background: "#eff6ff", color: "#4f46e5", border: "1.5px solid #c7d7ff", borderRadius: 20, fontSize: 11, fontWeight: 700 },
+  voucherIdBadge:  { marginLeft: 10, padding: "2px 10px", background: "#f0f4ff", color: "#2255cc", border: "1px solid #c7d7ff", borderRadius: 6, fontSize: 13, fontWeight: 500 },
+  reasonSelect:    { height: 38, padding: "0 36px 0 12px", border: "1.5px solid #c7d7ff", borderRadius: 8, background: "#eff6ff", color: "#2255cc", fontWeight: 600, fontSize: 14, cursor: "pointer", appearance: "none" as const, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232255cc' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", minWidth: 220 },
+  voucherCodeBadge:{ padding: "4px 12px", background: "#f0f4ff", color: "#555", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 12 },
+  lookupResult:    { marginTop: 10, padding: "12px 16px", background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, display: "flex", alignItems: "center", gap: 12, fontSize: 13 },
+  lookupBadge:     { padding: "3px 12px", background: "#16a34a", color: "#fff", borderRadius: 20, fontWeight: 700, fontSize: 11, whiteSpace: "nowrap" as const },
+  autoFilledBadge: { marginLeft: 10, padding: "3px 12px", background: "#eff6ff", color: "#4f46e5", border: "1.5px solid #c7d7ff", borderRadius: 20, fontSize: 11, fontWeight: 700 },
+
+  // [MỚI] Banner khóa sổ — đỏ cam, nổi bật hơn banner viewOnly
+  lockedBanner:    { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 12, background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 8, fontSize: 13, color: "#991b1b", fontWeight: 600 },
+
+  // Banner chế độ xem thông thường — vàng nhạt
+  viewOnlyBanner:  { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 12, background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, fontSize: 13, color: "#92400e", fontWeight: 600 },
 };

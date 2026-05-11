@@ -9,7 +9,6 @@ import { Toast } from "./Toast";
 
 const FONT = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
 
-// ── Helpers ───────────────────────────────────────────────────
 function formatDate(dateStr: string) {
   const [y, m, d] = dateStr.split("-");
   return `${d}/${m}/${y}`;
@@ -29,46 +28,38 @@ export function DataLocksPage() {
   const [showLockModal, setShowLockModal]     = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
 
-  // Khóa sổ: gọi API lock với ngày mới
   const handleLockSubmit = async (date: string, reason?: string) => {
     await lock("INVENTORY", date, reason);
     setShowLockModal(false);
   };
 
-  // Bỏ khóa sổ: thực ra là cập nhật lại ngày khóa về ngày nhỏ hơn
-  // → gọi unlock rồi lock lại với ngày mới, hoặc nếu API hỗ trợ patch thì gọi trực tiếp
-  // Ở đây: unlock trước, nếu newDate có giá trị thì lock lại với ngày mới
   const handleUnlockSubmit = async (newDate: string, reason?: string) => {
     await unlock("INVENTORY");
-    if (newDate) {
-      await lock("INVENTORY", newDate, reason);
-    }
+    if (newDate) await lock("INVENTORY", newDate, reason);
     setShowUnlockModal(false);
   };
 
   if (!inventoryState) return null;
 
   const currentLockedDate = inventoryState.lock?.lockedUntilDate ?? null;
+  const isLocked          = inventoryState.isLocked;
 
   return (
     <div style={s.page}>
 
-      {/* ── Hero Banner ── */}
+      {/* Hero */}
       <div style={s.heroBanner}>
-        <div style={s.heroOrb1} />
-        <div style={s.heroOrb2} />
+        <div style={s.heroOrb1} /><div style={s.heroOrb2} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={s.heroEyebrow}>WMS Pro · Quản lý hệ thống</div>
           <h1 style={s.heroTitle}>Khóa dữ liệu</h1>
-          <p style={s.heroSub}>
-            Kiểm soát và bảo vệ dữ liệu chứng từ — ngăn chỉnh sửa sau khi đã chốt sổ
-          </p>
+          <p style={s.heroSub}>Kiểm soát và bảo vệ dữ liệu chứng từ — ngăn chỉnh sửa sau khi đã chốt sổ</p>
         </div>
         <div style={s.heroBadgeGroup}>
           <div style={s.heroBadge}>
-            <span style={{ fontSize: 18 }}>{inventoryState.isLocked ? "🔒" : "🔓"}</span>
+            <span style={{ fontSize: 18 }}>{isLocked ? "🔒" : "🔓"}</span>
             <div>
-              <div style={s.badgeNum}>{inventoryState.isLocked ? "Đang khóa" : "Chưa khóa"}</div>
+              <div style={s.badgeNum}>{isLocked ? "Đang khóa" : "Chưa khóa"}</div>
               <div style={s.badgeLabel}>Kho hàng</div>
             </div>
           </div>
@@ -79,20 +70,20 @@ export function DataLocksPage() {
         </div>
       </div>
 
-      {/* ── Hướng dẫn ── */}
+      {/* Guide */}
       <div style={s.guideCard}>
         <div style={s.guideIcon}>💡</div>
         <div>
           <div style={s.guideTitle}>Khóa sổ hoạt động như thế nào?</div>
           <div style={s.guideText}>
-            Sau khi khóa sổ đến một ngày, <strong>toàn bộ chứng từ từ ngày đó trở về trước</strong> sẽ
-            không thể tạo mới, sửa hoặc xóa trên mọi máy trạm. Để bỏ khóa một phần,
-            hãy <strong>đặt lại ngày khóa về ngày sớm hơn</strong> — vùng dữ liệu giữa hai ngày sẽ được mở.
+            Sau khi khóa sổ đến một ngày, <strong>toàn bộ chứng từ từ ngày đó trở về trước</strong> sẽ không thể tạo mới, sửa hoặc xóa.
+            Để <strong>mở rộng</strong> vùng khóa, chọn ngày khóa sổ mới lớn hơn.
+            Để <strong>thu hẹp</strong> vùng khóa, đặt lại ngày khóa về ngày nhỏ hơn.
           </div>
         </div>
       </div>
 
-      {/* ── Module Card ── */}
+      {/* Module Card */}
       <ModuleCard
         state={inventoryState}
         actionLoading={actionLoading}
@@ -100,7 +91,7 @@ export function DataLocksPage() {
         onUnlock={() => setShowUnlockModal(true)}
       />
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       <LockModal
         open={showLockModal}
         loading={actionLoading === "INVENTORY"}
@@ -166,22 +157,29 @@ function ModuleCard({
         {loading ? <SkeletonLoader /> : isLocked && lock ? <LockedInfo lock={lock} /> : <OpenInfo color={meta.color} />}
       </div>
 
-      {/* Footer */}
+      {/* Footer — khi đang khóa hiện CẢ 2 nút */}
       <div style={cardS.footer}>
         {isLocked ? (
           <>
             <div style={cardS.lockEffect}>
-              🚫 Chứng từ ≤ {lock ? formatDate(lock.lockedUntilDate) : "—"} bị chặn thao tác
+              🚫 Chứng từ ≤ {lock ? formatDate(lock.lockedUntilDate) : "—"} bị chặn
             </div>
-            <button style={{ ...cardS.btn, ...cardS.btnUnlock }} disabled={isBusy} onClick={onUnlock}>
-              {isBusy ? <Spinner /> : "📅"}{isBusy ? "Đang xử lý..." : "Bỏ khóa sổ"}
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              {/* Mở rộng vùng khóa sang ngày mới hơn */}
+              <button style={{ ...cardS.btn, ...cardS.btnLock }} disabled={isBusy} onClick={onLock}>
+                {isBusy ? <Spinner /> : "🔒"} Khóa thêm
+              </button>
+              {/* Thu hẹp vùng khóa về ngày cũ hơn */}
+              <button style={{ ...cardS.btn, ...cardS.btnUnlock }} disabled={isBusy} onClick={onUnlock}>
+                {isBusy ? <Spinner /> : "📅"} Bỏ khóa sổ
+              </button>
+            </div>
           </>
         ) : (
           <>
             <div style={cardS.openHint}>Chưa có khóa sổ nào đang hoạt động</div>
             <button style={{ ...cardS.btn, ...cardS.btnLock }} disabled={isBusy} onClick={onLock}>
-              {isBusy ? <Spinner /> : "🔒"}{isBusy ? "Đang xử lý..." : "Khóa sổ"}
+              {isBusy ? <Spinner /> : "🔒"} Khóa sổ
             </button>
           </>
         )}
@@ -229,7 +227,6 @@ function LockedInfo({ lock }: { lock: NonNullable<LockState["lock"]> }) {
   );
 }
 
-// ── Open Info ─────────────────────────────────────────────────
 function OpenInfo({ color }: { color: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 0", gap: 8 }}>
@@ -242,11 +239,9 @@ function OpenInfo({ color }: { color: string }) {
   );
 }
 
-// ── Lock Modal — Khóa sổ kỳ kế toán ─────────────────────────
-// Nhập ngày khóa mới (>= ngày hiện tại hoặc >= ngày khóa cũ nếu có)
+// ── Lock Modal — khóa sổ / mở rộng vùng khóa ─────────────────
 function LockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
-  open: boolean;
-  loading: boolean;
+  open: boolean; loading: boolean;
   currentLockedDate: string | null;
   onClose: () => void;
   onSubmit: (date: string, reason?: string) => void;
@@ -256,10 +251,10 @@ function LockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
   const [err, setErr]       = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Ngày tối thiểu được chọn:
-  // - Nếu đang có khóa: phải lớn hơn ngày khóa hiện tại (mở rộng vùng khóa)
-  // - Nếu chưa khóa: từ hôm nay trở về trước đều hợp lệ (không giới hạn min)
-  const minDate = currentLockedDate ?? undefined;
+  // Ngày tối thiểu = ngày sau ngày đang khóa (nếu có) để chỉ cho phép mở rộng
+  const minDate = currentLockedDate
+    ? new Date(new Date(currentLockedDate).getTime() + 86400000).toISOString().split("T")[0]
+    : undefined;
 
   useEffect(() => {
     if (open) { setDate(""); setReason(""); setErr(""); setTimeout(() => inputRef.current?.focus(), 80); }
@@ -268,7 +263,7 @@ function LockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
   const submit = () => {
     if (!date) { setErr("Vui lòng chọn ngày khóa sổ."); return; }
     if (currentLockedDate && date <= currentLockedDate) {
-      setErr(`Ngày khóa mới phải sau ngày khóa hiện tại (${formatDate(currentLockedDate)}).`);
+      setErr(`Ngày phải sau ngày khóa hiện tại (${formatDate(currentLockedDate)}).`);
       return;
     }
     onSubmit(date, reason.trim() || undefined);
@@ -276,61 +271,59 @@ function LockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
 
   if (!open) return null;
 
+  // Tiêu đề thay đổi tuỳ theo đang khóa hay chưa
+  const isExtending = !!currentLockedDate;
+
   return (
     <div style={modal.backdrop} onClick={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}>
       <div style={modal.box}>
         <div style={modal.header}>
           <span style={{ fontSize: 20 }}>🔒</span>
-          <span style={modal.title}>Khóa sổ kỳ kế toán</span>
+          <span style={modal.title}>
+            {isExtending ? "Mở rộng khóa sổ" : "Khóa sổ kỳ kế toán"}
+          </span>
         </div>
-
         <div style={modal.body}>
-          {/* Thông tin ngày khóa hiện tại nếu có */}
+          {/* Thông tin ngày đang khóa */}
           {currentLockedDate && (
             <div style={modal.infoBox}>
               <span>📌</span>
-              <span>Ngày khóa hiện tại: <strong>{formatDate(currentLockedDate)}</strong>. Ngày khóa mới phải <strong>sau</strong> ngày này.</span>
+              <span>Đang khóa đến: <strong>{formatDate(currentLockedDate)}</strong>. Ngày mới phải <strong>sau</strong> ngày này.</span>
             </div>
           )}
-
           <div style={modal.field}>
             <label style={modal.label}>
-              Chọn ngày khóa sổ mới <span style={{ color: "#ef4444" }}>*</span>
+              {isExtending ? "Khóa sổ thêm đến ngày" : "Chọn ngày khóa sổ"}{" "}
+              <span style={{ color: "#ef4444" }}>*</span>
             </label>
             <input
-              ref={inputRef}
-              type="date"
-              style={modal.input}
-              min={minDate}
-              value={date}
+              ref={inputRef} type="date" style={modal.input}
+              min={minDate} value={date}
               onChange={(e) => { setDate(e.target.value); setErr(""); }}
             />
             <span style={modal.hint}>
-              Chứng từ từ ngày này trở về trước sẽ không thể thêm, sửa, xóa.
+              {date
+                ? `Chứng từ từ ngày ${formatDate(date)} trở về trước sẽ bị khóa.`
+                : "Chứng từ từ ngày này trở về trước sẽ không thể thêm, sửa, xóa."}
             </span>
           </div>
-
           <div style={modal.field}>
             <label style={modal.label}>Lý do <span style={{ color: "#94a3b8", fontWeight: 400, textTransform: "none" }}>(không bắt buộc)</span></label>
             <textarea
               style={{ ...modal.input, resize: "vertical", minHeight: 68 } as React.CSSProperties}
               placeholder="Ví dụ: Chốt sổ kho tháng 6/2025..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              value={reason} onChange={(e) => setReason(e.target.value)}
             />
           </div>
-
           {err && <div style={modal.err}>{err}</div>}
         </div>
-
         <div style={modal.footer}>
           <button style={modal.btnGhost} onClick={onClose} disabled={loading}>Hủy</button>
           <button
             style={{ ...modal.btnPrimary, background: "linear-gradient(135deg,#1e3a5f,#1e40af)", opacity: (!date || loading) ? 0.5 : 1 }}
-            onClick={submit}
-            disabled={loading || !date}
+            onClick={submit} disabled={loading || !date}
           >
-            {loading ? <Spinner /> : "🔒"}{loading ? "Đang xử lý..." : "Thực hiện khóa sổ"}
+            {loading ? <Spinner /> : "🔒"}{" "}{loading ? "Đang xử lý..." : isExtending ? "Xác nhận mở rộng" : "Xác nhận khóa sổ"}
           </button>
         </div>
       </div>
@@ -338,11 +331,9 @@ function LockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
   );
 }
 
-// ── Unlock Modal — Bỏ khóa sổ kỳ kế toán ────────────────────
-// Nhập ngày mới TRƯỚC ngày khóa hiện tại → vùng từ ngày mới đến ngày cũ được bỏ khóa
+// ── Unlock Modal — thu hẹp vùng khóa về ngày nhỏ hơn ─────────
 function UnlockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
-  open: boolean;
-  loading: boolean;
+  open: boolean; loading: boolean;
   currentLockedDate: string | null;
   onClose: () => void;
   onSubmit: (newDate: string, reason?: string) => void;
@@ -352,6 +343,11 @@ function UnlockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
   const [err, setErr]       = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Ngày tối đa = ngày trước ngày đang khóa (bắt buộc phải nhỏ hơn)
+  const maxDate = currentLockedDate
+    ? new Date(new Date(currentLockedDate).getTime() - 86400000).toISOString().split("T")[0]
+    : undefined;
+
   useEffect(() => {
     if (open) { setDate(""); setReason(""); setErr(""); setTimeout(() => inputRef.current?.focus(), 80); }
   }, [open]);
@@ -359,7 +355,7 @@ function UnlockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
   const submit = () => {
     if (!date) { setErr("Vui lòng chọn ngày khóa sổ mới."); return; }
     if (currentLockedDate && date >= currentLockedDate) {
-      setErr(`Ngày phải trước ngày khóa hiện tại (${formatDate(currentLockedDate)}) để bỏ khóa một phần.`);
+      setErr(`Ngày phải trước ngày khóa hiện tại (${formatDate(currentLockedDate)}).`);
       return;
     }
     onSubmit(date, reason.trim() || undefined);
@@ -374,29 +370,20 @@ function UnlockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
           <span style={{ fontSize: 20 }}>📅</span>
           <span style={modal.title}>Bỏ khóa sổ kỳ kế toán</span>
         </div>
-
         <div style={modal.body}>
-          {/* Hiển thị ngày khóa hiện tại */}
           {currentLockedDate && (
             <div style={{ ...modal.infoBox, background: "#fef2f2", borderColor: "#fecaca" }}>
               <span>🔒</span>
-              <span>Ngày khóa hiện tại: <strong>{formatDate(currentLockedDate)}</strong>.</span>
+              <span>Đang khóa đến: <strong>{formatDate(currentLockedDate)}</strong>. Ngày mới phải <strong>trước</strong> ngày này.</span>
             </div>
           )}
-
           <div style={modal.field}>
             <label style={modal.label}>
               Đặt ngày khóa sổ về ngày <span style={{ color: "#ef4444" }}>*</span>
             </label>
             <input
-              ref={inputRef}
-              type="date"
-              style={modal.input}
-              // Phải chọn ngày trước ngày khóa hiện tại
-              max={currentLockedDate
-                ? new Date(new Date(currentLockedDate).getTime() - 86400000).toISOString().split("T")[0]
-                : undefined}
-              value={date}
+              ref={inputRef} type="date" style={modal.input}
+              max={maxDate} value={date}
               onChange={(e) => { setDate(e.target.value); setErr(""); }}
             />
             <span style={modal.hint}>
@@ -405,28 +392,23 @@ function UnlockModal({ open, loading, currentLockedDate, onClose, onSubmit }: {
                 : "Chọn ngày mới nhỏ hơn ngày khóa hiện tại — vùng giữa hai ngày sẽ được mở."}
             </span>
           </div>
-
           <div style={modal.field}>
             <label style={modal.label}>Lý do <span style={{ color: "#94a3b8", fontWeight: 400, textTransform: "none" }}>(không bắt buộc)</span></label>
             <textarea
               style={{ ...modal.input, resize: "vertical", minHeight: 68 } as React.CSSProperties}
               placeholder="Ví dụ: Điều chỉnh chứng từ kho tháng 5/2025..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              value={reason} onChange={(e) => setReason(e.target.value)}
             />
           </div>
-
           {err && <div style={modal.err}>{err}</div>}
         </div>
-
         <div style={modal.footer}>
           <button style={modal.btnGhost} onClick={onClose} disabled={loading}>Hủy</button>
           <button
             style={{ ...modal.btnPrimary, background: "#dc2626", opacity: (!date || loading) ? 0.5 : 1 }}
-            onClick={submit}
-            disabled={loading || !date}
+            onClick={submit} disabled={loading || !date}
           >
-            {loading ? <Spinner /> : "📅"}{loading ? "Đang xử lý..." : "Thực hiện"}
+            {loading ? <Spinner /> : "📅"}{" "}{loading ? "Đang xử lý..." : "Thực hiện"}
           </button>
         </div>
       </div>
@@ -479,7 +461,7 @@ const cardS: Record<string, React.CSSProperties> = {
   footer:     { padding: "12px 18px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 },
   lockEffect: { fontSize: 11, color: "#dc2626", fontWeight: 600, background: "#fef2f2", padding: "4px 8px", borderRadius: 6, border: "1px solid #fecaca" },
   openHint:   { fontSize: 11, color: "#94a3b8" },
-  btn:        { display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: FONT, transition: "opacity 0.15s" },
+  btn:        { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: FONT, transition: "opacity 0.15s" },
   btnLock:    { background: "linear-gradient(135deg, #1e3a5f, #1e40af)", color: "#fff" },
   btnUnlock:  { background: "#f8fafc", color: "#475569", border: "1.5px solid #e2e8f0" },
 };
@@ -499,18 +481,18 @@ const infoS: Record<string, React.CSSProperties> = {
 };
 
 const modal: Record<string, React.CSSProperties> = {
-  backdrop:  { position: "fixed", inset: 0, background: "rgba(15,20,35,0.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1rem" },
-  box:       { background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", width: "100%", maxWidth: 440, boxShadow: "0 20px 50px rgba(0,0,0,0.18)", overflow: "hidden" },
-  header:    { display: "flex", alignItems: "center", gap: 10, padding: "18px 20px 14px", borderBottom: "1px solid #f1f5f9" },
-  title:     { fontSize: 16, fontWeight: 700, color: "#1e293b" },
-  body:      { padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 },
-  footer:    { display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px 18px" },
-  field:     { display: "flex", flexDirection: "column", gap: 5 },
-  label:     { fontSize: 12, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" },
-  hint:      { fontSize: 12, color: "#64748b", lineHeight: 1.5 },
-  input:     { width: "100%", fontFamily: FONT, fontSize: 14, color: "#1e293b", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", boxSizing: "border-box" },
-  err:       { fontSize: 12, color: "#dc2626", padding: "7px 10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 7 },
-  infoBox:   { display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, fontSize: 13, color: "#1e40af" },
-  btnGhost:  { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "transparent", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT },
-  btnPrimary:{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, color: "#fff" },
+  backdrop:   { position: "fixed", inset: 0, background: "rgba(15,20,35,0.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1rem" },
+  box:        { background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", width: "100%", maxWidth: 440, boxShadow: "0 20px 50px rgba(0,0,0,0.18)", overflow: "hidden" },
+  header:     { display: "flex", alignItems: "center", gap: 10, padding: "18px 20px 14px", borderBottom: "1px solid #f1f5f9" },
+  title:      { fontSize: 16, fontWeight: 700, color: "#1e293b" },
+  body:       { padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 },
+  footer:     { display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px 18px" },
+  field:      { display: "flex", flexDirection: "column", gap: 5 },
+  label:      { fontSize: 12, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" },
+  hint:       { fontSize: 12, color: "#64748b", lineHeight: 1.5 },
+  input:      { width: "100%", fontFamily: FONT, fontSize: 14, color: "#1e293b", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", boxSizing: "border-box" },
+  err:        { fontSize: 12, color: "#dc2626", padding: "7px 10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 7 },
+  infoBox:    { display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, fontSize: 13, color: "#1e40af" },
+  btnGhost:   { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "transparent", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT },
+  btnPrimary: { display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, color: "#fff" },
 };
