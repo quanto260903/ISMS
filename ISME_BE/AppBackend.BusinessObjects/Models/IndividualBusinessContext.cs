@@ -23,6 +23,8 @@ public partial class IndividualBusinessContext : DbContext
 
     public virtual DbSet<Customer> Customers { get; set; }
 
+    public virtual DbSet<DataLock> DataLocks { get; set; }
+
     public virtual DbSet<Good> Goods { get; set; }
 
     public virtual DbSet<GoodsCategory> GoodsCategories { get; set; }
@@ -108,6 +110,32 @@ public partial class IndividualBusinessContext : DbContext
             entity.Property(e => e.IsVendor).HasDefaultValue(false);
             entity.Property(e => e.Phone).HasMaxLength(12);
             entity.Property(e => e.TaxId).HasMaxLength(14);
+        });
+
+        modelBuilder.Entity<DataLock>(entity =>
+        {
+            entity.HasKey(e => e.DataLockId).HasName("PK__DataLock__F7871B084838F969");
+
+            entity.HasIndex(e => new { e.Module, e.IsActive }, "IX_DataLocks_Module_IsActive");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.LockedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.LockedByUserId).HasMaxLength(16);
+            entity.Property(e => e.Module).HasMaxLength(50);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.UnlockedAt).HasColumnType("datetime");
+            entity.Property(e => e.UnlockedByUserId).HasMaxLength(16);
+
+            entity.HasOne(d => d.LockedByUser).WithMany(p => p.DataLockLockedByUsers)
+                .HasForeignKey(d => d.LockedByUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DataLocks_LockedUser");
+
+            entity.HasOne(d => d.UnlockedByUser).WithMany(p => p.DataLockUnlockedByUsers)
+                .HasForeignKey(d => d.UnlockedByUserId)
+                .HasConstraintName("FK_DataLocks_UnlockedUser");
         });
 
         modelBuilder.Entity<Good>(entity =>

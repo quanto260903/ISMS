@@ -67,7 +67,6 @@ const navGroups = [
       { href: '/dashboard/import',     icon: ArrowDownToLine, label: 'Nhập kho',     requiredRole: [UserRole.Staff] },
       { href: '/dashboard/export',     icon: ArrowUpFromLine, label: 'Xuất kho',     requiredRole: [UserRole.Staff] },
       { href: '/dashboard/stock-take', icon: ClipboardCheck,  label: 'Kiểm kê kho', requiredRole: [UserRole.Staff] },
-      { href: '/dashboard/sale',       icon: RotateCcw,       label: 'Bán hàng',    requiredRole: [UserRole.Staff] },
     ]
   },
   {
@@ -100,8 +99,8 @@ const navGroups = [
   {
     title: 'Khác',
     items: [
-      // Không có requiredRole → hiện với mọi user đã login
       { href: '/dashboard/open-inventory', icon: Wallet, label: 'Nhập số dư đầu' },
+      { href: '/dashboard/data-locks', icon: Wallet, label: 'Khóa sổ' },
     ]
   },
 ]

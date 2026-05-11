@@ -282,11 +282,7 @@ function StockTakeRow({ row, i, onView, onDelete }: {
   onView: () => void; onDelete: () => void;
 }) {
   const [hover, setHover] = React.useState(false);
-  const isDone =
-    typeof window !== "undefined" && (
-      localStorage.getItem(`nk3_done_${row.stockTakeVoucherId}`) === "true" ||
-      localStorage.getItem(`xk3_done_${row.stockTakeVoucherId}`) === "true"
-    );
+    const isDone = row.isCompleted;
   return (
     <tr
       style={{ background: hover ? "#f5f3ff" : i % 2 === 0 ? "#fff" : "#fafafa", transition: "background 0.12s", cursor: "pointer" }}
