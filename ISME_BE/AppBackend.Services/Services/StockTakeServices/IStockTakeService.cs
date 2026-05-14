@@ -30,5 +30,8 @@ namespace AppBackend.Services.Services.StockTakeServices
 
         // Xem trước mã phiếu sẽ được sinh (không tạo phiếu)
         Task<string> PreviewNextVoucherCodeAsync();
+
+        Task<StockTakeVoucherDetailDto?> MarkNk3CreatedAsync(string id);
+        Task<StockTakeVoucherDetailDto?> MarkXk3CreatedAsync(string id);
     }
 }

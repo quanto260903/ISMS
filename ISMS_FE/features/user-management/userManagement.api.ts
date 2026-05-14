@@ -7,6 +7,7 @@ import type {
   UserDetailDto,
   CreateUserRequest,
   UpdateUserRequest,
+  UpdateRoleRequest,
 } from "./types/userManagement.types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -87,14 +88,15 @@ export async function updateUser(
   return res.data;
 }
 
-// ── Đổi phân quyền ───────────────────────────────────────────
+// ── Đổi phân quyền (multi-role) ───────────────────────────────
+// Gửi mảng roleIds thay vì 1 số roleId
 export async function updateRole(
   userId: string,
-  roleId: number
+  payload: UpdateRoleRequest   // ✅ { roleIds: number[] }
 ): Promise<string> {
   const res = await api<number>(`${BASE}/User/${userId}/role`, {
     method: "PUT",
-    body:   JSON.stringify({ roleId }),
+    body:   JSON.stringify(payload),  // { roleIds: [2, 3] }
   });
   if (!res.isSuccess) throw new Error(res.message);
   return res.message;

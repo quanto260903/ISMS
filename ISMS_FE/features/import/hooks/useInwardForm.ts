@@ -14,18 +14,24 @@ import {
 } from "../constants/import.constants";
 
 interface UseInwardFormOptions {
-  userId?:      string;
-  initialData?: InwardVoucher;
-  onSuccess?:   () => void;
+  userId?:        string;
+  initialData?:   InwardVoucher;
+  editVoucherId?: string; // truyền voucherId từ URL param — stable ngay từ render đầu
+  onSuccess?:     () => void;
 }
 
 export function useInwardForm({
   userId      = "",
   initialData,
+  editVoucherId,
   onSuccess,
 }: UseInwardFormOptions = {}) {
 
-  const isEditMode = !!initialData;
+  // Dùng editVoucherId thay vì !!initialData để xác định edit mode.
+  // Lý do: initialData được fetch bất đồng bộ nên lần render đầu luôn là
+  // undefined → isEditMode = false → effect fetch ID mới chạy sớm →
+  // getNextImportId() resolve SAU khi initialData sync xong → ghi đè ID gốc.
+  const isEditMode = !!editVoucherId;
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,17 +51,25 @@ export function useInwardForm({
     }
   );
 
-  // Lấy mã phiếu nhập kho tiếp theo từ server (chỉ khi tạo mới)
+  // Lấy mã phiếu nhập kho tiếp theo từ server (chỉ khi tạo mới).
+  // Thêm cancelled flag để tránh trường hợp promise resolve sau khi
+  // component unmount hoặc sau khi initialData đã sync → ghi đè ID gốc.
   useEffect(() => {
-    if (initialData) return;
+    if (isEditMode) return;
+    let cancelled = false;
     getNextImportId()
-      .then((id) => setVoucher((prev) => ({ ...prev, voucherId: id })))
-      .catch(() => {/* giữ rỗng nếu lỗi */ });
+      .then((id) => {
+        if (!cancelled) setVoucher((prev) => ({ ...prev, voucherId: id }));
+      })
+      .catch(() => {/* giữ rỗng nếu lỗi */});
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Khi initialData fetch xong (trang edit) → sync lại state
+  // Khi initialData fetch xong (trang edit) → sync lại state.
+  // Kiểm tra initialData?.voucherId thay vì initialData để không sync
+  // khi initialData vẫn còn là undefined (đang loading).
   useEffect(() => {
-    if (!initialData) return;
+    if (!initialData?.voucherId) return;
     setVoucher(initialData);
   }, [initialData?.voucherId]);
 
@@ -81,9 +95,9 @@ export function useInwardForm({
     amount1:         0,
     promotion:       0,
     debitAccount1:   "156",
-    creditAccount1:  DEFAULT_CREDIT_ACCOUNT,   // 111 - tiền mặt
-    debitAccount2:   "1331",
-    creditAccount2:  DEFAULT_CREDIT_ACCOUNT,
+    creditAccount1:  "111",
+    debitAccount2:   "",
+    creditAccount2:  "",
     userId:          userId,
     createdDateTime: new Date().toISOString(),
   });

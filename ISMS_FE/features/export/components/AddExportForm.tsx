@@ -12,6 +12,7 @@ import {
   EXPORT_REASON_LABELS,
   getVoucherCodeByReason,
   getDebitAccountByReason,
+  getCreditAccountByReason
 } from "../constants/export.constants";
 import { useExportForm }           from "../hooks/useExportForm";
 import { useInwardVoucherSearch }  from "../hooks/useInwardVoucherSearch";
@@ -29,11 +30,12 @@ import { useAuthStore }            from "@/store/authStore";
 import type { ExportReason, ExportItem, GoodsSearchResult } from "../types/export.types";
 import type { SupplierSearchResult } from "@/shared/types/supplier.types";
 import type { InwardVoucher, InwardSearchResult } from "@/features/import/types/import.types";
+import SaleExportSection from "./SaleExportSection";
 import ReactDOM from "react-dom";
 
 
-// 2 lý do tạo thủ công thông thường (XK3 từ kiểm kê có flow riêng)
-const MANUAL_REASONS: ExportReason[] = ["IMPORT_RETURN", "DESTROY"];
+// Lý do tạo thủ công (XK3 từ kiểm kê có flow riêng)
+const MANUAL_REASONS: ExportReason[] = ["IMPORT_RETURN", "DESTROY", "SALE"];
 
 interface PendingGoodsState {
   itemIndex:  number;
@@ -71,6 +73,7 @@ export default function AddExportForm() {
   });
 
   const isImportReturn = reason === "IMPORT_RETURN";
+  const isSale         = reason === "SALE";
 
   const [selectedInward, setSelectedInward] = useState<InwardVoucher | null>(null);
   const inwardReturnSearch = useInwardVoucherSearch({ onSelect: setSelectedInward });
@@ -90,7 +93,7 @@ export default function AddExportForm() {
     unitPrice:       0,
     amount1:         0,
     debitAccount1:   getDebitAccountByReason(reasonRef.current),
-    creditAccount1:  "156",
+    creditAccount1:  getCreditAccountByReason(reasonRef.current),
     debitAccount2:   "",
     creditAccount2:  "",
     costPerUnit:     0,
@@ -130,7 +133,7 @@ export default function AddExportForm() {
       unitPrice:       d.unitPrice,
       amount1:         d.amount1,
       debitAccount1:   getDebitAccountByReason("IMPORT_RETURN"),
-      creditAccount1:  "156",
+      creditAccount1:  getCreditAccountByReason("IMPORT_RETURN"),
       debitAccount2:   "",
       creditAccount2:  "",
       costPerUnit:     d.quantity > 0 ? d.amount1 / d.quantity : d.unitPrice,
@@ -157,8 +160,8 @@ export default function AddExportForm() {
         quantity:        it.quantity,
         unitPrice:       0,
         amount1:         0,
-        debitAccount1:   "1381",   // Tài sản thiếu chờ xử lý
-        creditAccount1:  "156",
+        debitAccount1:   "111",   // Tài sản thiếu chờ xử lý
+        creditAccount1:  "511",
         debitAccount2:   "",
         creditAccount2:  "",
         costPerUnit:     0,
@@ -331,7 +334,7 @@ export default function AddExportForm() {
             >
               {MANUAL_REASONS.map((r) => (
                 <option key={r} value={r}>
-                  {r === "IMPORT_RETURN" ? "↩️ " : "🗑️ "}
+                  {r === "IMPORT_RETURN" ? "↩️ " : r === "DESTROY" ? "🗑️ " : "🛒 "}
                   {EXPORT_REASON_LABELS[r]}
                 </option>
               ))}
@@ -345,8 +348,20 @@ export default function AddExportForm() {
 
       <hr style={styles.hr} />
 
+      {/* ── Khi chọn "Xuất bán hàng" → nhúng toàn bộ form bán hàng ── */}
+      {isSale && (
+        <SaleExportSection
+          userId={currentUserId}
+          userName={currentUserName}
+          onSuccess={() => {
+            if (fromStockTakeId) localStorage.setItem(`xk3_done_${fromStockTakeId}`, "true");
+            setTimeout(() => router.push("/dashboard/export"), 1500);
+          }}
+        />
+      )}
+
       {/* ── Tra cứu phiếu nhập (chỉ khi IMPORT_RETURN) — dropdown gợi ý ── */}
-      {isImportReturn && (
+      {!isSale && isImportReturn && (
         <>
           <section style={s.card}>
             <h3 style={s.cardTitle}><span style={s.titleDot} />Số phiếu nhập kho gốc</h3>
@@ -393,6 +408,9 @@ export default function AddExportForm() {
           <hr style={styles.hr} />
         </>
       )}
+
+      {/* ── Phần xuất kho thông thường (ẩn khi SALE) ── */}
+      {!isSale && (<>
 
       {/* ── Thông tin phiếu xuất — layout 2 cột ── */}
       <section style={{ ...s.card, maxWidth: "100%" }}>
@@ -497,12 +515,6 @@ export default function AddExportForm() {
             <span style={s.autoFilledBadge}>✨ Tự động điền từ phiếu nhập</span>
           )}
         </h3>
-
-        <div style={s.infoNote}>
-          💡 Sau khi chọn mã hàng, hệ thống sẽ yêu cầu chọn <strong>phiếu nhập đối trừ</strong> và
-          số lượng xuất từ mỗi phiếu theo nguyên tắc FIFO.
-        </div>
-
         {voucher.items.length > 0 && (
           <ExportItemTable
             items={voucher.items}
@@ -552,6 +564,8 @@ export default function AddExportForm() {
           </div>
         )}
       </div>
+
+      </>)} {/* end !isSale */}
 
       {/* ── Portal dropdown tra cứu phiếu nhập (IMPORT_RETURN) ── */}
       {inwardReturnSearch.dropdownPos && inwardReturnSearch.dropdown.open && typeof window !== "undefined" && ReactDOM.createPortal(

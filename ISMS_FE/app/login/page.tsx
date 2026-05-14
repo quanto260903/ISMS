@@ -10,111 +10,147 @@ import { Eye, EyeOff, Mail, Lock, Warehouse, TrendingUp, Package, BarChart3 } fr
 import { useToast } from '@/hooks/use-toast'
 import { useAuthStore } from '@/store/authStore'
 import { authService } from '@/services/api/auth.api'
-import { UserRole } from '@/lib/types/user.types'
+
+// ✅ Không dùng UserRole enum vì giờ user có thể có nhiều roles
+// Dùng trực tiếp số: 1=Admin, 2=Manager, 3=Staff
+const ROLE_ADMIN = 1
 
 export default function LoginPage() {
-  const router = useRouter()
+  const router       = useRouter()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
+  const { toast }    = useToast()
   const { login, isLoading: storeLoading, error, clearError } = useAuthStore()
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail]             = useState('')
+  const [password, setPassword]       = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading]     = useState(false)
 
   // Handle OAuth callback
   useEffect(() => {
-    const token = searchParams.get('token')
+    const token    = searchParams.get('token')
     const isNewUser = searchParams.get('isNewUser')
-    const error = searchParams.get('error')
+    const error    = searchParams.get('error')
 
     if (error) {
       toast({
-        variant: 'destructive',
-        title: 'Xác thực thất bại',
+        variant:     'destructive',
+        title:       'Xác thực thất bại',
         description: error === 'access_denied' ? 'Quyền truy cập bị từ chối' : 'Đã xảy ra lỗi',
       })
     }
 
     if (token) {
       toast({
-        title: isNewUser === 'true' ? 'Chào mừng!' : 'Chào mừng trở lại!',
-        description: isNewUser === 'true' ? 'Tài khoản của bạn đã được tạo' : 'Bạn đã đăng nhập thành công',
+        title:       isNewUser === 'true' ? 'Chào mừng!' : 'Chào mừng trở lại!',
+        description: isNewUser === 'true'
+          ? 'Tài khoản của bạn đã được tạo'
+          : 'Bạn đã đăng nhập thành công',
       })
-      // Redirect to root, middleware will handle role-based redirect
       window.location.href = '/'
     }
   }, [searchParams, toast, router])
 
-  // Clear error when component unmounts
+  // Clear error khi unmount
   useEffect(() => {
-    return () => {
-      clearError()
-    }
+    return () => { clearError() }
   }, [clearError])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    clearError()
+  // ================== FIX PHẦN handleSubmit ==================
 
-    try {
-      // Call login from auth store
-      await login({ email, password })
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsLoading(true)
+  clearError()
 
-      toast({
-        title: 'Đăng nhập thành công',
-        description: 'Chào mừng bạn đến với Hệ thống quản lý kho',
-      })
+  try {
+    await login({ email, password })
 
-      // Get user from store to check role
-      const currentUser = useAuthStore.getState().user
+    toast({
+      title: 'Đăng nhập thành công',
+      description: 'Chào mừng bạn đến với Hệ thống quản lý kho',
+    })
 
-      // Determine redirect URL based on role
-      let redirectUrl = '/dashboard/ai-search' // Default for Staff/Manager
-      if (currentUser?.role === UserRole.Admin) {
-        redirectUrl = '/dashboard' // Admin can access dashboard
-      }
+    const currentUser = useAuthStore.getState().user
 
-      // Override with query param if provided
-      const queryRedirect = searchParams.get('redirect')
-      if (queryRedirect) {
-        redirectUrl = queryRedirect
-      }
+    // Hỗ trợ cả roles[] mới và role cũ
+    const roles: number[] =
+      Array.isArray(currentUser?.roles) && currentUser.roles.length > 0
+        ? currentUser.roles.map(Number)
+        : typeof currentUser?.role === 'number'
+          ? [Number(currentUser.role)]
+          : []
 
-      // Use window.location for hard navigation to ensure middleware runs
-      window.location.href = redirectUrl
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Đăng nhập thất bại'
+    // Role flags
+    const isAdmin = roles.includes(1)
+    const isManager = roles.includes(2)
+    const isStaff = roles.includes(3)
 
-      toast({
-        variant: 'destructive',
-        title: 'Đăng nhập thất bại',
-        description: errorMessage,
-      })
-    } finally {
-      setIsLoading(false)
+    // =============================
+    // ROLE-BASED REDIRECT MỚI
+    // =============================
+    let redirectUrl = '/dashboard'
+
+    if (isAdmin) {
+      redirectUrl = '/dashboard'
+    } else if (isStaff) {
+      // Staff ưu tiên vào import
+      redirectUrl = '/dashboard/import'
+    } else if (isManager) {
+      // Manager vào inventory-report
+      redirectUrl = '/dashboard/inventory-report'
+    } else {
+      // fallback
+      redirectUrl = '/dashboard'
     }
+
+    // =============================
+    // Query redirect chỉ dùng nếu hợp lệ
+    // =============================
+    const queryRedirect = searchParams.get('redirect')
+
+    if (
+      queryRedirect &&
+      queryRedirect !== '/dashboard/inventory'
+    ) {
+      redirectUrl = queryRedirect
+    }
+
+    console.log('Final Redirect URL:', redirectUrl)
+
+    // Hard navigation để middleware chạy lại
+    window.location.href = redirectUrl
+
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      'Đăng nhập thất bại'
+
+    toast({
+      variant: 'destructive',
+      title: 'Đăng nhập thất bại',
+      description: errorMessage,
+    })
+  } finally {
+    setIsLoading(false)
   }
+}
 
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true)
-
-      // Get Google OAuth URL
       const response = await authService.getGoogleAuthUrl()
 
       if (response.isSuccess && response.data?.authUrl) {
-        // Redirect to Google OAuth
         window.location.href = response.data.authUrl
       } else {
         throw new Error(response.message || 'Không thể lấy URL đăng nhập Google')
       }
     } catch (error: any) {
       toast({
-        variant: 'destructive',
-        title: 'Lỗi',
+        variant:     'destructive',
+        title:       'Lỗi',
         description: error.message || 'Không thể đăng nhập bằng Google',
       })
       setIsLoading(false)

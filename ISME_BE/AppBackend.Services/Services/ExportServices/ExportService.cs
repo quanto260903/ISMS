@@ -157,7 +157,7 @@ namespace AppBackend.Services.Services.ExportServices
         // CREATE
         // Bọc transaction: validate → build → save → trừ tồn kho → commit.
         // ════════════════════════════════════════════════════════
-        public async Task<ResultModel<int>> CreateExportAsync(ExportOrder request, string userId)
+        public async Task<ResultModel<int>> CreateExportAsync(ExportOrder request, string? userId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
@@ -206,7 +206,7 @@ namespace AppBackend.Services.Services.ExportServices
         //   3. INSERT details mới + trừ tồn kho thủ công bằng DeductStockAsync.
         //   4. SaveChanges + Commit.
         // ════════════════════════════════════════════════════════
-        public async Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string userId)
+        public async Task<ResultModel<int>> UpdateExportAsync(ExportOrder request, string? userId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try

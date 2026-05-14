@@ -25,6 +25,8 @@ namespace AppBackend.Services.Services.StockTakeServices
                 StockTakeDate = v.StockTakeDate,
                 Purpose = v.Purpose,
                 IsCompleted = v.IsCompleted,
+                Nk3Created = v.Nk3Created,
+                Xk3Created = v.Xk3Created,
                 CreatedBy = v.CreatedBy,
                 CreatedDate = v.CreatedDate,
             });
@@ -39,9 +41,6 @@ namespace AppBackend.Services.Services.StockTakeServices
         }
 
         // ===================== CREATE =====================
-        // Lỗi 6 đã sửa: BookQuantity lấy từ DB (Goods.ItemOnHand)
-        // thay vì tin tưởng giá trị client gửi lên
-        // → tránh trường hợp client gửi sai BookQuantity làm DifferenceQuantity tính sai
         public async Task<StockTakeVoucherDetailDto> CreateAsync(CreateStockTakeVoucherDto dto, string createdBy)
         {
             var voucherId = await _uow.StockTakeVouchers.GenerateVoucherIdAsync();
@@ -60,19 +59,18 @@ namespace AppBackend.Services.Services.StockTakeServices
                 Member3 = dto.Member3,
                 Position3 = dto.Position3,
                 IsCompleted = false,
+                Nk3Created = false,
+                Xk3Created = false,
                 CreatedBy = createdBy,
                 CreatedDate = DateTime.UtcNow,
             };
 
             await _uow.StockTakeVouchers.AddAsync(voucher);
 
-            // Lấy BookQuantity từ DB cho từng mặt hàng
             var details = new List<StockTakeDetail>();
             foreach (var d in dto.StockTakeDetails)
             {
-                // Tính tồn kho theo ngày kiểm kê (StockTakeDate) thay vì ItemOnHand hiện tại
                 var bookQty = await _uow.Goods.GetStockAsOfDateAsync(d.GoodsId, dto.StockTakeDate);
-
                 details.Add(new StockTakeDetail
                 {
                     StockTakeVoucherId = voucher.StockTakeVoucherId,
@@ -93,7 +91,6 @@ namespace AppBackend.Services.Services.StockTakeServices
         }
 
         // ===================== UPDATE =====================
-        // Lỗi 6 đã sửa tương tự CreateAsync — BookQuantity lấy từ DB
         public async Task<StockTakeVoucherDetailDto?> UpdateAsync(string id, UpdateStockTakeVoucherDto dto)
         {
             var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
@@ -108,17 +105,16 @@ namespace AppBackend.Services.Services.StockTakeServices
             voucher.Position2 = dto.Position2;
             voucher.Member3 = dto.Member3;
             voucher.Position3 = dto.Position3;
+            // Không reset Nk3Created / Xk3Created / IsCompleted khi update header
 
             await _uow.StockTakeVouchers.UpdateAsync(voucher);
 
-            // Xóa chi tiết cũ, thêm lại mới với BookQuantity từ DB
             await _uow.StockTakeDetails.DeleteByVoucherIdAsync(id);
 
             var details = new List<StockTakeDetail>();
             foreach (var d in dto.StockTakeDetails)
             {
                 var bookQty = await _uow.Goods.GetStockAsOfDateAsync(d.GoodsId, dto.StockTakeDate);
-
                 details.Add(new StockTakeDetail
                 {
                     StockTakeVoucherId = id,
@@ -151,9 +147,8 @@ namespace AppBackend.Services.Services.StockTakeServices
         }
 
         // ===================== PROCESS =====================
-        // Khoá phiếu kiểm kê (IsCompleted = true).
-        // Không tự sinh phiếu nhập/xuất — người dùng tự lập phiếu NK3/XK3 ở bước tiếp theo
-        // để đảm bảo xuất kho đích danh (phải chọn chứng từ nhập nguồn cho từng dòng XK3).
+        // Chỉ được gọi nội bộ (từ MarkNk3/Xk3) khi cả 2 phiếu đã được lập.
+        // Vẫn giữ endpoint POST /process để đánh dấu thủ công nếu cần.
         public async Task<ProcessStockTakeResultDto> ProcessAsync(string id, string userId)
         {
             var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
@@ -171,8 +166,60 @@ namespace AppBackend.Services.Services.StockTakeServices
             return new ProcessStockTakeResultDto
             {
                 Success = true,
-                Message = "Phiếu kiểm kê đã hoàn thành. Vui lòng lập phiếu nhập/xuất kho điều chỉnh.",
+                Message = "Phiếu kiểm kê đã hoàn thành.",
             };
+        }
+
+        // ===================== MARK NK3 CREATED =====================
+        /// <summary>
+        /// Đánh dấu đã lập phiếu nhập NK3.
+        /// Nếu phiếu cũng cần XK3 và XK3 đã được lập rồi → tự động set IsCompleted = true.
+        /// Nếu phiếu không có hàng thiếu (không cần XK3) → cũng set IsCompleted = true luôn.
+        /// </summary>
+        public async Task<StockTakeVoucherDetailDto?> MarkNk3CreatedAsync(string id)
+        {
+            var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
+            if (voucher == null) return null;
+            if (voucher.Nk3Created)
+                return MapToDetailDto(voucher); // idempotent — đã đánh dấu rồi thì bỏ qua
+
+            voucher.Nk3Created = true;
+
+            // Kiểm tra xem phiếu có cần XK3 không
+            bool needsXk3 = voucher.StockTakeDetails.Any(d => d.DifferenceQuantity < 0);
+
+            // Tự động hoàn thành nếu không cần XK3, hoặc XK3 đã được lập
+            if (!needsXk3 || voucher.Xk3Created)
+                voucher.IsCompleted = true;
+
+            await _uow.StockTakeVouchers.UpdateAsync(voucher);
+            await _uow.SaveChangesAsync();
+            return MapToDetailDto(voucher);
+        }
+
+        // ===================== MARK XK3 CREATED =====================
+        /// <summary>
+        /// Đánh dấu đã lập phiếu xuất XK3.
+        /// Nếu phiếu cũng cần NK3 và NK3 đã được lập rồi → tự động set IsCompleted = true.
+        /// Nếu phiếu không có hàng thừa (không cần NK3) → cũng set IsCompleted = true luôn.
+        /// </summary>
+        public async Task<StockTakeVoucherDetailDto?> MarkXk3CreatedAsync(string id)
+        {
+            var voucher = await _uow.StockTakeVouchers.GetByIdAsync(id);
+            if (voucher == null) return null;
+            if (voucher.Xk3Created)
+                return MapToDetailDto(voucher); // idempotent
+
+            voucher.Xk3Created = true;
+
+            bool needsNk3 = voucher.StockTakeDetails.Any(d => d.DifferenceQuantity > 0);
+
+            if (!needsNk3 || voucher.Nk3Created)
+                voucher.IsCompleted = true;
+
+            await _uow.StockTakeVouchers.UpdateAsync(voucher);
+            await _uow.SaveChangesAsync();
+            return MapToDetailDto(voucher);
         }
 
         // ===================== SURPLUS / SHORTAGE ITEMS =====================
@@ -185,10 +232,10 @@ namespace AppBackend.Services.Services.StockTakeServices
                 .Where(d => d.DifferenceQuantity > 0)
                 .Select(d => new SurplusItemDto
                 {
-                    GoodsId   = d.GoodsId,
+                    GoodsId = d.GoodsId,
                     GoodsName = d.GoodsName,
-                    Unit      = d.Unit,
-                    Quantity  = (int)Math.Round(d.DifferenceQuantity),
+                    Unit = d.Unit,
+                    Quantity = (int)Math.Round(d.DifferenceQuantity),
                 })
                 .Where(x => x.Quantity > 0);
         }
@@ -202,10 +249,10 @@ namespace AppBackend.Services.Services.StockTakeServices
                 .Where(d => d.DifferenceQuantity < 0)
                 .Select(d => new ShortageItemDto
                 {
-                    GoodsId   = d.GoodsId,
+                    GoodsId = d.GoodsId,
                     GoodsName = d.GoodsName,
-                    Unit      = d.Unit,
-                    Quantity  = (int)Math.Round(Math.Abs(d.DifferenceQuantity)),
+                    Unit = d.Unit,
+                    Quantity = (int)Math.Round(Math.Abs(d.DifferenceQuantity)),
                 })
                 .Where(x => x.Quantity > 0);
         }
@@ -236,6 +283,8 @@ namespace AppBackend.Services.Services.StockTakeServices
             Member3 = v.Member3,
             Position3 = v.Position3,
             IsCompleted = v.IsCompleted,
+            Nk3Created = v.Nk3Created,
+            Xk3Created = v.Xk3Created,
             CreatedBy = v.CreatedBy,
             CreatedDate = v.CreatedDate,
             StockTakeDetails = v.StockTakeDetails.Select(d => new StockTakeDetailDto

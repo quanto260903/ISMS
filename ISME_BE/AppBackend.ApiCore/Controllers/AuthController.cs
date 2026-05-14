@@ -1,4 +1,5 @@
 ﻿using AppBackend.Services.ApiModels.Auth;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.AuthServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -12,10 +13,12 @@ namespace AppBackend.ApiCore.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IActivityLogService _actLog;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IActivityLogService actLog)
         {
             _authService = authService;
+            _actLog      = actLog;
         }
 
         /// POST /warehouse/auth/login
@@ -33,6 +36,10 @@ namespace AppBackend.ApiCore.Controllers
         public async Task<IActionResult> Register([FromBody] AuthRegisterRequest request)
         {
             var result = await _authService.RegisterAsync(request);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(null, "DANG_KY",
+                    $"Tài khoản mới đăng ký: {request.FullName} ({request.Email})",
+                    ActivityModule.User);
             return StatusCode(result.StatusCode, result);
         }
 

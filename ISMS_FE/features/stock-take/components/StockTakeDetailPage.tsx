@@ -5,20 +5,21 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   getStockTakeById, updateStockTake, deleteStockTake,
+  markNk3Created, markXk3Created,
 } from "../stockTake.api";
 import type {
   StockTakeFullDto,
-  UpdateStockTakeHeaderRequest, CreateStockTakeDetailRequest,
+  UpdateStockTakeHeaderRequest,
+  CreateStockTakeDetailRequest,
 } from "../types/stockTake.types";
 
-// Lỗi 5: thêm T00:00:00 tránh lệch timezone với DateOnly từ C#
+// ── Helpers ───────────────────────────────────────────────────
 const fmtDate = (s: string | null) =>
   s ? new Date(s + "T00:00:00").toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "--";
 
 const fmtNum = (n: number) =>
   n.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-// Lỗi 7: thêm hàm tính nhãn xử lý cho trang detail
 function getXuLyLabel(diff: number): { label: string; color: string; bg: string; border: string } | null {
   if (diff > 0) return { label: "Nhập kho", color: "#15803d", bg: "#f0fdf4", border: "#86efac" };
   if (diff < 0) return { label: "Xuất kho", color: "#b91c1c", bg: "#fff1f2", border: "#fca5a5" };
@@ -43,19 +44,18 @@ function EditModal({ voucher, onClose, onSave }: {
 
   const [lines, setLines] = useState<EditLine[]>(() =>
     voucher.lines.map((l, i) => ({
-      _id:           i + 1,
-      goodsId:       l.goodsId,
-      goodsName:     l.goodsName,
-      unit:          l.unit,
-      bookQuantity:  l.bookQuantity,   // chỉ để hiển thị, không gửi backend
+      _id:            i + 1,
+      goodsId:        l.goodsId,
+      goodsName:      l.goodsName,
+      unit:           l.unit,
+      bookQuantity:   l.bookQuantity,
       actualQuantity: l.actualQuantity,
     }))
   );
-  const [ctr, setCtr] = useState(voucher.lines.length + 1);
+  const [ctr,  setCtr]  = useState(voucher.lines.length + 1);
   const [busy, setBusy] = useState(false);
   const [err,  setErr]  = useState("");
 
-  // Lỗi 4: chỉ cho phép sửa actualQuantity, bookQuantity là readonly
   const updActual = (id: number, v: string) =>
     setLines((p) => p.map((l) => l._id === id ? { ...l, actualQuantity: Math.max(0, Number(v) || 0) } : l));
 
@@ -77,7 +77,6 @@ function EditModal({ voucher, onClose, onSave }: {
         member1:   member1   || undefined, position1: position1 || undefined,
         member2:   member2   || undefined, position2: position2 || undefined,
         member3:   member3   || undefined, position3: position3 || undefined,
-        // Lỗi 2: chỉ gửi actualQuantity, KHÔNG gửi bookQuantity
         stockTakeDetails: lines.map(({ _id, bookQuantity, ...rest }) => ({
           ...rest,
           actualQuantity: Number(rest.actualQuantity) || 0,
@@ -131,7 +130,6 @@ function EditModal({ voucher, onClose, onSave }: {
                   <th style={m.th}>Mã hàng</th>
                   <th style={m.th}>Tên hàng hóa</th>
                   <th style={{ ...m.th, width: 70 }}>ĐVT</th>
-                  {/* Lỗi 4: đổi tên cột thành "Tồn sách" và hiển thị readonly */}
                   <th style={{ ...m.th, width: 105, textAlign: "right" }}>Tồn sách</th>
                   <th style={{ ...m.th, width: 115, textAlign: "right" }}>Thực tế</th>
                   <th style={{ ...m.th, width: 100, textAlign: "right" }}>Chênh lệch</th>
@@ -149,24 +147,16 @@ function EditModal({ voucher, onClose, onSave }: {
                       <td style={m.td}><input style={m.ci} value={line.goodsId} onChange={(e) => updField(line._id, "goodsId", e.target.value)} /></td>
                       <td style={m.td}><input style={m.ci} value={line.goodsName} onChange={(e) => updField(line._id, "goodsName", e.target.value)} /></td>
                       <td style={m.td}><input style={m.ci} value={line.unit ?? ""} onChange={(e) => updField(line._id, "unit", e.target.value)} /></td>
-                      {/* Lỗi 4: BookQuantity readonly — không cho user sửa tay */}
                       <td style={{ ...m.td, textAlign: "right" }}>
-                        <input
-                          style={{ ...m.ci, textAlign: "right", background: "#f8fafc", color: "#475569", cursor: "not-allowed" }}
-                          value={fmtNum(Number(line.bookQuantity) || 0)}
-                          readOnly
-                          title="Tồn kho hệ thống — không thể sửa trực tiếp"
-                        />
+                        <input style={{ ...m.ci, textAlign: "right", background: "#f8fafc", color: "#475569", cursor: "not-allowed" }}
+                          value={fmtNum(Number(line.bookQuantity) || 0)} readOnly
+                          title="Tồn kho hệ thống — không thể sửa trực tiếp" />
                       </td>
                       <td style={{ ...m.td, textAlign: "right" }}>
                         <input type="number" min={0}
-                          style={{
-                            ...m.ci, textAlign: "right", fontWeight: 700,
-                            color: diff !== 0 ? (diff > 0 ? "#16a34a" : "#dc2626") : "#1e293b",
-                          }}
+                          style={{ ...m.ci, textAlign: "right", fontWeight: 700, color: diff !== 0 ? (diff > 0 ? "#16a34a" : "#dc2626") : "#1e293b" }}
                           value={line.actualQuantity}
-                          onChange={(e) => updActual(line._id, e.target.value)}
-                        />
+                          onChange={(e) => updActual(line._id, e.target.value)} />
                       </td>
                       <td style={{ ...m.td, textAlign: "right", fontWeight: 700, color: diff > 0 ? "#16a34a" : diff < 0 ? "#dc2626" : "#1d4ed8" }}>
                         {diff === 0 ? "Khớp" : (diff > 0 ? "+" : "") + fmtNum(diff)}
@@ -200,30 +190,17 @@ function EditModal({ voucher, onClose, onSave }: {
 export default function StockTakeDetailPage({ voucherId }: { voucherId: string }) {
   const router = useRouter();
 
-  const [voucher,       setVoucher]       = useState<StockTakeFullDto | null>(null);
-  const [loading,       setLoading]       = useState(true);
-  const [showEdit,      setShowEdit]      = useState(false);
-  const [toast,         setToast]         = useState<{ msg: string; ok: boolean } | null>(null);
-  const [keyword,       setKeyword]       = useState("");
-  const [filterTab,     setFilterTab]     = useState<"all" | "surplus" | "shortage">("all");
-  const [nk3Done,       setNk3Done]       = useState(() =>
-    typeof window !== "undefined" && localStorage.getItem(`nk3_done_${voucherId}`) === "true"
-  );
-  const [xk3Done,       setXk3Done]       = useState(() =>
-    typeof window !== "undefined" && localStorage.getItem(`xk3_done_${voucherId}`) === "true"
-  );
+  const [voucher,   setVoucher]   = useState<StockTakeFullDto | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [showEdit,  setShowEdit]  = useState(false);
+  const [toast,     setToast]     = useState<{ msg: string; ok: boolean } | null>(null);
+  const [keyword,   setKeyword]   = useState("");
+  const [filterTab, setFilterTab] = useState<"all" | "surplus" | "shortage">("all");
 
-  // Khi tab được focus lại (người dùng quay về từ trang tạo phiếu), cập nhật trạng thái
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        setNk3Done(localStorage.getItem(`nk3_done_${voucherId}`) === "true");
-        setXk3Done(localStorage.getItem(`xk3_done_${voucherId}`) === "true");
-      }
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [voucherId]);
+  // Trạng thái lấy từ DB qua voucher — KHÔNG dùng localStorage
+  const isCompleted = voucher?.isCompleted === true;
+  const nk3Created  = voucher?.nk3Created  === true;
+  const xk3Created  = voucher?.xk3Created  === true;
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok }); setTimeout(() => setToast(null), 3000);
@@ -238,6 +215,17 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
 
   useEffect(() => { fetchVoucher(); }, [fetchVoucher]);
 
+  // Reload phiếu khi user quay về tab (sau khi tạo NK3/XK3 ở trang khác)
+  useEffect(() => {
+    const onVisible = async () => {
+      if (document.visibilityState === "visible") {
+        try { setVoucher(await getStockTakeById(voucherId)); } catch { /* im lặng */ }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [voucherId]);
+
   const handleSave = async (req: UpdateStockTakeHeaderRequest) => {
     const updated = await updateStockTake(voucherId, req);
     setVoucher(updated);
@@ -248,6 +236,28 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
     if (!confirm("Xóa phiếu kiểm kê này?")) return;
     try { await deleteStockTake(voucherId); router.push("/dashboard/stock-take"); }
     catch (e: unknown) { showToast(e instanceof Error ? e.message : "Lỗi xóa", false); }
+  };
+
+  // Gọi API đánh dấu NK3, cập nhật state từ response (có thể IsCompleted đã = true luôn)
+  const handleNk3Click = async () => {
+    try {
+      const updated = await markNk3Created(voucherId);
+      setVoucher(updated);
+      router.push(`/dashboard/import/new?fromStockTake=${voucherId}&reason=NK3`);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Lỗi đánh dấu NK3", false);
+    }
+  };
+
+  // Gọi API đánh dấu XK3, cập nhật state từ response
+  const handleXk3Click = async () => {
+    try {
+      const updated = await markXk3Created(voucherId);
+      setVoucher(updated);
+      router.push(`/dashboard/export/new?fromStockTake=${voucherId}&reason=XK3`);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Lỗi đánh dấu XK3", false);
+    }
   };
 
   const visibleLines = (voucher?.lines ?? []).filter((l) => {
@@ -283,13 +293,14 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h1 style={s.pageTitle}>{voucher.stockTakeVoucherId}</h1>
+            {/* Badge trạng thái — từ isCompleted trong DB */}
             <span style={{
               display: "inline-block", padding: "2px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-              background: (nk3Done || xk3Done) ? "#f0fdf4" : "#eff6ff",
-              color:      (nk3Done || xk3Done) ? "#15803d" : "#1d4ed8",
-              border:     `1px solid ${(nk3Done || xk3Done) ? "#bbf7d0" : "#bfdbfe"}`,
+              background: isCompleted ? "#f0fdf4" : "#eff6ff",
+              color:      isCompleted ? "#15803d" : "#1d4ed8",
+              border:     `1px solid ${isCompleted ? "#bbf7d0" : "#bfdbfe"}`,
             }}>
-              {(nk3Done || xk3Done) ? "✓ Đã xử lý" : "◑ Chưa xử lý"}
+              {isCompleted ? "✓ Đã xử lý" : "◑ Chưa xử lý"}
             </span>
           </div>
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
@@ -306,7 +317,7 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         </div>
       </div>
 
-      {/* Thành phần chứng kiến kiểm kê */}
+      {/* Thành phần chứng kiến */}
       {(voucher.member1 || voucher.member2 || voucher.member3) && (
         <div style={{ padding: "12px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#6d28d9", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -317,17 +328,9 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
               { name: voucher.member1, pos: voucher.position1, idx: 1 },
               { name: voucher.member2, pos: voucher.position2, idx: 2 },
               { name: voucher.member3, pos: voucher.position3, idx: 3 },
-            ] as const).filter((m) => m.name).map(({ name, pos, idx }) => (
-              <div key={idx} style={{
-                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
-                padding: "10px 14px", display: "flex", alignItems: "center", gap: 10,
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                  background: "linear-gradient(135deg,#6d28d9,#4f46e5)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#fff", fontWeight: 700, fontSize: 14,
-                }}>
+            ] as const).filter((mb) => mb.name).map(({ name, pos, idx }) => (
+              <div key={idx} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#6d28d9,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14 }}>
                   {idx}
                 </div>
                 <div>
@@ -340,73 +343,58 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         </div>
       )}
 
-
-     {/* Hiển thị khi phiếu có chênh lệch */}
-{(surplusCount > 0 || shortageCount > 0) && (
-  <div style={{
-    margin: "12px 24px 0", padding: "16px 20px",
-    background: "#f8faff", border: "1px solid #ddd6fe",
-    borderRadius: 10
-  }}>
-    <div style={{ fontWeight: 700, color: "#6d28d9", marginBottom: 12, fontSize: 14 }}>
-      📋 Điều chỉnh tồn kho theo kết quả kiểm kê
-    </div>
-    <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.7 }}>
-      Phiếu có chênh lệch — vui lòng lập phiếu nhập/xuất kho tương ứng.
-      Phiếu xuất kho yêu cầu chọn phiếu nhập nguồn (xuất kho đích danh).
-    </div>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-      {surplusCount > 0 && (
-        nk3Done ? (
-          <div style={{
-            height: 36, padding: "0 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
-            border: "1.5px solid #bbf7d0", background: "#f0fdf4",
-            color: "#15803d", fontWeight: 700, fontSize: 13,
-          }}>
-            ✅ Đã lập phiếu nhập NK3
+      {/* Khu điều chỉnh tồn kho — chỉ hiện khi có chênh lệch */}
+      {(surplusCount > 0 || shortageCount > 0) && (
+        <div style={{ margin: "12px 24px 0", padding: "16px 20px", background: "#f8faff", border: "1px solid #ddd6fe", borderRadius: 10 }}>
+          <div style={{ fontWeight: 700, color: "#6d28d9", marginBottom: 12, fontSize: 14 }}>
+            📋 Điều chỉnh tồn kho theo kết quả kiểm kê
           </div>
-        ) : (
-          <button
-            style={{
-              height: 36, padding: "0 18px", borderRadius: 8,
-              border: "none", background: "linear-gradient(135deg,#15803d,#16a34a)",
-              color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-            }}
-            onClick={() => router.push(`/dashboard/import/new?fromStockTake=${voucherId}&reason=NK3`)}
-          >
-            📥 Lập phiếu nhập NK3 ({surplusCount} mặt hàng thừa)
-          </button>
-        )
-      )}
-      {shortageCount > 0 && (
-        xk3Done ? (
-          <div style={{
-            height: 36, padding: "0 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
-            border: "1.5px solid #fca5a5", background: "#fff1f2",
-            color: "#b91c1c", fontWeight: 700, fontSize: 13,
-          }}>
-            ✅ Đã lập phiếu xuất XK3
+          <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.7 }}>
+            Phiếu có chênh lệch — vui lòng lập phiếu nhập/xuất kho tương ứng.
+            Phiếu xuất kho yêu cầu chọn phiếu nhập nguồn (xuất kho đích danh).
           </div>
-        ) : (
-          <button
-            style={{
-              height: 36, padding: "0 18px", borderRadius: 8,
-              border: "none", background: "linear-gradient(135deg,#b91c1c,#dc2626)",
-              color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-            }}
-            onClick={() => router.push(`/dashboard/export/new?fromStockTake=${voucherId}&reason=XK3`)}
-          >
-            📤 Lập phiếu xuất XK3 ({shortageCount} mặt hàng thiếu)
-          </button>
-        )
-      )}
-    </div>
-    <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
-      💡 Phiếu xuất sẽ mở form xuất kho — bạn cần chọn phiếu nhập nguồn cho từng mặt hàng.
-    </div>
-  </div>
-)}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
 
+            {/* Nút NK3 — chỉ hiện khi có hàng thừa */}
+            {surplusCount > 0 && (
+              nk3Created ? (
+                // Đã nhấn rồi → hiển thị badge, KHÔNG cho nhấn lại
+                <div style={{ height: 36, padding: "0 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, border: "1.5px solid #bbf7d0", background: "#f0fdf4", color: "#15803d", fontWeight: 700, fontSize: 13 }}>
+                  ✅ Đã lập phiếu nhập NK3
+                </div>
+              ) : (
+                <button
+                  style={{ height: 36, padding: "0 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#15803d,#16a34a)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                  onClick={handleNk3Click}
+                >
+                  📥 Lập phiếu nhập NK3 ({surplusCount} mặt hàng thừa)
+                </button>
+              )
+            )}
+
+            {/* Nút XK3 — chỉ hiện khi có hàng thiếu */}
+            {shortageCount > 0 && (
+              xk3Created ? (
+                // Đã nhấn rồi → hiển thị badge, KHÔNG cho nhấn lại
+                <div style={{ height: 36, padding: "0 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, border: "1.5px solid #fca5a5", background: "#fff1f2", color: "#b91c1c", fontWeight: 700, fontSize: 13 }}>
+                  ✅ Đã lập phiếu xuất XK3
+                </div>
+              ) : (
+                <button
+                  style={{ height: 36, padding: "0 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#b91c1c,#dc2626)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                  onClick={handleXk3Click}
+                >
+                  📤 Lập phiếu xuất XK3 ({shortageCount} mặt hàng thiếu)
+                </button>
+              )
+            )}
+
+          </div>
+          <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+            💡 Phiếu xuất sẽ mở form xuất kho — bạn cần chọn phiếu nhập nguồn cho từng mặt hàng.
+          </div>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ padding: "12px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -450,7 +438,7 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
         </div>
       </div>
 
-      {/* Bảng hàng hóa — Lỗi 7: thêm cột Xử lý */}
+      {/* Bảng hàng hóa */}
       <div style={{ overflowX: "auto" }}>
         <table style={s.table}>
           <thead>
@@ -461,15 +449,12 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
               <th style={{ ...s.th, textAlign: "right",  width: 130 }}>SL tồn kho</th>
               <th style={{ ...s.th, textAlign: "right",  width: 140 }}>SL thực tế</th>
               <th style={{ ...s.th, textAlign: "right",  width: 110 }}>Chênh lệch</th>
-              {/* Lỗi 7: thêm cột Xử lý */}
               <th style={{ ...s.th, textAlign: "center", width: 110 }}>Xử lý</th>
             </tr>
           </thead>
           <tbody>
             {visibleLines.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>
-                Không có dòng nào
-              </td></tr>
+              <tr><td colSpan={7} style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>Không có dòng nào</td></tr>
             )}
             {visibleLines.map((line, i) => {
               const xuLy = getXuLyLabel(line.differenceQuantity);
@@ -479,22 +464,15 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
                   <td style={{ ...s.td, fontWeight: 500 }}>{line.goodsName}</td>
                   <td style={{ ...s.td, textAlign: "center", fontSize: 12, color: "#64748b" }}>{line.unit ?? "--"}</td>
                   <td style={{ ...s.td, textAlign: "right", color: "#475569", fontFamily: "monospace" }}>{fmtNum(line.bookQuantity)}</td>
-                  <td style={{ ...s.td, textAlign: "right", fontWeight: 700,
-                    color: line.differenceQuantity !== 0 ? (line.differenceQuantity > 0 ? "#16a34a" : "#dc2626") : "#1e293b" }}>
+                  <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: line.differenceQuantity !== 0 ? (line.differenceQuantity > 0 ? "#16a34a" : "#dc2626") : "#1e293b" }}>
                     {fmtNum(line.actualQuantity)}
                   </td>
-                  <td style={{ ...s.td, textAlign: "right", fontWeight: 700,
-                    color: line.differenceQuantity > 0 ? "#16a34a" : line.differenceQuantity < 0 ? "#dc2626" : "#1d4ed8" }}>
+                  <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: line.differenceQuantity > 0 ? "#16a34a" : line.differenceQuantity < 0 ? "#dc2626" : "#1d4ed8" }}>
                     {line.differenceQuantity === 0 ? "Khớp" : (line.differenceQuantity > 0 ? "+" : "") + fmtNum(line.differenceQuantity)}
                   </td>
-                  {/* Lỗi 7: hiển thị badge Xử lý */}
                   <td style={{ ...s.td, textAlign: "center" }}>
                     {xuLy && (
-                      <span style={{
-                        display: "inline-block", padding: "2px 10px", borderRadius: 20,
-                        fontSize: 11, fontWeight: 700,
-                        color: xuLy.color, background: xuLy.bg, border: `1px solid ${xuLy.border}`,
-                      }}>
+                      <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, color: xuLy.color, background: xuLy.bg, border: `1px solid ${xuLy.border}` }}>
                         {xuLy.label}
                       </span>
                     )}
@@ -509,8 +487,7 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
                 <td colSpan={3} style={{ ...s.td, textAlign: "right", color: "#64748b", fontSize: 12 }}>Tổng cộng:</td>
                 <td style={{ ...s.td, textAlign: "right", fontFamily: "monospace" }}>{fmtNum(visibleLines.reduce((a, l) => a + l.bookQuantity, 0))}</td>
                 <td style={{ ...s.td, textAlign: "right", fontFamily: "monospace" }}>{fmtNum(visibleLines.reduce((a, l) => a + l.actualQuantity, 0))}</td>
-                <td style={{ ...s.td, textAlign: "right",
-                  color: (() => { const d = visibleLines.reduce((a, l) => a + l.differenceQuantity, 0); return d > 0 ? "#16a34a" : d < 0 ? "#dc2626" : "#1d4ed8"; })() }}>
+                <td style={{ ...s.td, textAlign: "right", color: (() => { const d = visibleLines.reduce((a, l) => a + l.differenceQuantity, 0); return d > 0 ? "#16a34a" : d < 0 ? "#dc2626" : "#1d4ed8"; })() }}>
                   {(() => { const d = visibleLines.reduce((a, l) => a + l.differenceQuantity, 0); return d === 0 ? "Khớp" : (d > 0 ? "+" : "") + fmtNum(d); })()}
                 </td>
                 <td />
@@ -525,35 +502,33 @@ export default function StockTakeDetailPage({ voucherId }: { voucherId: string }
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
-  page:       { background: "#f8fafc", minHeight: "100vh", fontFamily: "sans-serif", fontSize: 14, color: "#1e293b" },
-  toast:      { position: "fixed", top: 20, right: 24, zIndex: 9999, padding: "10px 18px", borderRadius: 8, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 16px rgba(0,0,0,0.12)" },
-  topBar:     { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 24px", background: "#fff", borderBottom: "1px solid #e2e8f0", position: "sticky" as const, top: 0, zIndex: 100, flexWrap: "wrap" as const },
-  backBtn:    { height: 32, padding: "0 12px", border: "1.5px solid #e2e8f0", borderRadius: 7, background: "#fff", cursor: "pointer", fontSize: 12, color: "#475569", whiteSpace: "nowrap" as const },
-  pageTitle:  { fontSize: 17, fontWeight: 700, margin: 0 },
-  btnEdit:    { height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  btnDel:     { height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  table:      { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
-  th:         { padding: "9px 14px", background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 12, borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" as const },
-  td:         { padding: "8px 14px", verticalAlign: "middle" as const },
-  spinner:    { width: 26, height: 26, margin: "0 auto", border: "3px solid #e2e8f0", borderTop: "3px solid #2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  page:      { background: "#f8fafc", minHeight: "100vh", fontFamily: "sans-serif", fontSize: 14, color: "#1e293b" },
+  toast:     { position: "fixed", top: 20, right: 24, zIndex: 9999, padding: "10px 18px", borderRadius: 8, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 16px rgba(0,0,0,0.12)" },
+  topBar:    { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 24px", background: "#fff", borderBottom: "1px solid #e2e8f0", position: "sticky" as const, top: 0, zIndex: 100, flexWrap: "wrap" as const },
+  backBtn:   { height: 32, padding: "0 12px", border: "1.5px solid #e2e8f0", borderRadius: 7, background: "#fff", cursor: "pointer", fontSize: 12, color: "#475569", whiteSpace: "nowrap" as const },
+  pageTitle: { fontSize: 17, fontWeight: 700, margin: 0 },
+  btnEdit:   { height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  btnDel:    { height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  table:     { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
+  th:        { padding: "9px 14px", background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 12, borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" as const },
+  td:        { padding: "8px 14px", verticalAlign: "middle" as const },
+  spinner:   { width: 26, height: 26, margin: "0 auto", border: "3px solid #e2e8f0", borderTop: "3px solid #2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
 };
 
 const m: Record<string, React.CSSProperties> = {
-  overlay:    { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" },
-  box:        { background: "#fff", borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.22)", overflowY: "auto" as const },
-  head:       { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #f1f5f9" },
-  title:      { fontSize: 15, fontWeight: 700 },
-  close:      { width: 28, height: 28, border: "none", background: "#f1f5f9", color: "#64748b", borderRadius: 6, cursor: "pointer" },
-  lbl:        { display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 },
-  inp:        { width: "100%", height: 34, padding: "0 10px", border: "1.5px solid #e2e8f0", borderRadius: 7, fontSize: 13, outline: "none", boxSizing: "border-box" as const, color: "#1e293b", background: "#fff" },
-  th:         { padding: "8px 10px", background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 11, borderBottom: "1px solid #e2e8f0", textAlign: "left" as const, whiteSpace: "nowrap" as const },
-  td:         { padding: "5px 8px", verticalAlign: "middle" as const },
-  ci:         { width: "100%", height: 28, padding: "0 7px", border: "1px solid #e2e8f0", borderRadius: 5, fontSize: 13, outline: "none", boxSizing: "border-box" as const, background: "#fff" },
-  addBtn:     { height: 28, padding: "0 10px", border: "1.5px solid #3b82f6", borderRadius: 6, background: "#eff6ff", color: "#2563eb", fontWeight: 600, fontSize: 12, cursor: "pointer" },
-  btnPri:     { height: 34, padding: "0 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#2563eb,#3b82f6)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  btnSec:     { height: 34, padding: "0 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  successBox: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 10 },
-  dangerBox:  { background: "#fff1f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 10 },
-  infoBox:    { background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "10px 14px", marginBottom: 10, color: "#0369a1", fontSize: 13 },
+  overlay: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" },
+  box:     { background: "#fff", borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.22)", overflowY: "auto" as const },
+  head:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #f1f5f9" },
+  title:   { fontSize: 15, fontWeight: 700 },
+  close:   { width: 28, height: 28, border: "none", background: "#f1f5f9", color: "#64748b", borderRadius: 6, cursor: "pointer" },
+  lbl:     { display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 },
+  inp:     { width: "100%", height: 34, padding: "0 10px", border: "1.5px solid #e2e8f0", borderRadius: 7, fontSize: 13, outline: "none", boxSizing: "border-box" as const, color: "#1e293b", background: "#fff" },
+  th:      { padding: "8px 10px", background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 11, borderBottom: "1px solid #e2e8f0", textAlign: "left" as const, whiteSpace: "nowrap" as const },
+  td:      { padding: "5px 8px", verticalAlign: "middle" as const },
+  ci:      { width: "100%", height: 28, padding: "0 7px", border: "1px solid #e2e8f0", borderRadius: 5, fontSize: 13, outline: "none", boxSizing: "border-box" as const, background: "#fff" },
+  addBtn:  { height: 28, padding: "0 10px", border: "1.5px solid #3b82f6", borderRadius: 6, background: "#eff6ff", color: "#2563eb", fontWeight: 600, fontSize: 12, cursor: "pointer" },
+  btnPri:  { height: 34, padding: "0 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#2563eb,#3b82f6)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnSec:  { height: 34, padding: "0 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" },
 };

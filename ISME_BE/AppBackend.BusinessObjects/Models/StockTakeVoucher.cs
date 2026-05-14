@@ -33,5 +33,9 @@ public partial class StockTakeVoucher
 
     public string? CreatedBy { get; set; }
 
+    public bool Nk3Created { get; set; }
+
+    public bool Xk3Created { get; set; }
+
     public virtual ICollection<StockTakeDetail> StockTakeDetails { get; set; } = new List<StockTakeDetail>();
 }

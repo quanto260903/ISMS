@@ -88,6 +88,9 @@ export function useSaleForm(userId: string = "") {
       items: prev.items.filter((_, i) => i !== index),
     }));
 
+  const replaceAllItems = (newItems: VoucherItem[]) =>
+    setVoucher((prev) => ({ ...prev, items: newItems }));
+
   const updateItem = (index: number, field: keyof VoucherItem, value: unknown) => {
     setVoucher((prev) => {
       const items = [...prev.items];
@@ -186,6 +189,7 @@ export function useSaleForm(userId: string = "") {
     addItem,
     removeItem,
     updateItem,
+    replaceAllItems,
     handleSubmit,
   };
 }

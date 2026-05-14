@@ -158,9 +158,9 @@ export default function InwardItemTable({
                     {isEmpty ? "—" : item.amount1.toLocaleString("vi-VN")}
                   </td>
 
-                  {/* Xóa — ẩn nút xóa ở dòng placeholder */}
+                  {/* Xóa — ẩn khi dòng placeholder hoặc chế độ xem */}
                   <td style={{ ...styles.itemTd, width: 52, textAlign: "center" }}>
-                    {!isEmpty && (
+                    {!isEmpty && !viewOnly && (
                       <button style={styles.btnDanger} onClick={() => onRemoveItem(index)}>
                         Xóa
                       </button>

@@ -6,8 +6,8 @@ export interface UserListDto {
   userId:       string;
   fullName:     string | null;
   email:        string | null;
-  roleId:       number;
-  roleLabel:    string;
+  roleIds:      number[];      // ✅ multi-role: thay roleId: number
+  roleLabels:   string[];      // ✅ multi-role: thay roleLabel: string
   isActive:     boolean;
   contractType: string | null;
 }
@@ -17,8 +17,8 @@ export interface UserDetailDto {
   username:          string;
   fullName:          string | null;
   email:             string | null;
-  roleId:            number;
-  roleLabel:         string;
+  roleIds:           number[];   // ✅ multi-role
+  roleLabels:        string[];   // ✅ multi-role
   isActive:          boolean;
   idcardNumber:      string | null;
   issuedDate:        string | null;
@@ -33,7 +33,7 @@ export interface CreateUserRequest {
   fullName:          string;
   email:             string;
   password:          string;
-  roleId:            number;
+  roleIds:           number[];   // ✅ multi-role: thay roleId: number
   idcardNumber?:     string;
   issuedDate?:       string;
   issuedBy?:         string;
@@ -53,6 +53,10 @@ export interface UpdateUserRequest {
   negotiatedSalary?: number;
   insuranceSalary?:  number;
   numberOfDependent?: number;
+}
+
+export interface UpdateRoleRequest {
+  roleIds: number[];   // ✅ multi-role: thay { roleId: number }
 }
 
 export interface UserListResult {

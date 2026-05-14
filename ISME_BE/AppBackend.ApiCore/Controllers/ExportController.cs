@@ -1,8 +1,10 @@
 ﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.Services.ApiModels;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.ExportServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AppBackend.ApiCore.Controllers
 {
@@ -11,11 +13,15 @@ namespace AppBackend.ApiCore.Controllers
     public class ExportController : ControllerBase
     {
         private readonly IExportServices _exportService;
+        private readonly IActivityLogService _actLog;
 
-        public ExportController(IExportServices exportService)
+        public ExportController(IExportServices exportService, IActivityLogService actLog)
         {
             _exportService = exportService;
+            _actLog        = actLog;
         }
+
+        private string? CurrentUserId => User.FindFirstValue("userId");
 
         /// <summary>
         /// Xem trước mã phiếu xuất kho tiếp theo (không tiêu thụ số thứ tự)
@@ -67,8 +73,11 @@ namespace AppBackend.ApiCore.Controllers
                     Message = "Dữ liệu không hợp lệ"
                 });
 
-            string userId = User?.Identity?.Name ?? "SYSTEM";
-            var result = await _exportService.CreateExportAsync(request, userId);
+            var result = await _exportService.CreateExportAsync(request, CurrentUserId);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(CurrentUserId, "TAO_PHIEU",
+                    $"Tạo phiếu xuất kho {request.VoucherCode} ({request.VoucherId})",
+                    ActivityModule.Export);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -99,8 +108,11 @@ namespace AppBackend.ApiCore.Controllers
                     Message = "VoucherId trong URL và body không khớp"
                 });
 
-            string userId = User?.Identity?.Name ?? "SYSTEM";
-            var result = await _exportService.UpdateExportAsync(request, userId);
+            var result = await _exportService.UpdateExportAsync(request, CurrentUserId);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(CurrentUserId, "CAP_NHAT_PHIEU",
+                    $"Cập nhật phiếu xuất kho {voucherId} ({request.VoucherCode})",
+                    ActivityModule.Export);
             return StatusCode(result.StatusCode, result);
         }
         // ============================================================

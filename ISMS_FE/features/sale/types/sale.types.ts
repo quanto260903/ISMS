@@ -81,3 +81,49 @@ export interface DropdownPos {
   width: number;
   index: number;
 }
+
+export interface SaleVoucherDetailItem {
+  goodsId:       string | null;
+  goodsName:     string | null;
+  unit:          string | null;
+  quantity:      number | null;
+  unitPrice:     number | null;
+  amount1:       number | null;
+  amount2:       number | null;
+  promotion:     number | null;
+  debitAccount1: string | null;
+  creditAccount1:string | null;
+  debitAccount2: string | null;
+  creditAccount2:string | null;
+  offsetVoucher: string | null;
+}
+
+export interface SaleVoucherDetail {
+  voucherId:          string;
+  voucherCode:        string | null;
+  customerId:         string | null;
+  customerName:       string | null;
+  taxCode:            string | null;
+  address:            string | null;
+  voucherDescription: string | null;
+  voucherDate:        string | null;
+  bankName:           string | null;
+  bankAccountNumber:  string | null;
+  items:              SaleVoucherDetailItem[];
+}
+
+export interface SaleListItem {
+  voucherId:    string;
+  voucherDate:  string | null;
+  customerName: string | null;
+  totalAmount:  number;
+  itemCount:    number;
+}
+
+export interface SaleListResult {
+  items:      SaleListItem[];
+  total:      number;
+  page:       number;
+  pageSize:   number;
+  grandTotal: number;
+}

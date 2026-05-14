@@ -29,9 +29,13 @@ public partial class User
 
     public int NumberOfDependent { get; set; }
 
-    public int RoleId { get; set; }
-
     public bool? IsActive { get; set; }
 
     public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
+
+    public virtual ICollection<DataLock> DataLockLockedByUsers { get; set; } = new List<DataLock>();
+
+    public virtual ICollection<DataLock> DataLockUnlockedByUsers { get; set; } = new List<DataLock>();
+
+    public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }

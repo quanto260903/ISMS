@@ -1,14 +1,10 @@
 ﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.BusinessObjects.Models;
+using AppBackend.Repositories.Repositories.DataLockRepo;
 using AppBackend.Repositories.Repositories.ImportRepo;
 using AppBackend.Repositories.Repositories.ItemRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services.ApiModels;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AppBackend.Services.Services.ImportServices
 {
@@ -17,27 +13,58 @@ namespace AppBackend.Services.Services.ImportServices
         private readonly IImportRepository _inwardRepository;
         private readonly IItemRepository _itemRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IDataLockRepository _dataLockRepository;
 
         public ImportService(
             IImportRepository inwardRepository,
             IItemRepository itemRepository,
+            IDataLockRepository dataLockRepository,
             IUnitOfWork unitOfWork)
         {
             _inwardRepository = inwardRepository;
             _itemRepository = itemRepository;
             _unitOfWork = unitOfWork;
+            _dataLockRepository = dataLockRepository;
         }
 
-        public async Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string userId)
+        // ═══════════════════════════════════════════════════════════
+        //  HELPER — Kiểm tra khóa sổ
+        //  Trả về ResultModel lỗi nếu bị khóa, null nếu được phép
+        // ═══════════════════════════════════════════════════════════
+        private async Task<ResultModel<int>?> CheckDataLockAsync(DateOnly voucherDate)
         {
+            var activeLock = await _dataLockRepository.GetActiveLockAsync("INVENTORY");
+            if (activeLock is not null && voucherDate <= activeLock.LockedUntilDate)
+            {
+                return new ResultModel<int>
+                {
+                    IsSuccess = false,
+                    ResponseCode = "DATA_LOCKED",
+                    StatusCode = 423, // 423 Locked
+                    Data = 0,
+                    Message = $"Dữ liệu đã bị khóa sổ đến ngày {activeLock.LockedUntilDate:dd/MM/yyyy}. " +
+                                   $"Không thể thao tác với chứng từ ngày {voucherDate:dd/MM/yyyy}."
+                };
+            }
+            return null;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  CREATE
+        // ═══════════════════════════════════════════════════════════
+        public async Task<ResultModel<int>> CreateInwardAsync(ImportOrder request, string? userId)
+        {
+            // ── 0. Kiểm tra khóa sổ ──────────────────────────────
+            var lockCheck = await CheckDataLockAsync(request.VoucherDate!.Value);
+            if (lockCheck is not null) return lockCheck;
+
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // ── 1. Validate từng dòng hàng hóa trước khi insert ──
+                // ── 1. Validate từng dòng hàng hóa ──────────────
                 foreach (var itemRequest in request.Items)
                 {
                     if (string.IsNullOrWhiteSpace(itemRequest.GoodsId))
-                    {
                         return new ResultModel<int>
                         {
                             IsSuccess = false,
@@ -46,12 +73,9 @@ namespace AppBackend.Services.Services.ImportServices
                             Data = 0,
                             Message = "Mã hàng hóa không được để trống"
                         };
-                    }
 
                     var goods = await _itemRepository.GetByIdAsync(itemRequest.GoodsId);
-
                     if (goods == null)
-                    {
                         return new ResultModel<int>
                         {
                             IsSuccess = false,
@@ -60,10 +84,8 @@ namespace AppBackend.Services.Services.ImportServices
                             Data = 0,
                             Message = $"Không tìm thấy hàng hóa: {itemRequest.GoodsId}"
                         };
-                    }
 
                     if (itemRequest.Quantity is null || itemRequest.Quantity <= 0)
-                    {
                         return new ResultModel<int>
                         {
                             IsSuccess = false,
@@ -72,10 +94,8 @@ namespace AppBackend.Services.Services.ImportServices
                             Data = 0,
                             Message = $"Số lượng không hợp lệ cho {goods.GoodsName}"
                         };
-                    }
 
                     if (itemRequest.UnitPrice is null || itemRequest.UnitPrice < 0)
-                    {
                         return new ResultModel<int>
                         {
                             IsSuccess = false,
@@ -84,14 +104,15 @@ namespace AppBackend.Services.Services.ImportServices
                             Data = 0,
                             Message = $"Đơn giá không hợp lệ cho {goods.GoodsName}"
                         };
-                    }
                 }
 
-                // ── 2. Kiểm tra trùng phiếu trả hàng (NK2) ──
+                // ── 2. Kiểm tra trùng phiếu trả hàng (NK2) ──────
                 if (request.VoucherCode == "NK2")
                 {
                     var saleVoucherId = request.Items
-                        .FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.OffsetVoucher))?.OffsetVoucher;
+                        .FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.OffsetVoucher))
+                        ?.OffsetVoucher;
+
                     if (!string.IsNullOrWhiteSpace(saleVoucherId))
                     {
                         var alreadyReturned = await _inwardRepository.IsAlreadyReturnedAsync(saleVoucherId);
@@ -107,7 +128,7 @@ namespace AppBackend.Services.Services.ImportServices
                     }
                 }
 
-                // ── 3. Tạo Voucher header — ID sinh tự động từ server ──
+                // ── 3. Tạo Voucher header ─────────────────────────
                 var generatedId = await _inwardRepository.GenerateVoucherIdAsync();
                 var inward = new Voucher
                 {
@@ -128,7 +149,7 @@ namespace AppBackend.Services.Services.ImportServices
                     VoucherDetails = new List<VoucherDetail>()
                 };
 
-                // ── 4. Tạo từng dòng VoucherDetail ──
+                // ── 4. Tạo từng dòng VoucherDetail ───────────────
                 foreach (var itemRequest in request.Items)
                 {
                     inward.VoucherDetails.Add(new VoucherDetail
@@ -182,8 +203,11 @@ namespace AppBackend.Services.Services.ImportServices
             }
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  GET LIST
+        // ═══════════════════════════════════════════════════════════
         public async Task<ResultModel<PagedResult<InwardListDto>>> GetListAsync(
-    GetInwardListRequest request)
+            GetInwardListRequest request)
         {
             try
             {
@@ -199,12 +223,12 @@ namespace AppBackend.Services.Services.ImportServices
                 {
                     VoucherId = v.VoucherId,
                     VoucherCode = v.VoucherCode,
-                    InvoiceNumber = v.InvoiceNumber,        // null → hiển thị "--"
+                    InvoiceNumber = v.InvoiceNumber,
                     VoucherDate = v.VoucherDate,
                     CustomerName = v.CustomerName,
                     TotalAmount = v.VoucherDetails
-                                     .Where(d => d.Amount1.HasValue)
-                                     .Sum(d => d.Amount1!.Value),
+                                    .Where(d => d.Amount1.HasValue)
+                                    .Sum(d => d.Amount1!.Value),
                     ItemCount = v.VoucherDetails.Count,
                 }).ToList();
 
@@ -238,12 +262,15 @@ namespace AppBackend.Services.Services.ImportServices
                 };
             }
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  GET BY ID
+        // ═══════════════════════════════════════════════════════════
         public async Task<ResultModel<ImportOrder>> GetByIdAsync(string voucherId)
         {
             try
             {
                 var voucher = await _inwardRepository.GetByIdAsync(voucherId);
-
                 if (voucher == null)
                     return new ResultModel<ImportOrder>
                     {
@@ -254,7 +281,6 @@ namespace AppBackend.Services.Services.ImportServices
                         Message = $"Không tìm thấy phiếu nhập: {voucherId}"
                     };
 
-                // Map Voucher entity → ImportOrder DTO (khớp shape frontend expect)
                 var dto = new ImportOrder
                 {
                     VoucherId = voucher.VoucherId,
@@ -312,12 +338,19 @@ namespace AppBackend.Services.Services.ImportServices
             }
         }
 
-        public async Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string userId)
+        // ═══════════════════════════════════════════════════════════
+        //  UPDATE
+        // ═══════════════════════════════════════════════════════════
+        public async Task<ResultModel<int>> UpdateInwardAsync(ImportOrder request, string? userId)
         {
+            // ── 0. Kiểm tra khóa sổ theo ngày chứng từ mới ──────
+            var lockCheck = await CheckDataLockAsync(request.VoucherDate!.Value);
+            if (lockCheck is not null) return lockCheck;
+
             await using var tx = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // ── 1. Validate từng dòng hàng hóa (giữ đúng pattern CreateInwardAsync) ──
+                // ── 1. Validate từng dòng hàng hóa ──────────────
                 foreach (var itemRequest in request.Items)
                 {
                     if (string.IsNullOrWhiteSpace(itemRequest.GoodsId))
@@ -331,7 +364,6 @@ namespace AppBackend.Services.Services.ImportServices
                         };
 
                     var goods = await _itemRepository.GetByIdAsync(itemRequest.GoodsId);
-
                     if (goods == null)
                         return new ResultModel<int>
                         {
@@ -363,9 +395,8 @@ namespace AppBackend.Services.Services.ImportServices
                         };
                 }
 
-                // ── 2. Lấy voucher gốc từ DB ──
+                // ── 2. Lấy voucher gốc từ DB ──────────────────────
                 var voucher = await _inwardRepository.GetByIdAsync(request.VoucherId);
-
                 if (voucher == null)
                     return new ResultModel<int>
                     {
@@ -376,7 +407,12 @@ namespace AppBackend.Services.Services.ImportServices
                         Message = $"Không tìm thấy phiếu nhập: {request.VoucherId}"
                     };
 
-                // ── 3. Cập nhật header ──
+                // ── 3. Kiểm tra thêm: ngày gốc của voucher có bị khóa không ──
+                //      (tránh TH: ngày mới ok nhưng ngày cũ đang bị khóa)
+                var lockCheckOld = await CheckDataLockAsync(request.VoucherDate!.Value);
+                if (lockCheckOld is not null) return lockCheckOld;
+
+                // ── 4. Cập nhật header ────────────────────────────
                 voucher.VoucherCode = request.VoucherCode;
                 voucher.CustomerId = request.CustomerId;
                 voucher.CustomerName = request.CustomerName;
@@ -390,16 +426,15 @@ namespace AppBackend.Services.Services.ImportServices
                 voucher.InvoiceDate = request.InvoiceDate;
                 // BankName / BankAccountNumber: không ghi đè — giữ nguyên giá trị cũ
 
-                // ── 4. Hoàn tồn kho cũ trước khi xóa details ──
+                // ── 5. Hoàn tồn kho cũ trước khi xóa details ─────
                 foreach (var old in voucher.VoucherDetails)
                 {
                     if (!string.IsNullOrWhiteSpace(old.GoodsId) && (old.Quantity ?? 0) > 0)
                         await _inwardRepository.DeductStockAsync(old.GoodsId, old.Quantity!.Value);
                 }
 
-                // ── 5. Xóa items cũ → thêm lại items mới ──
+                // ── 6. Xóa items cũ → thêm lại items mới ─────────
                 voucher.VoucherDetails.Clear();
-
                 foreach (var itemRequest in request.Items)
                 {
                     voucher.VoucherDetails.Add(new VoucherDetail
@@ -421,7 +456,7 @@ namespace AppBackend.Services.Services.ImportServices
                     });
                 }
 
-                // ── 6. Lưu + cộng tồn kho mới ──
+                // ── 7. Lưu + cộng tồn kho mới ────────────────────
                 await _inwardRepository.UpdateAsync(voucher);
                 await _unitOfWork.SaveChangesAsync();
 
@@ -453,9 +488,9 @@ namespace AppBackend.Services.Services.ImportServices
             }
         }
 
-        public async Task<string> GetNextVoucherIdAsync()
-            => await _inwardRepository.GenerateVoucherIdAsync();
-
+        // ═══════════════════════════════════════════════════════════
+        //  DELETE
+        // ═══════════════════════════════════════════════════════════
         public async Task<ResultModel<int>> DeleteAsync(string voucherId)
         {
             await using var tx = await _unitOfWork.BeginTransactionAsync();
@@ -472,7 +507,11 @@ namespace AppBackend.Services.Services.ImportServices
                         Message = $"Không tìm thấy phiếu nhập: {voucherId}"
                     };
 
-                // Không cho xóa nếu đã có phiếu xuất đối trừ vào phiếu nhập này
+                // ── 0. Kiểm tra khóa sổ theo ngày của voucher ────
+                var lockCheck = await CheckDataLockAsync(voucher.VoucherDate!.Value);
+                if (lockCheck is not null) return lockCheck;
+
+                // ── 1. Không cho xóa nếu đã có phiếu xuất đối trừ ──
                 var hasExports = await _inwardRepository.HasDependentExportsAsync(voucherId);
                 if (hasExports)
                     return new ResultModel<int>
@@ -484,7 +523,7 @@ namespace AppBackend.Services.Services.ImportServices
                         Message = "Phiếu nhập đã có phiếu xuất kho đối trừ, không thể xóa"
                     };
 
-                // Hoàn tồn kho trước khi xóa
+                // ── 2. Hoàn tồn kho trước khi xóa ────────────────
                 foreach (var detail in voucher.VoucherDetails)
                 {
                     if (!string.IsNullOrWhiteSpace(detail.GoodsId) && (detail.Quantity ?? 0) > 0)
@@ -518,35 +557,49 @@ namespace AppBackend.Services.Services.ImportServices
             }
         }
 
-        public async Task<bool> CheckInwardUsedForReturnAsync(string inwardVoucherId)
-        {
-            return await _inwardRepository.IsUsedForXk1ReturnAsync(inwardVoucherId);
-        }
+        // ═══════════════════════════════════════════════════════════
+        //  UTILITIES
+        // ═══════════════════════════════════════════════════════════
+        public async Task<string> GetNextVoucherIdAsync()
+            => await _inwardRepository.GenerateVoucherIdAsync();
 
-        public async Task<ResultModel<List<InwardSearchResult>>> SearchInwardVouchersAsync(string keyword, int limit)
+        public async Task<bool> CheckInwardUsedForReturnAsync(string inwardVoucherId)
+            => await _inwardRepository.IsUsedForXk1ReturnAsync(inwardVoucherId);
+
+        public async Task<ResultModel<List<InwardSearchResult>>> SearchInwardVouchersAsync(
+            string keyword, int limit)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(keyword))
                     return new ResultModel<List<InwardSearchResult>>
                     {
-                        IsSuccess = true, ResponseCode = "SUCCESS", StatusCode = 200,
-                        Data = new List<InwardSearchResult>(), Message = "OK"
+                        IsSuccess = true,
+                        ResponseCode = "SUCCESS",
+                        StatusCode = 200,
+                        Data = new List<InwardSearchResult>(),
+                        Message = "OK"
                     };
 
                 var results = await _inwardRepository.SearchAsync(keyword, limit);
                 return new ResultModel<List<InwardSearchResult>>
                 {
-                    IsSuccess = true, ResponseCode = "SUCCESS", StatusCode = 200,
-                    Data = results, Message = "OK"
+                    IsSuccess = true,
+                    ResponseCode = "SUCCESS",
+                    StatusCode = 200,
+                    Data = results,
+                    Message = "OK"
                 };
             }
             catch (Exception ex)
             {
                 return new ResultModel<List<InwardSearchResult>>
                 {
-                    IsSuccess = false, ResponseCode = "EXCEPTION", StatusCode = 500,
-                    Data = new List<InwardSearchResult>(), Message = ex.Message
+                    IsSuccess = false,
+                    ResponseCode = "EXCEPTION",
+                    StatusCode = 500,
+                    Data = new List<InwardSearchResult>(),
+                    Message = ex.Message
                 };
             }
         }

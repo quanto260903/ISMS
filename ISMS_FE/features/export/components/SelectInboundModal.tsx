@@ -125,7 +125,7 @@ export default function SelectInboundModal({
         {/* ── Gợi ý FIFO ── */}
         {!loading && inbounds.length > 0 && (
           <div style={s.fifoBar}>
-            <span style={s.fifoLabel}>⚡ Gợi ý FIFO:</span>
+            <span style={s.fifoLabel}>⚡ Gợi ý:</span>
             <input
               type="number"
               min={1}
@@ -152,7 +152,7 @@ export default function SelectInboundModal({
               }}
               onClick={applyFifoSuggestion}
               disabled={fifoLoading || !suggestQty || Number(suggestQty) <= 0 || Number(suggestQty) > totalAvailable}
-              title="Tự động phân bổ theo FIFO (phiếu nhập cũ nhất trước)"
+              title="Tự động phân bổ theo phiếu nhập cũ nhất trước"
             >
               {fifoLoading ? "Đang phân bổ…" : "Tự động phân bổ"}
             </button>

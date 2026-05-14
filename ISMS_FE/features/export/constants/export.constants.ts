@@ -9,6 +9,7 @@ export const getVoucherCodeByReason = (reason: ExportReason): string => {
     case "IMPORT_RETURN": return "XK1";
     case "DESTROY":       return "XK2";
     case "STOCK_TAKE":    return "XK3";
+    case "SALE":          return "XK4";
   }
 };
 
@@ -17,18 +18,27 @@ export const detectReasonFromCode = (code?: string): ExportReason => {
   if (code === "XK1") return "IMPORT_RETURN";
   if (code === "XK2") return "DESTROY";
   if (code === "XK3") return "STOCK_TAKE";
+  if (code === "XK4") return "SALE";
   return "IMPORT_RETURN";
 };
 
 // ── TK Nợ theo lý do xuất ────────────────────────────────────
 export const getDebitAccountByReason = (reason: ExportReason): string => {
   switch (reason) {
-    case "IMPORT_RETURN": return "331";   // Phải trả nhà cung cấp
+    case "IMPORT_RETURN": return "111";   // Phải trả nhà cung cấp
     case "DESTROY":       return "632";   // Chi phí hủy hàng
-    case "STOCK_TAKE":    return "1381";  // Tài sản thiếu chờ xử lý
+    case "STOCK_TAKE":    return "111";  // Tài sản thiếu chờ xử lý
+    case "SALE":          return "111";   // Phải thu khách hàng (override theo hình thức TT)
   }
 };
-
+export const getCreditAccountByReason = (reason: ExportReason): string => {
+  switch (reason) {
+    case "IMPORT_RETURN": return "156";   // Phải trả nhà cung cấp
+    case "DESTROY":       return "156";   // Chi phí hủy hàng
+    case "STOCK_TAKE":    return "511";  // Tài sản thiếu chờ xử lý
+    case "SALE":          return "511";   // Phải thu khách hàng (override theo hình thức TT)
+  }
+};
 
 // ── Tính thành tiền xuất kho ──────────────────────────────────
 // Ưu tiên costPerUnit (giá vốn FIFO từ phiếu nhập)
@@ -42,6 +52,7 @@ export const EXPORT_REASON_LABELS: Record<ExportReason, string> = {
   IMPORT_RETURN: "Xuất trả hàng nhập",
   DESTROY:       "Xuất hủy hàng",
   STOCK_TAKE:    "Xuất kho kiểm kê",
+  SALE:          "Xuất bán hàng",
 };
 
 // ── Labels cho danh sách (đầy đủ 4 loại XK1-XK4) ─────────────

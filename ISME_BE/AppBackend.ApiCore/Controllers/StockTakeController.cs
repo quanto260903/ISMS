@@ -9,7 +9,6 @@ namespace AppBackend.ApiCore.Controllers
 {
     [ApiController]
     [Route("api/stock-take-vouchers")]
-
     public class StockTakeController : ControllerBase
     {
         private readonly IStockTakeService _service;
@@ -19,8 +18,10 @@ namespace AppBackend.ApiCore.Controllers
             _service = service;
         }
 
+        private string CurrentUser =>
+            User.FindFirstValue("userId") ?? User.FindFirstValue("username") ?? "SYSTEM";
+
         // GET /api/stock-take-vouchers/preview-code
-        // Xem trước mã phiếu KK sẽ được sinh khi tạo mới (không tạo phiếu)
         [HttpGet("preview-code")]
         public async Task<IActionResult> PreviewCode()
         {
@@ -29,7 +30,6 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         // GET /api/stock-take-vouchers/goods-stock?asOfDate=YYYY-MM-DD
-        // Lấy danh sách hàng hóa với tồn kho tính đến ngày asOfDate
         [HttpGet("goods-stock")]
         public async Task<IActionResult> GetGoodsStock([FromQuery] DateOnly asOfDate)
         {
@@ -38,7 +38,6 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         // GET /api/stock-take-vouchers
-        // Lấy danh sách tất cả phiếu kiểm kê
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -47,7 +46,6 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         // GET /api/stock-take-vouchers/{id}
-        // Lấy chi tiết 1 phiếu kiểm kê
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
@@ -58,22 +56,18 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         // POST /api/stock-take-vouchers
-        // Tạo mới phiếu kiểm kê
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateStockTakeVoucherDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Lấy user hiện tại từ claim, hoặc dùng giá trị mặc định
             var createdBy = User.FindFirstValue(ClaimTypes.Name) ?? dto.CreatedBy ?? "system";
-
             var result = await _service.CreateAsync(dto, createdBy);
             return CreatedAtAction(nameof(GetById), new { id = result.StockTakeVoucherId }, result);
         }
 
         // PUT /api/stock-take-vouchers/{id}
-        // Cập nhật phiếu kiểm kê (chỉ khi chưa xử lý)
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateStockTakeVoucherDto dto)
         {
@@ -94,7 +88,6 @@ namespace AppBackend.ApiCore.Controllers
         }
 
         // DELETE /api/stock-take-vouchers/{id}
-        // Xóa phiếu kiểm kê (chỉ khi chưa xử lý)
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
         {
@@ -110,10 +103,9 @@ namespace AppBackend.ApiCore.Controllers
                 return Conflict(new { message = ex.Message });
             }
         }
-        private string CurrentUser =>
-           User.FindFirstValue("userId") ?? User.FindFirstValue("username") ?? "SYSTEM";
 
-        // POST /api/stock-take-vouchers/{id}/process — Khoá phiếu (IsCompleted = true)
+        // POST /api/stock-take-vouchers/{id}/process
+        // Đánh dấu hoàn thành thủ công (fallback)
         [HttpPost("{id}/process")]
         public async Task<IActionResult> Process(string id)
         {
@@ -123,7 +115,31 @@ namespace AppBackend.ApiCore.Controllers
                 : BadRequest(new { isSuccess = false, message = result.Message });
         }
 
-        // GET /api/stock-take-vouchers/{id}/surplus-items — Hàng thừa (diff > 0)
+        // PATCH /api/stock-take-vouchers/{id}/mark-nk3-created
+        // Gọi khi người dùng nhấn nút "Lập phiếu nhập NK3" — đánh dấu đã lập và
+        // tự động set IsCompleted = true nếu không cần XK3 hoặc XK3 đã được lập rồi.
+        [HttpPatch("{id}/mark-nk3-created")]
+        public async Task<IActionResult> MarkNk3Created(string id)
+        {
+            var result = await _service.MarkNk3CreatedAsync(id);
+            if (result == null)
+                return NotFound(new { message = $"Không tìm thấy phiếu kiểm kê với id: {id}" });
+            return Ok(result);
+        }
+
+        // PATCH /api/stock-take-vouchers/{id}/mark-xk3-created
+        // Gọi khi người dùng nhấn nút "Lập phiếu xuất XK3" — đánh dấu đã lập và
+        // tự động set IsCompleted = true nếu không cần NK3 hoặc NK3 đã được lập rồi.
+        [HttpPatch("{id}/mark-xk3-created")]
+        public async Task<IActionResult> MarkXk3Created(string id)
+        {
+            var result = await _service.MarkXk3CreatedAsync(id);
+            if (result == null)
+                return NotFound(new { message = $"Không tìm thấy phiếu kiểm kê với id: {id}" });
+            return Ok(result);
+        }
+
+        // GET /api/stock-take-vouchers/{id}/surplus-items
         [HttpGet("{id}/surplus-items")]
         public async Task<IActionResult> GetSurplusItems(string id)
         {
@@ -131,7 +147,7 @@ namespace AppBackend.ApiCore.Controllers
             return Ok(items);
         }
 
-        // GET /api/stock-take-vouchers/{id}/shortage-items — Hàng thiếu (diff < 0)
+        // GET /api/stock-take-vouchers/{id}/shortage-items
         [HttpGet("{id}/shortage-items")]
         public async Task<IActionResult> GetShortageItems(string id)
         {

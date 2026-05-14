@@ -1,8 +1,10 @@
 ﻿using AppBackend.BusinessObjects.Dtos;
 using AppBackend.Services.ApiModels;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.GoodsServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AppBackend.ApiCore.Controllers
 {
@@ -11,32 +13,31 @@ namespace AppBackend.ApiCore.Controllers
     public class SaleGoodsController : ControllerBase
     {
         private readonly ISaleGoodsService _saleService;
+        private readonly IActivityLogService _actLog;
 
-        public SaleGoodsController(ISaleGoodsService saleService)
+        public SaleGoodsController(ISaleGoodsService saleService, IActivityLogService actLog)
         {
             _saleService = saleService;
+            _actLog      = actLog;
         }
+
+        private string? CurrentUserId => User.FindFirstValue("userId");
 
         [HttpPost("add-sale-goods")]
         public async Task<IActionResult> AddSaleGoods([FromBody] CreateSaleRequest request)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(new ResultModel<int>
                 {
-                    IsSuccess = false,
-                    ResponseCode = "INVALID_MODEL",
-                    StatusCode = 400,
-                    Data = 0,
-                    Message = "Invalid request data"
+                    IsSuccess = false, ResponseCode = "INVALID_MODEL",
+                    StatusCode = 400, Data = 0, Message = "Invalid request data"
                 });
-            }
 
-            // 🔥 Lấy userId từ token nếu có authentication
-            string userId = User?.Identity?.Name ?? "SYSTEM";
-
-            var result = await _saleService.CreateSaleAsync(request, userId);
-
+            var result = await _saleService.CreateSaleAsync(request, CurrentUserId);
+            if (result.IsSuccess)
+                await _actLog.LogAsync(CurrentUserId, "TAO_PHIEU",
+                    $"Tạo phiếu bán hàng {request.VoucherId} ({request.VoucherCode}) cho KH: {request.CustomerName}",
+                    ActivityModule.Sale);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -83,6 +84,24 @@ namespace AppBackend.ApiCore.Controllers
         {
             var isUsed = await _saleService.CheckSaleUsedForReturnAsync(saleVoucherId);
             return Ok(new { isUsed });
+        }
+
+        /// <summary>
+        /// Danh sách phiếu bán có lọc + phân trang
+        /// GET /api/SaleGoods/list?fromDate=&toDate=&keyword=&page=1&pageSize=50
+        /// </summary>
+        [HttpGet("list")]
+        public async Task<IActionResult> GetList(
+            [FromQuery] string? fromDate,
+            [FromQuery] string? toDate,
+            [FromQuery] string? keyword,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            DateOnly? from = DateOnly.TryParse(fromDate, out var fd) ? fd : null;
+            DateOnly? to   = DateOnly.TryParse(toDate,   out var td) ? td : null;
+            var result = await _saleService.GetListAsync(from, to, keyword, page, pageSize);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

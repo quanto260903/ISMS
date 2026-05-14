@@ -10,6 +10,8 @@ export interface User {
   phone?: string;
   address?: string;
   role: UserRole;
+    roles:     number[]   // [1, 2, 3]
+  roleNames: string[]   // ["Admin", "Manager", "Staff"]
 }
 
 // User Profile (from API)

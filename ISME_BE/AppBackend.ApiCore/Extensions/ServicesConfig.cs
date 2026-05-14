@@ -1,6 +1,8 @@
 using AppBackend.Repositories.Generic;
+using AppBackend.Repositories.Repositories.ActivityLogRepo;
 using AppBackend.Repositories.Repositories.CustomerRepo;
 using AppBackend.Repositories.Repositories.DashboardRepo;
+using AppBackend.Repositories.Repositories.DataLockRepo;
 using AppBackend.Repositories.Repositories.ExportRepo;
 using AppBackend.Repositories.Repositories.GoodsCategoryRepo;
 using AppBackend.Repositories.Repositories.GoodsRepo;
@@ -13,17 +15,19 @@ using AppBackend.Repositories.Repositories.UserRepo;
 using AppBackend.Repositories.UnitOfWork;
 using AppBackend.Services;
 using AppBackend.Services.RateLimiting;
+using AppBackend.Services.Services.ActivityLogServices;
 using AppBackend.Services.Services.AuthServices;
 using AppBackend.Services.Services.CustomerServices;
 using AppBackend.Services.Services.DashboardServices;
+using AppBackend.Services.Services.DataLockServices;
 using AppBackend.Services.Services.Email;
 using AppBackend.Services.Services.ExportServices;
 using AppBackend.Services.Services.GoodsCategoryServices;
 using AppBackend.Services.Services.GoodsServices;
 using AppBackend.Services.Services.ImportServices;
+using AppBackend.Services.Services.InventoryReportServices;
 using AppBackend.Services.Services.ItemServices;
 using AppBackend.Services.Services.OpenInventoryServices;
-using AppBackend.Services.Services.InventoryReportServices;
 using AppBackend.Services.Services.StockTakeServices;
 using AppBackend.Services.Services.SupplierServices;
 using AppBackend.Services.Services.UserServices;
@@ -40,6 +44,7 @@ public static class ServicesConfig
         #endregion
 
         #region Repositories
+        services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISaleGoodsRepository, SaleGoodsRepository>();
         services.AddScoped<IItemRepository, ItemRepository>();
@@ -53,9 +58,11 @@ public static class ServicesConfig
         services.AddScoped<IOpenInventoryRepository, OpenInventoryRepository>();
         services.AddScoped<IStockTakeVoucherRepository, StockTakeVoucherRepository>();
         services.AddScoped<IStockTakeDetailRepository, StockTakeDetailRepository>();
+        services.AddScoped<IDataLockRepository, DataLockRepository>();
         #endregion
 
         #region Services
+        services.AddScoped<IActivityLogService, ActivityLogService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<ICloudinaryService, CloudinaryService>();
@@ -73,6 +80,7 @@ public static class ServicesConfig
         services.AddScoped<IOpenInventoryService, OpenInventoryService>();
         services.AddScoped<IStockTakeService, StockTakeService>();
         services.AddScoped<IInventoryReportService, InventoryReportService>();
+        services.AddScoped<IDataLockService, DataLockService>();
         #endregion
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         #region Helpers
