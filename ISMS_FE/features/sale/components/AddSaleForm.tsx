@@ -62,8 +62,9 @@ export default function AddSaleForm() {
 
   // Khởi tạo 1 dòng trống khi form load
   const initialized = React.useRef(false);
+
   useEffect(() => {
-    if (!initialized.current) {
+    if (!initialized.current && voucher.items.length === 0) {
       addItem();
       initialized.current = true;
     }
@@ -170,6 +171,23 @@ export default function AddSaleForm() {
       {/* ── Danh sách sản phẩm ── */}
       <section style={{ ...s.card, maxWidth: "100%" }}>
         <h3 style={s.cardTitle}><span style={s.titleDot} />Danh sách sản phẩm</h3>
+
+        <div style={{ marginBottom: 10 }}>
+          <button
+            onClick={addItem}
+            style={{
+              background: "#7c3aed",
+              color: "#fff",
+              padding: "6px 12px",
+              borderRadius: 6,
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 600
+            }}
+          >
+            + Thêm sản phẩm
+          </button>
+        </div>
 
         {voucher.items.length > 0 && (
           <SaleItemTable

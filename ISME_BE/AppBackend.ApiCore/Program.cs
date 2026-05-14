@@ -1,4 +1,6 @@
+using AppBackend.BusinessObjects.Models;
 using AppBackend.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +10,8 @@ builder.Services.AddCloudinaryConfig(builder.Configuration);
 builder.Services.AddCorsConfig();
 builder.Services.AddSwaggerConfig();
 builder.Services.AddDefaultAuth(builder.Configuration);
+//for connnect to database
+builder.Services.AddDbContext<IndividualBusinessContext>(options =>options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
 //Optional login with google
 // builder.Services.AddGoogleAuth(builder.Configuration);builder.Services.AddServicesConfig();
 builder.Services.AddSessionConfig();
