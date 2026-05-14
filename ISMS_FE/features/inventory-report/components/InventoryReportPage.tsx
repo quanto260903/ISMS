@@ -214,14 +214,14 @@ type FlatRow =
 
 // ── Column header ──────────────────────────────────────────────
 const COL_WIDTHS = {
-  stt:  44,
-  code: 120,
-  name: null,   // flex
-  unit:  70,
-  open:  100,
-  in:    100,
-  out:   100,
-  close: 100,
+  stt:  36,
+  code: 80,
+  name: null,
+  unit: 45,
+  open: 65,
+  in: 65,
+  out: 65,
+  close: 65,
 };
 
 function Th({ children, align = "right", w }: {
@@ -263,6 +263,7 @@ export default function InventoryReportPage() {
   const [expanded,     setExpanded]     = useState<Set<string>>(new Set());
   const [page,         setPage]         = useState(1);
   const [pageSize,     setPageSize]     = useState(25);
+  const [isPrinting,   setIsPrinting]   = useState(false);
 
   // ── Toggle expand/collapse group ────────────────────────────
   const toggleGroup = useCallback((gid: string) => {
@@ -284,6 +285,19 @@ export default function InventoryReportPage() {
     setExpanded(new Set());
     setPage(1);
   }, []);
+
+  React.useEffect(() => {
+  const beforePrint = () => setIsPrinting(true);
+  const afterPrint = () => setIsPrinting(false);
+
+  window.addEventListener("beforeprint", beforePrint);
+  window.addEventListener("afterprint", afterPrint);
+
+  return () => {
+    window.removeEventListener("beforeprint", beforePrint);
+    window.removeEventListener("afterprint", afterPrint);
+  };
+}, []);
 
   // ── Flat rows (group headers + visible items) ────────────────
   const flatRows = useMemo<FlatRow[]>(() => {
@@ -335,64 +349,125 @@ export default function InventoryReportPage() {
       <style>{`
         @media print {
 
-          @page {
-            size: A4 portrait;
-            margin: 8mm;
-          }
-
-          html, body {
+          html,
+          body,
+          #__next {
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+          }
+
+          @page {
+            size: A4 portrait;
+            margin: 5mm;
+          }
+
+          html,
+          body {
+            width: 210mm;
+            margin: 0;
+            padding: 0;
+            background: #fff;
           }
 
           body * {
             visibility: hidden;
           }
 
-          #inv-print, #inv-print * {
+          #inv-print,
+          #inv-print * {
             visibility: visible;
           }
 
           #inv-print {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
           }
 
-          .no-print {
-            display: none !important;
+          #inv-print .no-print {
+            display: none;
           }
 
-          .table-container {
+          #inv-print .table-container {
             overflow: visible !important;
             max-height: none !important;
+            height: auto !important;
             width: 100% !important;
+            display: block !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
 
-          table {
-            width: 100% !important;
+          #inv-print table {
+            width: 100vw !important;
+            margin: 0 !important;
             border-collapse: collapse !important;
             table-layout: fixed !important;
           }
 
-          th, td {
+          #inv-print thead {
+            display: table-header-group !important;
+          }
+
+          #inv-print tfoot {
+            display: table-footer-group !important;
+          }
+
+          #inv-print tbody {
+            display: table-row-group !important;
+          }
+
+          #inv-print tr {
+            page-break-inside: avoid ;
+            break-inside: avoid ;
+          }
+
+          #inv-print th,
+          #inv-print td {
             border: 1px solid #000 !important;
-            font-size: 11px;
-            padding: 6px !important;
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: normal !important;
+            overflow: visible !important;
             word-break: break-word !important;
-          }
-
-          th {
-            position: static !important;
-          }
-
-          * {
             background: #fff !important;
             color: #000 !important;
             box-shadow: none !important;
+          }
+
+          #inv-print th {
+            position: static !important;
+          }
+
+          #inv-print tr {
+            break-inside: avoid;
+          }
+
+          #inv-print tbody {
+            overflow: visible;
+          }
+          
+          #inv-print .hover-row {
+            display: table-row !important;
+          }
+
+          #inv-print tbody,
+          #inv-print thead,
+          #inv-print tfoot {
+            display: table-row-group;
+          }
+
+          #inv-print table,
+          #inv-print tbody {
+            overflow: visible !important;
+            height: auto !important;
           }
         }
       `}</style>
@@ -526,7 +601,15 @@ export default function InventoryReportPage() {
         <div id="inv-print">
           {/* Print header (screen: hidden) */}
           <div style={{ display: "none" }} className="print-header">
-            <style>{`@media print { .print-header { display: block !important; text-align: center; margin-bottom: 12px; } }`}</style>
+            <style>{`
+              @media print {
+                #inv-print .print-header {
+                  display: block;
+                  text-align: center;
+                  margin-bottom: 12px;
+                }
+              }
+            `}</style>
             <h2 style={{ margin: 0 }}>SỔ TỔNG HỢP TỒN KHO</h2>
             <p>Kỳ: {fmtDate(report.fromDate)} — {fmtDate(report.toDate)} | Xuất: {fmtDateTime(report.generatedAt)}</p>
           </div>
@@ -580,17 +663,30 @@ export default function InventoryReportPage() {
           </div>
 
           {/* Table */}
-          <div style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 12,
-            overflow: "hidden",
-          }}>
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: isPrinting ? 0 : 12,
+              overflow: isPrinting ? "visible" : "hidden",
+            }}
+          >
             <div
               className="table-container"
-              style={{ overflowX: "auto", maxHeight: 600, overflowY: "auto" }}
+              style={{
+                overflowX: isPrinting ? "visible" : "auto",
+                overflowY: isPrinting ? "visible" : "auto",
+                maxHeight: isPrinting ? "none" : 600,
+              }}
             >
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 13,
+                  tableLayout: isPrinting ? "fixed" : "fixed",
+                }}
+              >
                 <thead>
                   <tr>
                     <Th align="center" w={COL_WIDTHS.stt}>STT</Th>
@@ -605,14 +701,14 @@ export default function InventoryReportPage() {
                 </thead>
 
                 <tbody>
-                  {pageRows.length === 0 ? (
+                  {(isPrinting ? flatRows : pageRows).length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
                         Không có dữ liệu
                       </td>
                     </tr>
                   ) : (
-                    pageRows.map((row, idx) => {
+                    (isPrinting ? flatRows : pageRows).map((row, idx) => {
                       if (row.kind === "group") {
                         const g   = row.group;
                         const gid = g.groupId ?? "__no_group__";
@@ -767,10 +863,10 @@ function ItemRow({
       }}
     >
       <td style={{ ...td, textAlign: "center", color: "#cbd5e1", fontSize: 11 }}>{rowNum}</td>
-      <td style={{ ...td, fontFamily: "monospace", color: "#6d28d9", fontSize: 12, paddingLeft: 24 }}>
+      <td style={{ ...td, fontFamily: "monospace", color: "#6d28d9", fontSize: 12, paddingLeft: 8 }}>
         {item.goodsId}
       </td>
-      <td style={{ ...td, paddingLeft: 24 }}>{item.goodsName}</td>
+      <td style={{ ...td, paddingLeft: 8 }}>{item.goodsName}</td>
       <td style={{ ...td, textAlign: "center", color: "#475569" }}>{item.unit}</td>
       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtNum(item.opening)}</td>
       <td style={{ ...td, textAlign: "right", color: "#059669", fontVariantNumeric: "tabular-nums" }}>{fmtNum(item.inbound)}</td>
