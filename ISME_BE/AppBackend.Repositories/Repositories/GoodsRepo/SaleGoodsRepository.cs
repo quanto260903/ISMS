@@ -35,7 +35,7 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                 .FirstOrDefaultAsync(v =>
                     v.VoucherId == voucherId &&
                     v.VoucherCode != null &&
-                    v.VoucherCode.StartsWith("BH"));
+                    v.VoucherCode.StartsWith("XK"));
         }
 
         public async Task<bool> IsUsedForNk2ReturnAsync(string saleVoucherId)
@@ -48,20 +48,37 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
         public async Task<List<SaleSearchResult>> SearchAsync(string keyword, int limit)
         {
             var kw = keyword.Trim().ToLower();
+
             return await _context.Vouchers
                 .Include(v => v.VoucherDetails)
-                .Where(v => v.VoucherCode != null && v.VoucherCode.StartsWith("BH")
-                    && (v.VoucherId.ToLower().Contains(kw)
-                        || (v.CustomerName != null && v.CustomerName.ToLower().Contains(kw))))
+                .Where(v =>
+                    v.VoucherCode != null &&
+                    v.VoucherCode == "XK4" &&
+                    (
+                        v.VoucherId.ToLower().Contains(kw) ||
+                        (
+                            v.CustomerName != null &&
+                            v.CustomerName.ToLower().Contains(kw)
+                        )
+                    )
+                )
                 .OrderByDescending(v => v.VoucherDate)
                 .Take(limit)
                 .Select(v => new SaleSearchResult
                 {
-                    VoucherId    = v.VoucherId,
-                    VoucherDate  = v.VoucherDate.HasValue ? v.VoucherDate.Value.ToString("yyyy-MM-dd") : null,
+                    VoucherId = v.VoucherId,
+
+                    VoucherDate = v.VoucherDate.HasValue
+                        ? v.VoucherDate.Value.ToString("yyyy-MM-dd")
+                        : null,
+
                     CustomerName = v.CustomerName,
-                    TotalAmount  = v.VoucherDetails.Where(d => d.Amount1.HasValue).Sum(d => (decimal)d.Amount1!.Value),
-                    ItemCount    = v.VoucherDetails.Count,
+
+                    TotalAmount = v.VoucherDetails
+                        .Where(d => d.Amount1.HasValue)
+                        .Sum(d => (decimal)d.Amount1!.Value),
+
+                    ItemCount = v.VoucherDetails.Count,
                 })
                 .ToListAsync();
         }
@@ -96,20 +113,20 @@ namespace AppBackend.Repositories.Repositories.GoodsRepo
                 .Take(pageSize)
                 .Select(v => new SaleListItem
                 {
-                    VoucherId    = v.VoucherId,
-                    VoucherDate  = v.VoucherDate.HasValue ? v.VoucherDate.Value.ToString("yyyy-MM-dd") : null,
+                    VoucherId = v.VoucherId,
+                    VoucherDate = v.VoucherDate.HasValue ? v.VoucherDate.Value.ToString("yyyy-MM-dd") : null,
                     CustomerName = v.CustomerName,
-                    TotalAmount  = v.VoucherDetails.Where(d => d.Amount1.HasValue).Sum(d => (decimal)d.Amount1!.Value),
-                    ItemCount    = v.VoucherDetails.Count,
+                    TotalAmount = v.VoucherDetails.Where(d => d.Amount1.HasValue).Sum(d => (decimal)d.Amount1!.Value),
+                    ItemCount = v.VoucherDetails.Count,
                 })
                 .ToListAsync();
 
             return new SaleListResult
             {
-                Items      = items,
-                Total      = total,
-                Page       = page,
-                PageSize   = pageSize,
+                Items = items,
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
                 GrandTotal = grandTotal,
             };
         }
